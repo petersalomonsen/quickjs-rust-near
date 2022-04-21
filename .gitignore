@@ -1,0 +1,5 @@
+/target
+/wasi-sdk*
+node_modules
+neardev
+out
