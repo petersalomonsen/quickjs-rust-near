@@ -11,7 +11,7 @@ fn main() {
     println!("cargo:rustc-link-lib=static=quickjs");
     println!("cargo:rustc-link-lib=static=test");
     println!("cargo:rustc-link-lib=static=c-optz");
-    println!("cargo:rustc-link-lib=static=emmalloc");
+    println!("cargo:rustc-link-lib=static=dlmalloc");
     println!("cargo:rustc-link-lib=static=compiler_rt");
     println!("cargo:rustc-link-lib=static=standalonewasm");
 }

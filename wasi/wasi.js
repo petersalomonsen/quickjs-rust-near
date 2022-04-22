@@ -199,6 +199,10 @@ export class Wasi {
     return WASI_ESUCCESS;
   }
 
+  random_get = () => {
+    return 0;
+  };
+
   fd_fdstat_get = (fd, stat) => {
     if (!(fd === 1 | fd === 2)) {
       return WASI_ERRNO_BADF
