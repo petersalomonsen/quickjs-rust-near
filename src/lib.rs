@@ -27,4 +27,10 @@ impl Scripts {
     pub fn run_script(&self, script: String) -> String {
         return jslib::run_js(script).to_string();
     }
+
+    /*
+    pub fn direct_script(&self) {
+        println!("hello {}",jslib::run_js("(function() {return 'tester'.length+8+16})();".to_string()));
+
+    } */
 }
