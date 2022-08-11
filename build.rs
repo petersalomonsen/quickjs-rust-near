@@ -9,7 +9,7 @@ fn main() {
     let dir = env::var("CARGO_MANIFEST_DIR").unwrap();
     println!("cargo:rustc-link-search=native={}", Path::new(&dir).join("lib").display());
     println!("cargo:rustc-link-lib=static=quickjs");
-    println!("cargo:rustc-link-lib=static=test");
+    println!("cargo:rustc-link-lib=static=jseval");
     println!("cargo:rustc-link-lib=static=c-optz");
     println!("cargo:rustc-link-lib=static=dlmalloc");
     println!("cargo:rustc-link-lib=static=compiler_rt");

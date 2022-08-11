@@ -35,7 +35,7 @@
             "keccak512": () => console.log(''),
             "value_return" : () => console.log('value_return'),
             "panic" : () => console.log('panic'),
-            "panic_utf8": () => console.log(''),
+            "panic_utf8": () => {throw new Error()},
             "log_utf8": () => console.log(''),
             "log_utf16": () => console.log(''),
             "promise_create" : () => console.log('promise_create'),
