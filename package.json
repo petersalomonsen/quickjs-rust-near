@@ -1,6 +1,5 @@
 {
   "type": "module",
   "dependencies": {
-    "near-api-js": "^0.44.2"
   }
 }
