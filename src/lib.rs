@@ -1,11 +1,12 @@
-use near_sdk::{near_bindgen};
+use std::collections::HashMap;
+use near_sdk::{env,near_bindgen,AccountId};
 use near_sdk::borsh::{self, BorshDeserialize,BorshSerialize};
 mod jslib;
 
 #[near_bindgen]
 #[derive(Default, BorshDeserialize, BorshSerialize)]
 pub struct Scripts {
-
+    scripts: HashMap<AccountId, String>
 }
 
 #[near_bindgen]
