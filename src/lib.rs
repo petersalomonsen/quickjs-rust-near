@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use near_sdk::{near_bindgen,AccountId, base64};
 use near_sdk::borsh::{self, BorshDeserialize,BorshSerialize};
 mod jslib;
+mod wasimock;
 
 #[near_bindgen]
 #[derive(Default, BorshDeserialize, BorshSerialize)]

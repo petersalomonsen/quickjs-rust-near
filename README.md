@@ -11,56 +11,15 @@ The contract has two functions:
 
 For building the contract:
 
-```
-cargo build --target=wasm32-wasi
-mv target/wasm32-wasi/debug/quickjs_rust.wasm main.wasm
-wasm2wat main.wasm -o main.wat
-```
+`RUSTFLAGS='-C link-arg=-s' cargo build --target=wasm32-unknown-unknown --release`
 
-We need to hack the main.wat a bit to just "mock" the WASI imports. Replace:
+Copy to the deploy dir (make sure to create the `out` directory first):
 
+`cp target/wasm32-unknown-unknown/release/quickjs_rust_near.wasm out/main.wasm`
 
-```
-  (import "env" "_tzset_js" (func $_tzset_js (type 1)))
-  (import "env" "_localtime_js" (func $_localtime_js (type 3)))
-  (import "env" "_emscripten_date_now" (func $_emscripten_date_now (type 54)))
-  (import "wasi_snapshot_preview1" "fd_write" (func $__wasi_fd_write (type 4)))
-  (import "wasi_snapshot_preview1" "fd_close" (func $__wasi_fd_close (type 21)))
-  (import "wasi_snapshot_preview1" "fd_seek" (func $__wasi_fd_seek (type 55)))
-  (import "wasi_snapshot_preview1" "proc_exit" (func $__wasi_proc_exit (type 36)))
-  (import "env" "__syscall_getcwd" (func $__syscall_getcwd (type 5)))
-  (import "wasi_snapshot_preview1" "environ_sizes_get" (func $__wasi_environ_sizes_get (type 5)))
-  (import "wasi_snapshot_preview1" "environ_get" (func $__wasi_environ_get (type 5)))
-  (import "wasi_snapshot_preview1" "random_get" (func $_ZN4wasi13lib_generated22wasi_snapshot_preview110random_get17h8ae42acb951b1f06E (type 5)))
-```
-with
+deploying it:
 
-```
-    (func $_tzset_js (type 1) nop)
-    (func $_localtime_js (type 3) nop)
-    (func $_emscripten_date_now (type 54) f64.const 0)
-    (func $__wasi_fd_write (type 4) i32.const 0)
-    (func $__wasi_fd_close (type 21) i32.const 0)
-    (func $__wasi_fd_seek (type 55) i32.const 0)
-    (func $__wasi_proc_exit (type 36) nop)
-    (func $__syscall_getcwd (type 5) i32.const 0)
-    (func $__wasi_environ_sizes_get (type 5) i32.const 0)
-    (func $__wasi_environ_get (type 5) i32.const 0)
-    (func $_ZN4wasi13lib_generated22wasi_snapshot_preview110random_get17h8ae42acb951b1f06E (type 5) i32.const 0)
-```
-
-then finally convert the `main.wat` back to a wasm file and optimize it
-
-```
-wat2wasm main.wat
-wasm-opt -Oz main.wasm -o out/main.wasm
-```
-
-and deploy it:
-
-```
-near dev-deploy
-```
+`near dev-deploy`
 
 Test running javascript as text:
 
@@ -78,6 +37,7 @@ near call dev-1650299983789-21350249865305 --accountId=psalomo.testnet run_bytec
 
 # TODO
 
-- Implement WASI methods in a linkable library so that WAT file does not have to be edited manually
+- (DONE) Implement (mock) WASI methods in a linkable library so that WAT file does not have to be edited manually
 - Implement Web interface for copying base64 encoded bytecode to clipboard (in https://github.com/petersalomonsen/quickjs-wasm-near)
+- Integration/Unit testing support
 - Expose NEAR environment to JS runtime

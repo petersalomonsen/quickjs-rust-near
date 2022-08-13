@@ -1,5 +1,5 @@
 /target
 /wasi-sdk*
 node_modules
-neardev
+neardev*
 out
