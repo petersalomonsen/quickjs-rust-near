@@ -6,8 +6,8 @@ This is a Proof of Concept of embedding QuickJS with https://github.com/near/nea
 The QuickJS runtime is compiled from https://github.com/petersalomonsen/quickjs-wasm-near
 
 The contract has two functions:
-- `run_script` accepting javascript as text for compiling on the fly. This however have the limitations that it may use more than the max allowed gas
-- `run_bytecode` for running JS pre-compiled into the QuickJS bytecode format. This is the preferred way of running JS. Send the pre-compiled bytecode as a base64 string. See https://github.com/petersalomonsen/quickjs-wasm-near/blob/master/web/compiler/compile.spec.js for examples on compiling JS to QuickJS bytecode.
+- `run_script` accepting javascript as text for compiling on the fly.
+- `run_bytecode` for running JS pre-compiled into the QuickJS bytecode format. Send the pre-compiled bytecode as a base64 string. See https://github.com/petersalomonsen/quickjs-wasm-near/blob/master/web/compiler/compile.spec.js for examples on compiling JS to QuickJS bytecode.
 
 For building the contract:
 
