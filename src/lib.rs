@@ -3,7 +3,6 @@ use near_sdk::{env, near_bindgen, base64};
 use near_sdk::borsh::{self, BorshDeserialize,BorshSerialize};
 mod jslib;
 mod wasimock;
-
 #[near_bindgen]
 #[derive(Default, BorshDeserialize, BorshSerialize)]
 pub struct Scripts {
@@ -31,5 +30,19 @@ impl Scripts {
     pub fn run_script_for_account(&self, account_id: String) -> String {
         let bytecode = self.scripts.get(&account_id).unwrap().to_vec();
         return jslib::run_js_bytecode(bytecode).to_string();    
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::Scripts;
+    mod nearmock;
+
+    #[test]
+    fn test_run_script() {
+        let contract = Scripts::default();
+        
+        let result = contract.run_script("print('hello');(1+2+3);".to_string());
+        assert_eq!("6".to_string(), result);
     }
 }

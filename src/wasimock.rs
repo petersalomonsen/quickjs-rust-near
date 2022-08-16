@@ -136,3 +136,8 @@ pub extern "C" fn __wasi_clock_res_get(_p1: i32, _p2: i32) -> i32 {
     env::log_str("__wasi_clock_res_get");
     return 0;
 }
+
+#[no_mangle]
+pub extern "C" fn __wasilibc_find_relpath(_p1: i32, _p2: i32, _p3: i32, _p4: i32) -> i32 {
+  return -1;
+}
