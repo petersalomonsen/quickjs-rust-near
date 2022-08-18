@@ -36,10 +36,24 @@ impl Scripts {
 #[cfg(test)]
 mod tests {
     use crate::Scripts;
+    use std::io::{self, Write};
     mod nearmock;
+
+    use std::sync::Once;
+
+    static INIT: Once = Once::new();
+
+    pub fn setup() {
+        INIT.call_once(|| {
+            std::panic::set_hook(Box::new(|panic_info| {
+                let _ = writeln!(io::stderr(), "{}", panic_info);
+            }));
+        });
+    }
 
     #[test]
     fn test_run_script() {
+        setup();
         let contract = Scripts::default();
         
         let result = contract.run_script("print('hello');(1+2+3);".to_string());
