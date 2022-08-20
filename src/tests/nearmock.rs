@@ -1,5 +1,10 @@
+use lazy_static::lazy_static;
+use std::{collections::HashMap, sync::Mutex};
+
 /*
-(type $t40 (func (result i32)))
+  Mock of the following Contract WebAssembly imports
+
+  (type $t40 (func (result i32)))
   (type $t41 (func (param i32 f64 i32 i32 i32 i32) (result i32)))
   (type $t42 (func (param i64 i64)))
   (type $t43 (func (param i64) (result i64)))
@@ -7,7 +12,7 @@
   (type $t45 (func (param i64 i64 i64 i64 i64) (result i64)))
   (type $t46 (func (param i64 i64 i64) (result i64)))
 
-(import "env" "read_register" (func $read_register (type $t42)))
+  (import "env" "read_register" (func $read_register (type $t42)))
   (import "env" "register_len" (func $register_len (type $t43)))
   (import "env" "signer_account_id" (func $signer_account_id (type $t44)))
   (import "env" "input" (func $input (type $t44)))
@@ -17,17 +22,33 @@
   (import "env" "log_utf8" (func $log_utf8 (type $t42)))
   (import "env" "storage_write" (func $storage_write (type $t45)))
   (import "env" "storage_read" (func $storage_read (type $t46)))
-   */
-#[no_mangle]
-pub extern "C" fn read_register(_p1: i64, _p2: i64) {}
+*/
 
-#[no_mangle]
-pub extern "C" fn register_len(_p1: i64) -> i64 {
-    return 0;
+lazy_static! {
+    static ref REGISTERS: Mutex<HashMap<i64, Vec<u8>>> = Mutex::new(HashMap::new());
 }
 
 #[no_mangle]
-pub extern "C" fn signer_account_id(_p1: i64) {}
+pub extern "C" fn read_register(register_id: i64, data_ptr: i64) {
+    let registers = REGISTERS.lock().unwrap();
+    let src = registers.get(&register_id).unwrap().to_vec();
+
+    unsafe {
+        std::ptr::copy(src.as_ptr(), data_ptr as *mut u8, src.len());
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn register_len(register_id: i64) -> i64 {
+    let registers = REGISTERS.lock().unwrap();
+    return (registers.get(&register_id).unwrap().to_vec()).len() as i64;
+}
+
+#[no_mangle]
+pub extern "C" fn signer_account_id(register: i64) {
+    let mut registers = REGISTERS.lock().unwrap();
+    registers.insert(register, "test.near".to_string().into_bytes());
+}
 
 #[no_mangle]
 pub extern "C" fn input(_p1: i64) {}
