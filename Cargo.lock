@@ -1003,6 +1003,7 @@ name = "quickjs-rust-near"
 version = "0.1.0"
 dependencies = [
  "bindgen",
+ "lazy_static",
  "near-sdk",
 ]
 

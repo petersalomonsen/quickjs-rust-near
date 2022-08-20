@@ -1,3 +1,6 @@
+use std::slice;
+use std::ffi::CString;
+
 extern "C" {
     fn create_runtime();
     fn js_eval(filename: i32, script: i32, is_module: i32) -> i32;
@@ -7,9 +10,12 @@ extern "C" {
 
 pub fn run_js(script: String) -> i32 {
     let result: i32;
+    let filename = CString::new("main.js").unwrap();
+    let scriptstring = CString::new(script).unwrap();
+        
     unsafe {
         create_runtime();
-        result = js_eval("main.js".as_ptr() as i32, script.as_ptr() as i32, 0);
+        result = js_eval(filename.as_ptr() as i32, scriptstring.as_ptr() as i32, 0);
     }
     return result;
 }
@@ -29,13 +35,15 @@ pub fn compile_js(script: String) -> Vec<u8> {
         create_runtime();
         let mut out_buf_len: usize = 0;
         let out_buf_len_ptr: *mut usize = &mut out_buf_len;
+        let filename = CString::new("main.js").unwrap();
+        let scriptstring = CString::new(script).unwrap();
         let result_ptr = js_compile_to_bytecode(
-            "main.js".as_ptr() as i32,
-            script.as_ptr() as i32,
+            filename.as_ptr() as i32,
+            scriptstring.as_ptr() as i32,
             out_buf_len_ptr as i32,
             0
         );
-        result = Vec::from_raw_parts(result_ptr as *mut u8, out_buf_len, out_buf_len);
+        result = slice::from_raw_parts(result_ptr as *mut u8, out_buf_len).to_vec();
     }
     return result;
 }
