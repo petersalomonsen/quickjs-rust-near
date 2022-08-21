@@ -37,17 +37,24 @@ near call dev-1650299983789-21350249865305 --accountId=psalomo.testnet run_bytec
 
 # Testing
 
-Trying to run tests with `wasm32` targets will not work out of the box:
+Trying to run tests with `wasm32` targets will not work out of the box. As you will see from running the command below, it will fail when trying to run the compiled test file.
 
 `cargo test --target=wasm32-wasi`
 
-but you can run the wasm file it produces with a WebAssembly runtime like wasmer or wasmtime.
+but you can run the wasm file it produces with a WebAssembly runtime like [wasmtime](http://wasmtime.dev), [wasmer](https://wasmer.io/) or [wasm3](https://github.com/wasm3/wasm3/).
+
+Have a look at [test.sh](./test.sh) and try running it and you'll see that it outputs results just like when running normal tests in Rust. 
 
 # TODO
 
 - **DONE** Implement (mock) WASI methods in a linkable library so that WAT file does not have to be edited manually
-- **In progress** Integration/Unit testing support
+- **In progress** Integration/Unit testing support for Wasm32 target ( which is not supported with near-sdk-rs, see https://github.com/near/near-sdk-rs/issues/467 )
   - **DONE** Running tests
-  - Displaying errors (needs a panic hook)
-- Implement Web interface for copying base64 encoded bytecode to clipboard (in https://github.com/petersalomonsen/quickjs-wasm-near)
+  - **DONE** Displaying errors (needs a panic hook)
+  - **DONE** Minimum NEAR mock env
+  - Implement more methods in the NEAR mock env
+- Local simulation in browser/node Wasm runtime with mocked NEAR env in JavaScript
+- End to End tests (testnet)
 - Expose NEAR environment to JS runtime
+- Implement Web interface for copying base64 encoded bytecode to clipboard (in https://github.com/petersalomonsen/quickjs-wasm-near)
+
