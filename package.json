@@ -1,0 +1,16 @@
+{
+    "name": "quickjs-rust-near",
+    "type": "module",
+    "scripts": {
+        "e2e": "jest"
+    },
+    "jest": {
+        "transform": {}
+    },
+    "devDependencies": {
+        "jest": "^28.1.3"
+    },
+    "dependencies": {
+        "near-api-js": "^0.45.1"
+    }
+}
