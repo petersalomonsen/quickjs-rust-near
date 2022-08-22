@@ -36,24 +36,13 @@ impl Scripts {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::io::{self, Write};
-    mod nearmock;
 
-    use std::sync::Once;
-
-    static INIT: Once = Once::new();
-
-    pub fn setup() {
-        INIT.call_once(|| {
-            std::panic::set_hook(Box::new(|panic_info| {
-                let _ = writeln!(io::stderr(), "{}", panic_info);
-            }));
-        });
-    }
+    mod testenv;
+    use testenv::{alice, set_signer_account_id, setup_test_env};
 
     #[test]
     fn test_run_script() {
-        setup();
+        setup_test_env();
         let contract = Scripts::default();
 
         let result = contract.run_script("print('hello');(1+2+3);".to_string());
@@ -62,11 +51,22 @@ mod tests {
 
     #[test]
     fn test_submit_and_run_stored_script() {
-        setup();
+        setup_test_env();
+        set_signer_account_id(alice());
         let mut contract = Scripts::default();
 
         contract.submit_script("(function () { return 15+4+3; })()".to_string());
-        let result = contract.run_script_for_account("test.near".to_string());
+        let result = contract.run_script_for_account(alice().to_string());
         assert_eq!("22".to_string(), result);
+    }
+
+    #[test]
+    fn test_run_bytecode() {
+        setup_test_env();
+
+        let contract = Scripts::default();
+
+        let result = contract.run_bytecode("AgQKcGFyc2UUeyJhIjogMjIyfQJhGDxldmFsc291cmNlPg4ABgCgAQABAAMAABsBogEAAAA4mwAAAELeAAAABN8AAAAkAQBB4AAAALidzSjCAwEA".to_string());
+        assert_eq!("225".to_string(), result);
     }
 }
