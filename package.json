@@ -2,7 +2,7 @@
     "name": "quickjs-rust-near",
     "type": "module",
     "scripts": {
-        "e2e": "jest"
+        "e2e": "NODE_OPTIONS=--experimental-vm-modules jest"
     },
     "jest": {
         "transform": {}

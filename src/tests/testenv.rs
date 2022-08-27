@@ -144,6 +144,13 @@ pub extern "C" fn storage_read(_p1: i64, _p2: i64, _p3: i64) -> i64 {
     return 0;
 }
 
+pub fn assert_latest_return_value_string_eq(expected_return_value: String) {
+    assert_eq!(
+        std::str::from_utf8(TESTENV.lock().unwrap().returned_value.as_ref()).unwrap(),
+        expected_return_value
+    );
+}
+
 #[cfg(test)]
 mod tests {
     use super::TESTENV;

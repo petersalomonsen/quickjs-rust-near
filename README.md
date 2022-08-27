@@ -48,13 +48,13 @@ Have a look at [test.sh](./test.sh) and try running it and you'll see that it ou
 # TODO
 
 - **DONE** Implement (mock) WASI methods in a linkable library so that WAT file does not have to be edited manually
-- **In progress** Integration/Unit testing support for Wasm32 target ( which is not supported with near-sdk-rs, see https://github.com/near/near-sdk-rs/issues/467 )
+- **DONE** Integration/Unit testing support for Wasm32 target ( which is not supported with near-sdk-rs, see https://github.com/near/near-sdk-rs/issues/467 )
   - **DONE** Running tests
   - **DONE** Displaying errors (needs a panic hook)
-  - **DONE** Minimum NEAR mock env
-  - Implement more methods in the NEAR mock env
+  - **DONE** Minimum NEAR mock env  
 - Local simulation in browser/node Wasm runtime with mocked NEAR env in JavaScript
-- End to End tests (testnet)
-- Expose NEAR environment to JS runtime
+- **DONE** End to End tests (testnet)
+- **In progress** Expose NEAR environment in JS runtime
+  - **DONE** `env.value_return`
 - Implement Web interface for copying base64 encoded bytecode to clipboard (in https://github.com/petersalomonsen/quickjs-wasm-near)
 
