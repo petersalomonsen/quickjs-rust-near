@@ -1,4 +1,4 @@
-import { connect, keyStores, WalletConnection } from 'near-api-js';
+import { connect, keyStores } from 'near-api-js';
 import { homedir } from 'os';
 import { readFile } from 'fs/promises';
 
@@ -24,7 +24,7 @@ test('should run custom javascript in contract', async () => {
     });
     expect(result.receipts_outcome[0].outcome.logs[0]).toBe('hello');
     expect(Buffer.from(result.status.SuccessValue, 'base64').toString()).toBe('"1234"');
-});
+}, 20000);
 
 test('should submit javascript and call ', async () => {
     const nearConnection  = await connect(connectionConfig);    
@@ -47,3 +47,4 @@ test('should submit javascript and call ', async () => {
     expect(result.receipts_outcome[0].outcome.logs[0]).toBe('world');
     expect(Buffer.from(result.status.SuccessValue, 'base64').toString()).toBe('"5678"');
 }, 20000);
+

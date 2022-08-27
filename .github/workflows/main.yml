@@ -27,4 +27,4 @@ jobs:
           mkdir out
           ./buildanddeploy.sh
           yarn install
-          yarn node --experimental-vm-modules $(yarn bin jest);
+          yarn e2e
