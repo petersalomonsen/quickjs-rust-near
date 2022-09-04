@@ -2,13 +2,20 @@
     "name": "quickjs-rust-near",
     "type": "module",
     "scripts": {
+        "serve": "http-server -p 8085 web4",
+        "serve-dist": "http-server -p 8085 web4/dist",
+        "web4bundle": "cd web4 && rollup -c rollup.config.js",
         "e2e": "NODE_OPTIONS=--experimental-vm-modules jest"
     },
     "jest": {
         "transform": {}
     },
     "devDependencies": {
-        "jest": "^28.1.3"
+        "@web/rollup-plugin-html": "^1.11.0",
+        "http-server": "^14.1.1",
+        "jest": "^28.1.3",
+        "rollup": "^2.79.0",
+        "rollup-plugin-terser": "^7.0.2"
     },
     "dependencies": {
         "near-api-js": "^0.45.1"

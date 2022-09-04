@@ -9,6 +9,7 @@ extern "C" {
     fn createNearEnv();
     fn js_add_near_host_function(name: i32, func: i32, length: i32);
     fn JS_ToCStringLen2(ctx: i32, value_len_ptr: i32, val: i64, b: i32) -> i32;
+    fn JS_NewStringLen(ctx: i32, buf: i32, buf_len: usize) -> i64;
 }
 
 pub const JS_UNDEFINED: i64 = 0x0000000300000000;
@@ -42,18 +43,52 @@ fn value_return_func(ctx: i32, _this_val: i64, _argc: i32, argv: i32) -> i64 {
     return JS_UNDEFINED;
 }
 
+fn input_func(ctx: i32, _this_val: i64, _argc: i32, _argv: i32) -> i64 {
+    let inputbytes = near_sdk::env::input().unwrap();
+    let inputbytes_ptr = inputbytes.as_ptr();
+
+    unsafe {
+        return JS_NewStringLen(ctx, inputbytes_ptr as i32, inputbytes.len());
+    }
+}
+
+fn signer_account_id_func(ctx: i32, _this_val: i64, _argc: i32, _argv: i32) -> i64 {
+    unsafe {
+        let signer_account_id = near_sdk::env::signer_account_id().to_string();
+        let signer_account_id_ptr = signer_account_id.as_ptr();
+        return JS_NewStringLen(ctx, signer_account_id_ptr as i32, signer_account_id.len());
+    }
+}
+
+unsafe fn setup_quickjs() {
+    create_runtime();
+    createNearEnv();
+
+    let value_return_name = CString::new("value_return").unwrap();
+    js_add_near_host_function(
+        value_return_name.as_ptr() as i32,
+        value_return_func as i32,
+        1,
+    );
+
+    let input_name = CString::new("input").unwrap();
+    js_add_near_host_function(input_name.as_ptr() as i32, input_func as i32, 1);
+
+    let signer_account_id_name = CString::new("signer_account_id").unwrap();
+    js_add_near_host_function(
+        signer_account_id_name.as_ptr() as i32,
+        signer_account_id_func as i32,
+        1,
+    );
+}
+
 pub fn run_js(script: String) -> i32 {
     let result: i32;
     let filename = CString::new("main.js").unwrap();
     let scriptstring = CString::new(script).unwrap();
 
-    let value_return = CString::new("value_return").unwrap();
-
     unsafe {
-        create_runtime();
-        createNearEnv();
-        js_add_near_host_function(value_return.as_ptr() as i32, value_return_func as i32, 1);
-
+        setup_quickjs();
         result = js_eval(filename.as_ptr() as i32, scriptstring.as_ptr() as i32, 0);
     }
     return result;
@@ -61,13 +96,9 @@ pub fn run_js(script: String) -> i32 {
 
 pub fn run_js_bytecode(bytecode: Vec<u8>) -> i32 {
     let result: i32;
-    let value_return = CString::new("value_return").unwrap();
 
     unsafe {
-        create_runtime();
-        createNearEnv();
-        js_add_near_host_function(value_return.as_ptr() as i32, value_return_func as i32, 1);
-
+        setup_quickjs();
         result = js_eval_bytecode(bytecode.as_ptr(), bytecode.len());
     }
     return result;
@@ -95,8 +126,10 @@ pub fn compile_js(script: String) -> Vec<u8> {
 #[cfg(test)]
 mod tests {
     use super::run_js;
-
-    use crate::tests::testenv::setup_test_env;
+    use crate::tests::testenv::{
+        alice, assert_latest_return_value_string_eq, set_input, set_signer_account_id,
+        setup_test_env,
+    };
 
     #[test]
     fn test_value_return_should_return_undefined() {
@@ -105,5 +138,21 @@ mod tests {
             run_js("(env.value_return('hello') == undefined ? 1 : 0)".to_string()),
             1
         );
+    }
+
+    #[test]
+    fn test_input_func() {
+        setup_test_env();
+        set_input("{\"a\":   \"b\"}".to_string().into_bytes());
+        run_js("env.value_return(JSON.stringify(JSON.parse(env.input())));".to_string());
+        assert_latest_return_value_string_eq("{\"a\":\"b\"}".to_string());
+    }
+
+    #[test]
+    fn test_signer_account_id_func() {
+        setup_test_env();
+        set_signer_account_id(alice());
+        run_js("env.value_return(env.signer_account_id())".to_string());
+        assert_latest_return_value_string_eq(alice().to_string());
     }
 }

@@ -44,6 +44,7 @@ pub fn carol() -> AccountId {
 
 struct TestEnv {
     signer_account_id: AccountId,
+    input: Vec<u8>,
     returned_value: Vec<u8>,
 }
 
@@ -51,6 +52,7 @@ impl TestEnv {
     pub fn new() -> Self {
         Self {
             signer_account_id: bob(),
+            input: "{}".to_string().into_bytes(),
             returned_value: Vec::default(),
         }
     }
@@ -73,6 +75,11 @@ pub fn setup_test_env() {
 #[allow(dead_code)]
 pub fn set_signer_account_id(account_id: AccountId) {
     TESTENV.lock().unwrap().signer_account_id = account_id;
+}
+
+#[allow(dead_code)]
+pub fn set_input(input: Vec<u8>) {
+    TESTENV.lock().unwrap().input = input;
 }
 
 #[no_mangle]
@@ -106,7 +113,16 @@ pub extern "C" fn signer_account_id(register: i64) {
 }
 
 #[no_mangle]
-pub extern "C" fn input(_p1: i64) {}
+pub extern "C" fn input(register: i64) {
+    let mut registers = REGISTERS.lock().unwrap();
+    registers.insert(
+        register,
+        TESTENV
+            .lock()
+            .unwrap()
+            .input.to_vec()
+    );
+}
 
 #[no_mangle]
 pub extern "C" fn attached_deposit(_p1: i64) {}

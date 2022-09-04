@@ -1,8 +1,11 @@
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::{base64, env, near_bindgen};
+use web4::{WEB_APP_BUNDLE,Web4Request, Web4Response};
 use std::collections::HashMap;
 mod jslib;
 mod wasimock;
+mod web4;
+
 #[near_bindgen]
 #[derive(Default, BorshDeserialize, BorshSerialize)]
 pub struct Scripts {
@@ -35,6 +38,13 @@ impl Scripts {
     pub fn run_script_for_account_no_return(&self, account_id: String) {
         let bytecode = self.scripts.get(&account_id).unwrap().to_vec();
         jslib::run_js_bytecode(bytecode);
+    }
+
+    pub fn web4_get(&self, #[allow(unused_variables)] request: Web4Request) -> Web4Response {
+        Web4Response::Body {
+            content_type: "text/html; charset=UTF-8".to_owned(),
+            body: WEB_APP_BUNDLE.to_owned(),
+        }
     }
 }
 
