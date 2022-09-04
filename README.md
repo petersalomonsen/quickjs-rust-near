@@ -56,5 +56,8 @@ Have a look at [test.sh](./test.sh) and try running it and you'll see that it ou
 - **DONE** End to End tests (testnet)
 - **In progress** Expose NEAR environment in JS runtime
   - **DONE** `env.value_return`
+  - **DONE** `env.input` (no need to load into register first)
+  - **DONE** `env.signer_account_id` (no need to load into register first)
+- **DONE** Web4 hosting showcase
 - Implement Web interface for copying base64 encoded bytecode to clipboard (in https://github.com/petersalomonsen/quickjs-wasm-near)
 
