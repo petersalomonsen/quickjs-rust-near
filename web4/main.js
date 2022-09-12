@@ -79,7 +79,7 @@ async function checkSignedin() {
         } else {
             const remainingAllowance = parseFloat(nearApi.utils.format.formatNearAmount(accessKey.permission.FunctionCall.allowance));
             console.log('remaining allowance', remainingAllowance);
-            if (remainingAllowance < 0.05) {
+            if (remainingAllowance < 0.06) {
                 wc.signOut();
                 await acc.deleteKey(publicKey.toString());
             }
@@ -112,7 +112,7 @@ async function loadMusic(viewOnly) {
 
             postEventList(result);
         } else {
-            const result = await wc.account().functionCall(contractAccountId, 'run_script_for_account_no_return', Object.assign({account_id: accountid}, JSON.parse(paramsjson)), '300000000000000');
+            const result = await wc.account().functionCall(contractAccountId, 'run_script_for_account_no_return', Object.assign({account_id: accountid}, JSON.parse(paramsjson)), '60000000000000');
             setStatusText(`playing from account <span class="codeblock">${accountid}</span><p>${JSON.stringify(result)}</p>`);
 
             postEventList(JSON.parse(atob(result.status.SuccessValue)));
@@ -131,6 +131,6 @@ document.querySelector('#submitmusicbutton').addEventListener('click', async () 
     
     setStatusText(`posting music script`);
     const wc = await checkSignedin();
-    const result = await wc.account().functionCall(contractAccountId, 'submit_script', {script: musicscript}, '300000000000000');
+    const result = await wc.account().functionCall(contractAccountId, 'submit_script', {script: musicscript}, '60000000000000');
     setStatusText(JSON.stringify(result));
 });
