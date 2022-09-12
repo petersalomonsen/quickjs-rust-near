@@ -45,6 +45,11 @@ Javascript inside Rust smart contract
 - Generate music on-chain
 - Evaluate user args from JS
 - Even require a signed transaction
+- GOAL: Provide a user interface for game creators 
+  - Customize music for the game
+  - Extract parts, with selected instruments
+  - Create loops
+  - Composer can publish music accessible for the game creator
   
 ------
 
