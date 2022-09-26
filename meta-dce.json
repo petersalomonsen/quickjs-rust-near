@@ -1,0 +1,42 @@
+[ 
+    { 
+      "name": "web4_get", 
+      "export": "web4_get",
+      "root": true
+    },    
+    { 
+      "name": "store_signing_key", 
+      "export": "store_signing_key",
+      "root": true
+    },
+    { 
+      "name": "run_script", 
+      "export": "run_script",
+      "root": true
+    },
+    { 
+      "name": "run_bytecode", 
+      "export": "run_bytecode",
+      "root": true
+    },
+    { 
+      "name": "submit_script", 
+      "export": "submit_script",
+      "root": true
+    },
+    { 
+      "name": "run_script_for_account", 
+      "export": "run_script_for_account",
+      "root": true
+    },
+    { 
+      "name": "run_script_for_account_no_return", 
+      "export": "run_script_for_account_no_return",
+      "root": true
+    },
+    { 
+      "name": "web4_get", 
+      "export": "web4_get",
+      "root": true
+    }
+]

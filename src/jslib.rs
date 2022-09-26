@@ -1,5 +1,6 @@
 use std::ffi::CString;
 use std::slice;
+use crate::viewaccesscontrol::{verify_message_signed_by_account};
 
 extern "C" {
     fn create_runtime();
@@ -13,6 +14,23 @@ extern "C" {
 }
 
 pub const JS_UNDEFINED: i64 = 0x0000000300000000;
+pub const JS_FALSE: i64 = 0x0000000100000000;
+pub const JS_TRUE: i64 = 0x0000000100000001;
+
+fn arg_to_str(ctx: i32, arg_no: i32, argv: i32) -> String {
+    let mut value_len: usize= 0;
+    let value_len_ptr: *mut usize = &mut value_len as *mut usize;
+    let argv_ptr = (argv + (arg_no * 8)) as *const i64;
+
+    let value_string: String;
+    let value_bytes: Vec<u8>;
+    unsafe {
+        let value_ptr = JS_ToCStringLen2(ctx, value_len_ptr as i32, *argv_ptr, 0) as *const u8;
+        value_bytes = std::slice::from_raw_parts(value_ptr, value_len).to_vec();
+    }
+    value_string = String::from_utf8(value_bytes).unwrap();
+    return value_string;
+}
 
 /**
  * From near_sdk_js
@@ -60,6 +78,17 @@ fn signer_account_id_func(ctx: i32, _this_val: i64, _argc: i32, _argv: i32) -> i
     }
 }
 
+fn verify_signed_message_func(ctx: i32, _this_val: i64, _argc: i32, argv: i32) -> i64 {
+    let message = arg_to_str(ctx, 0, argv);
+    let signature = arg_to_str(ctx, 1, argv);
+    let account = arg_to_str(ctx, 2, argv);
+    if verify_message_signed_by_account(message, signature, account) {
+        return JS_TRUE;
+    } else {
+        return JS_FALSE;
+    }
+}
+
 unsafe fn setup_quickjs() {
     create_runtime();
     createNearEnv();
@@ -80,6 +109,10 @@ unsafe fn setup_quickjs() {
         signer_account_id_func as i32,
         1,
     );
+
+    let verify_signed_message_name = CString::new("verify_signed_message").unwrap();
+    js_add_near_host_function(verify_signed_message_name.as_ptr() as i32,
+            verify_signed_message_func as i32, 2);
 }
 
 pub fn run_js(script: String) -> i32 {
@@ -128,8 +161,9 @@ mod tests {
     use super::run_js;
     use crate::tests::testenv::{
         alice, assert_latest_return_value_string_eq, set_input, set_signer_account_id,
-        setup_test_env,
+        setup_test_env
     };
+    use crate::viewaccesscontrol::{store_signing_key_for_account};
 
     #[test]
     fn test_value_return_should_return_undefined() {
@@ -154,5 +188,14 @@ mod tests {
         set_signer_account_id(alice());
         run_js("env.value_return(env.signer_account_id())".to_string());
         assert_latest_return_value_string_eq(alice().to_string());
+    }
+
+    #[test]
+    fn test_verify_signed_message_func() {
+        setup_test_env();
+        set_signer_account_id(alice());
+        store_signing_key_for_account();
+        run_js("env.value_return(env.verify_signed_message('invitation1','LtXiPcOxOC8n5/qiICscp3P5Ku8ymC3gj1eYJuq8GFR9co2pZYwbWLBiu5CrtVFtvmeWwMzOIkp4tJaosJ40Dg==', 'alice.near') ? 'valid' : 'invalid')".to_string());
+        assert_latest_return_value_string_eq("valid".to_string());
     }
 }

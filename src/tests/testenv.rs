@@ -1,5 +1,5 @@
 use lazy_static::lazy_static;
-use near_sdk::AccountId;
+use near_sdk::{AccountId, PublicKey};
 use std::io::{self, Write};
 use std::sync::Once;
 use std::{collections::HashMap, sync::Mutex};
@@ -44,6 +44,7 @@ pub fn carol() -> AccountId {
 
 struct TestEnv {
     signer_account_id: AccountId,
+    signer_account_pk: PublicKey,
     input: Vec<u8>,
     returned_value: Vec<u8>,
 }
@@ -52,6 +53,7 @@ impl TestEnv {
     pub fn new() -> Self {
         Self {
             signer_account_id: bob(),
+            signer_account_pk: vec![00, 66, 211, 21, 84, 20, 241, 129, 29, 118, 83, 184, 41, 215, 240, 117, 106, 56, 29, 69, 103, 43, 191, 167, 199, 102, 3, 16, 194, 250, 138, 198, 78].try_into().unwrap(),
             input: "{}".to_string().into_bytes(),
             returned_value: Vec::default(),
         }
@@ -60,6 +62,7 @@ impl TestEnv {
 
 lazy_static! {
     static ref REGISTERS: Mutex<HashMap<i64, Vec<u8>>> = Mutex::new(HashMap::new());
+    static ref STORAGE: Mutex<HashMap<Vec<u8>, Vec<u8>>> = Mutex::new(HashMap::new());
     static ref INIT: Once = Once::new();
     static ref TESTENV: Mutex<TestEnv> = Mutex::new(TestEnv::new());
 }
@@ -75,6 +78,11 @@ pub fn setup_test_env() {
 #[allow(dead_code)]
 pub fn set_signer_account_id(account_id: AccountId) {
     TESTENV.lock().unwrap().signer_account_id = account_id;
+}
+
+#[allow(dead_code)]
+pub fn set_signer_account_pk(pk: PublicKey) {
+    TESTENV.lock().unwrap().signer_account_pk = pk;
 }
 
 #[allow(dead_code)]
@@ -113,15 +121,23 @@ pub extern "C" fn signer_account_id(register: i64) {
 }
 
 #[no_mangle]
-pub extern "C" fn input(register: i64) {
+pub extern "C" fn signer_account_pk(register: i64) {
     let mut registers = REGISTERS.lock().unwrap();
     registers.insert(
         register,
         TESTENV
             .lock()
             .unwrap()
-            .input.to_vec()
+            .signer_account_pk
+            .as_bytes()
+            .to_vec(),
     );
+}
+
+#[no_mangle]
+pub extern "C" fn input(register: i64) {
+    let mut registers = REGISTERS.lock().unwrap();
+    registers.insert(register, TESTENV.lock().unwrap().input.to_vec());
 }
 
 #[no_mangle]
@@ -151,13 +167,55 @@ pub extern "C" fn log_utf8(_len: i64, _ptr: i64) {
 }
 
 #[no_mangle]
-pub extern "C" fn storage_write(_p1: i64, _p2: i64, _p3: i64, _p4: i64, _p5: i64) -> i64 {
+pub extern "C" fn storage_has_key(key_len: i64, key_ptr: i64) -> i64 {
+    let keyptr: *const u8 = key_ptr as *const u8;
+    let keylen: usize = key_len as usize;
+    unsafe {
+        let key = std::slice::from_raw_parts(keyptr, keylen).to_vec();
+        return if STORAGE.lock().unwrap().contains_key(&key) {
+            1
+        } else {
+            0
+        };
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn storage_write(
+    key_len: i64,
+    key_ptr: i64,
+    value_len: i64,
+    value_ptr: i64,
+    _register_id: i64,
+) -> i64 {
+    let keyptr: *const u8 = key_ptr as *const u8;
+    let keylen: usize = key_len as usize;
+    let valueptr: *const u8 = value_ptr as *const u8;
+    let valuelen: usize = value_len as usize;
+    unsafe {
+        let key = std::slice::from_raw_parts(keyptr, keylen).to_vec();
+        let val = std::slice::from_raw_parts(valueptr, valuelen).to_vec();
+        STORAGE.lock().unwrap().insert(key, val);
+    }
     return 0;
 }
 
 #[no_mangle]
-pub extern "C" fn storage_read(_p1: i64, _p2: i64, _p3: i64) -> i64 {
-    return 0;
+pub extern "C" fn storage_read(key_len: i64, key_ptr: i64, register_id: i64) -> i64 {
+    let keyptr: *const u8 = key_ptr as *const u8;
+    let keylen: usize = key_len as usize;
+    let mut registers = REGISTERS.lock().unwrap();
+    let storage = STORAGE.lock().unwrap();
+    unsafe {
+        let key = std::slice::from_raw_parts(keyptr, keylen).to_vec();
+        if storage.contains_key(&key) {
+            let ret = storage.get(&key).unwrap().to_vec();
+            registers.insert(register_id, ret);
+            return 1;
+        } else {
+            return 0;
+        }
+    }
 }
 
 pub fn assert_latest_return_value_string_eq(expected_return_value: String) {

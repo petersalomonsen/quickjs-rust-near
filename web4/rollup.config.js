@@ -1,5 +1,5 @@
 import html from '@web/rollup-plugin-html';
-import {terser} from 'rollup-plugin-terser';
+import { terser } from 'rollup-plugin-terser';
 import { readFileSync, unlinkSync, writeFileSync } from 'fs';
 
 export default {
@@ -10,9 +10,10 @@ export default {
     closeBundle: () => {
       const js = readFileSync('dist/main.js').toString();
       const html = readFileSync('dist/index.html').toString()
-            .replace(`<script type="module" src="./main.js"></script>`, `<script type="module">${js}</script>`);
+        .replace(`<script type="module" src="./main.js"></script>`, `<script type="module">${js}</script>`);
       writeFileSync('dist/index.html', html);
       unlinkSync(`dist/main.js`);
+      writeFileSync('../src/web4/webappbundle.rs', `pub static WEB_APP_BUNDLE: &str = "${Buffer.from(html).toString('base64')}";`);
     }
   }],
 };
