@@ -6,7 +6,7 @@ export function AudioWorkletModuleFunc() {
         constructor() {
             super();
             this.processorActive = true;
-            this.playMidiSequence = true;
+            this.isPlaying = true;
             this.currentFrame = 0;
             this.sequenceIndex = 0;
 
@@ -36,8 +36,15 @@ export function AudioWorkletModuleFunc() {
                         currentTime: this.wasmInstance.currentTimeMillis.value,
                         activeVoicesStatusSnapshot: new Uint8Array(this.wasmInstance.memory.buffer,
                             this.wasmInstance.getActiveVoicesStatusSnapshot(),
-                            32*3).slice(0)
+                            32 * 3).slice(0)
                     });
+                }
+
+                if (msg.data.isPlaying != undefined) {
+                    this.isPlaying = msg.data.isPlaying;
+                    if (!this.isPlaying) {
+                        this.allNotesOff();
+                    }
                 }
             };
             this.port.start();
@@ -64,7 +71,7 @@ export function AudioWorkletModuleFunc() {
             if (this.wasmInstance) {
                 let currentTime = this.getCurrentTime();
 
-                if (this.sequence) {
+                if (this.sequence && this.isPlaying) {
                     while (this.sequenceIndex < this.sequence.length &&
                         this.sequence[this.sequenceIndex] && // sometimes this is undefined for yet unkown reasons
                         this.sequence[this.sequenceIndex].time < currentTime) {
@@ -77,16 +84,16 @@ export function AudioWorkletModuleFunc() {
                     if (this.sequenceIndex >= this.sequence.length) {
                         this.currentFrame = 0;
                         this.sequenceIndex = 0;
-                    }                    
+                    }
                 }
+                this.wasmInstance.fillSampleBuffer();
+                output[0].set(new Float32Array(this.wasmInstance.memory.buffer,
+                    this.wasmInstance.samplebuffer,
+                    SAMPLE_FRAMES));
+                output[1].set(new Float32Array(this.wasmInstance.memory.buffer,
+                    this.wasmInstance.samplebuffer + (SAMPLE_FRAMES * 4),
+                    SAMPLE_FRAMES));
             }
-            this.wasmInstance.fillSampleBuffer();
-            output[0].set(new Float32Array(this.wasmInstance.memory.buffer,
-                this.wasmInstance.samplebuffer,
-                SAMPLE_FRAMES));
-            output[1].set(new Float32Array(this.wasmInstance.memory.buffer,
-                this.wasmInstance.samplebuffer + (SAMPLE_FRAMES * 4),
-                SAMPLE_FRAMES));
 
             return this.processorActive;
         }

@@ -1,10 +1,13 @@
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::{base64, env, near_bindgen};
-use web4::{WEB_APP_BUNDLE,Web4Request, Web4Response};
+use web4::types::{Web4Request, Web4Response};
+use web4::webappbundle::WEB_APP_BUNDLE;
 use std::collections::HashMap;
+use viewaccesscontrol::{store_signing_key_for_account};
 mod jslib;
 mod wasimock;
 mod web4;
+mod viewaccesscontrol;
 
 #[near_bindgen]
 #[derive(Default, BorshDeserialize, BorshSerialize)]
@@ -14,6 +17,10 @@ pub struct Scripts {
 
 #[near_bindgen]
 impl Scripts {
+    pub fn store_signing_key() {
+        store_signing_key_for_account();
+    }
+
     pub fn run_script(&self, script: String) -> String {
         return jslib::run_js(script).to_string();
     }

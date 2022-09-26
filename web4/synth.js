@@ -16,7 +16,6 @@ export async function getSynthWasm() {
     data = data.filter((_, idx) => { return idx % 4 === 0 });
     // Extract byte count from first 4 bytes (32-bit, unsigned, little endian)
     const length = data[0] + (data[1] << 8) + (data[2] << 16) + (data[3] << 24);
-    console.log(data.slice(0, 20))
     return data.slice(4, length + 4);
 }
 
