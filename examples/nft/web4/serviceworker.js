@@ -96,8 +96,8 @@ async function createWav() {
             pos += 4;
         }
         
-        if (new Date().getTime() - lastIdleTime > 20) {
-            // release resources every 20 msecs
+        if (new Date().getTime() - lastIdleTime > 50) {
+            // release resources every 50 msecs
             await new Promise(r => setTimeout(r, 0));
             lastIdleTime = new Date().getTime();
             console.log(pos / totalLength);
@@ -111,6 +111,7 @@ let wavpromise;
 self.addEventListener('fetch', (event) =>
     event.respondWith(new Promise(async resolve => {
         if (event.request.url.indexOf('.wav') > -1 && event.request.headers.has('range')) {
+            console.log(wavpromise);
             if (!wavpromise) {
                 wavpromise = createWav();
             }
