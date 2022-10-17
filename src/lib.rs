@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use viewaccesscontrol::{store_signing_key_for_account};
 mod jslib;
 mod wasimock;
-mod web4;
+pub mod web4;
 mod viewaccesscontrol;
 
 #[near_bindgen]
@@ -47,6 +47,7 @@ impl Scripts {
         jslib::run_js_bytecode(bytecode);
     }
 
+    #[cfg(not(feature = "library"))]
     pub fn web4_get(&self, #[allow(unused_variables)] request: Web4Request) -> Web4Response {
         Web4Response::Body {
             content_type: "text/html; charset=UTF-8".to_owned(),
