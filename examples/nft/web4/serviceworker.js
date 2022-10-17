@@ -85,7 +85,7 @@ async function createWav() {
     writeWavHeader(samplesLength, SAMPLERATE, 2, 32, rawsamplesview);
 
     let pos = WAV_HEADER_LENGTH;
-    
+
     let lastIdleTime = new Date().getTime();
     while (pos < totalLength) {
         wasmInstance.playEventsAndFillSampleBuffer();
@@ -95,7 +95,7 @@ async function createWav() {
             rawsamplesview.setFloat32(pos, rightbuffer[bufferpos], true);
             pos += 4;
         }
-        
+
         if (new Date().getTime() - lastIdleTime > 50) {
             // release resources every 50 msecs
             await new Promise(r => setTimeout(r, 0));
@@ -111,28 +111,32 @@ let wavpromise;
 self.addEventListener('fetch', (event) =>
     event.respondWith(new Promise(async resolve => {
         if (event.request.url.indexOf('.wav') > -1 && event.request.headers.has('range')) {
-            console.log(wavpromise);
+
             if (!wavpromise) {
                 wavpromise = createWav();
             }
+
+            while (currentBytePos == 0) {
+                await new Promise(r => setTimeout(() => r(), 20));
+            }
             const range = event.request.headers.get('range').match(/bytes=([0-9]+)-([0-9]*)/);
-            const requestedRangeStart = parseInt(range[1]);
-            let requestedRangeEnd = range[2] ? parseInt(range[2]) : currentBytePos;
+            let rangeStart = parseInt(range[1]);
+            let rangeEnd = range[2] ? parseInt(range[2]) : currentBytePos;
 
-            while(currentBytePos - requestedRangeStart < 1) {
-                await new Promise(r => setTimeout(r, 100));
-            }
-            if (requestedRangeEnd >= currentBytePos) {
-                requestedRangeEnd = currentBytePos - 1;
+            if (rangeEnd >= currentBytePos) {
+                rangeEnd = currentBytePos - 1;
             }
 
-            const returnedRangeEnd = requestedRangeEnd;
-            const respondblob = new Blob([wavfilebytes.buffer.slice(requestedRangeStart, returnedRangeEnd + 1)],{type: 'audio/wav'});
+            if (rangeStart > rangeEnd) {
+                rangeStart = rangeEnd;
+            }
+
+            const respondblob = new Blob([wavfilebytes.buffer.slice(rangeStart, rangeEnd + 1)], { type: 'audio/wav' });
             resolve(new Response(respondblob, {
                 status: 206,
                 statusText: 'Partial Content',
                 headers: {
-                    'Content-Range': `bytes ${requestedRangeStart}-${returnedRangeEnd}/${totalLength}`
+                    'Content-Range': `bytes ${rangeStart}-${rangeEnd}/${totalLength}`
                 }
             }));
         } else {
