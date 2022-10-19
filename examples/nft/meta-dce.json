@@ -1,5 +1,20 @@
 [
   {
+    "name": "nft_mint",
+    "export": "nft_mint",
+    "root": true
+  },
+  {
+    "name": "nft_metadata",
+    "export": "nft_metadata",
+    "root": true
+  },
+  {
+    "name": "new",
+    "export": "new",
+    "root": true
+  },
+  {
     "name": "web4_get",
     "export": "web4_get",
     "root": true
