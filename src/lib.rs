@@ -4,11 +4,10 @@ use web4::types::{Web4Request, Web4Response};
 use web4::webappbundle::WEB_APP_BUNDLE;
 use std::collections::HashMap;
 use viewaccesscontrol::{store_signing_key_for_account};
-mod jslib;
-mod wasimock;
+pub mod jslib;
 pub mod web4;
-mod viewaccesscontrol;
-
+pub mod viewaccesscontrol;
+mod wasimock;
 #[near_bindgen]
 #[derive(Default, BorshDeserialize, BorshSerialize)]
 pub struct Scripts {

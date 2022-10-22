@@ -5,8 +5,10 @@ use crate::viewaccesscontrol::{verify_message_signed_by_account};
 extern "C" {
     fn create_runtime();
     fn js_eval(filename: i32, script: i32, is_module: i32) -> i32;
-    fn js_eval_bytecode(buf: *const u8, buf_len: usize) -> i32;
+    fn js_eval_bytecode(buf: *const u8, buf_len: usize) -> i64;
     fn js_compile_to_bytecode(filename: i32, source: i32, out_buf_len: i32, module: i32) -> i32;
+    fn js_get_property(val: i64, propertyname: i32) -> i64;
+    fn js_get_string(val: i64) -> i32;
     fn createNearEnv();
     fn js_add_near_host_function(name: i32, func: i32, length: i32);
     fn JS_ToCStringLen2(ctx: i32, value_len_ptr: i32, val: i64, b: i32) -> i32;
@@ -127,8 +129,8 @@ pub fn run_js(script: String) -> i32 {
     return result;
 }
 
-pub fn run_js_bytecode(bytecode: Vec<u8>) -> i32 {
-    let result: i32;
+pub fn run_js_bytecode(bytecode: Vec<u8>) -> i64 {
+    let result: i64;
 
     unsafe {
         setup_quickjs();
@@ -158,7 +160,8 @@ pub fn compile_js(script: String) -> Vec<u8> {
 
 #[cfg(test)]
 mod tests {
-    use super::run_js;
+    use super::{run_js, compile_js, run_js_bytecode, js_get_property, js_get_string};
+    use std::ffi::CStr;
     use crate::tests::testenv::{
         alice, assert_latest_return_value_string_eq, set_input, set_signer_account_id,
         setup_test_env
@@ -197,5 +200,17 @@ mod tests {
         store_signing_key_for_account();
         run_js("env.value_return(env.verify_signed_message('invitation1','LtXiPcOxOC8n5/qiICscp3P5Ku8ymC3gj1eYJuq8GFR9co2pZYwbWLBiu5CrtVFtvmeWwMzOIkp4tJaosJ40Dg==', 'alice.near') ? 'valid' : 'invalid')".to_string());
         assert_latest_return_value_string_eq("valid".to_string());
+    }
+
+    #[test]
+    fn test_parse_object() {
+        let bytecode = compile_js("(function () { return {'hello': 'world', 'thenumberis': 42}; })()".to_string());
+        let result = run_js_bytecode(bytecode);
+        unsafe {
+            assert_eq!(42, js_get_property(result, "thenumberis".as_ptr() as i32));
+            let stringjsval = js_get_property(result, "hello".as_ptr() as i32);
+            let str = CStr::from_ptr(js_get_string(stringjsval) as *const i8).to_str().unwrap();
+            assert_eq!("world", str);
+        }
     }
 }
