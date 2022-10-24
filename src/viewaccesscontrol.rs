@@ -58,7 +58,7 @@ pub fn verify_message_signed_by_account(
 #[cfg(test)]
 mod tests {
     use super::{store_signing_key_for_account, verify_message_signed_by_account};
-    use crate::tests::testenv::{alice, set_signer_account_id, setup_test_env, set_signer_account_pk};
+    use crate::testenv::testenv::{alice, set_signer_account_id, setup_test_env, set_signer_account_pk};
 
     #[test]
     fn test_verify_signed_message() {

@@ -7,6 +7,8 @@ use viewaccesscontrol::{store_signing_key_for_account};
 pub mod jslib;
 pub mod web4;
 pub mod viewaccesscontrol;
+pub mod testenv;
+    
 mod wasimock;
 #[near_bindgen]
 #[derive(Default, BorshDeserialize, BorshSerialize)]
@@ -56,13 +58,11 @@ impl Scripts {
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use super::*;
 
-    pub mod testenv;
-    pub mod musicscript;
-    use testenv::{alice, set_signer_account_id, setup_test_env, assert_latest_return_value_string_eq};
-    use musicscript::MUSIC_SCRIPT;
+    use testenv::testenv::{alice, set_signer_account_id, setup_test_env, assert_latest_return_value_string_eq};
+    use testenv::musicscript::MUSIC_SCRIPT;
 
     #[test]
     fn test_run_script() {

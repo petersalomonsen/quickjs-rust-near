@@ -7,8 +7,10 @@ extern "C" {
     fn js_eval(filename: i32, script: i32, is_module: i32) -> i32;
     fn js_eval_bytecode(buf: *const u8, buf_len: usize) -> i64;
     fn js_compile_to_bytecode(filename: i32, source: i32, out_buf_len: i32, module: i32) -> i32;
-    fn js_get_property(val: i64, propertyname: i32) -> i64;
-    fn js_get_string(val: i64) -> i32;
+    fn js_load_bytecode(buf: *const u8, buf_len: usize) -> i64;
+    pub fn js_call_function(mod_obj: i64, function_name: i32) -> i64;
+    pub fn js_get_property(val: i64, propertyname: i32) -> i64;
+    pub fn js_get_string(val: i64) -> i32;
     fn createNearEnv();
     fn js_add_near_host_function(name: i32, func: i32, length: i32);
     fn JS_ToCStringLen2(ctx: i32, value_len_ptr: i32, val: i64, b: i32) -> i32;
@@ -139,6 +141,16 @@ pub fn run_js_bytecode(bytecode: Vec<u8>) -> i64 {
     return result;
 }
 
+pub fn load_js_bytecode(bytecode: Vec<u8>) -> i64 {
+    let result: i64;
+
+    unsafe {
+        setup_quickjs();
+        result = js_load_bytecode(bytecode.as_ptr(), bytecode.len());
+    }
+    return result;
+}
+
 pub fn compile_js(script: String) -> Vec<u8> {
     let result: Vec<u8>;
     unsafe {
@@ -162,7 +174,7 @@ pub fn compile_js(script: String) -> Vec<u8> {
 mod tests {
     use super::{run_js, compile_js, run_js_bytecode, js_get_property, js_get_string};
     use std::ffi::CStr;
-    use crate::tests::testenv::{
+    use crate::testenv::testenv::{
         alice, assert_latest_return_value_string_eq, set_input, set_signer_account_id,
         setup_test_env
     };
