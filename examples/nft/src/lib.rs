@@ -12,6 +12,7 @@ use quickjs_rust_near::jslib::{js_get_property, js_get_string, load_js_bytecode,
 mod web4content;
 use web4content::{INDEX_HTML, MUSIC_WASM, SERVICEWORKER};
 use std::ffi::CStr;
+use std::ffi::CString;
 
 static QUICKJS_BINARY: &'static [u8] = include_bytes!("quickjsbytecode.bin");
 
@@ -84,10 +85,10 @@ impl NonFungibleTokenMetadataProvider for Contract {
         let jsmod = load_js_bytecode(QUICKJS_BINARY.to_vec());
         
         unsafe {
-            let val = js_call_function(jsmod, "nft_metadata".as_ptr() as i32);
-            let name = CStr::from_ptr(js_get_string(js_get_property(val, "name".as_ptr() as i32)) as *const i8).to_str().unwrap();
-            let symbol = CStr::from_ptr(js_get_string(js_get_property(val, "symbol".as_ptr() as i32)) as *const i8).to_str().unwrap();
-            let icon = CStr::from_ptr(js_get_string(js_get_property(val, "icon".as_ptr() as i32)) as *const i8).to_str().unwrap();
+            let val = js_call_function(jsmod, CString::new("nft_metadata").unwrap().as_ptr() as i32);
+            let name = CStr::from_ptr(js_get_string(js_get_property(val, CString::new("name").unwrap().as_ptr() as i32)) as *const i8).to_str().unwrap();
+            let symbol = CStr::from_ptr(js_get_string(js_get_property(val, CString::new("symbol").unwrap().as_ptr() as i32)) as *const i8).to_str().unwrap();
+            let icon = CStr::from_ptr(js_get_string(js_get_property(val, CString::new("icon").unwrap().as_ptr() as i32)) as *const i8).to_str().unwrap();
 
             NFTContractMetadata {
                 spec: NFT_METADATA_SPEC.to_string(),
@@ -111,6 +112,8 @@ mod tests {
     fn test_nft_metadata() {
         setup_test_env();
         let contract = Contract::new();
-        contract.nft_metadata();
+        let metadata = contract.nft_metadata();
+        assert_eq!("Example NEAR non-fungible token".to_string(), metadata.name);
+        assert_eq!("EXAMPLE".to_string(), metadata.symbol);
     }
 }
