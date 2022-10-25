@@ -1,5 +1,6 @@
 use lazy_static::lazy_static;
 use near_sdk::{AccountId, PublicKey};
+use sha2::Digest;
 use std::io::{self, Write};
 use std::sync::Once;
 use std::{collections::HashMap, sync::Mutex};
@@ -112,17 +113,27 @@ pub fn set_input(input: Vec<u8>) {
 #[no_mangle]
 pub extern "C" fn read_register(register_id: i64, data_ptr: i64) {
     let registers = REGISTERS.lock().unwrap();
-    let src = registers.get(&register_id).unwrap().to_vec();
+    let val = registers.get(&register_id);
 
-    unsafe {
-        std::ptr::copy(src.as_ptr(), data_ptr as *mut u8, src.len());
+    if val.is_some() {
+        let src = val.unwrap().to_vec();
+
+        unsafe {
+            std::ptr::copy(src.as_ptr(), data_ptr as *mut u8, src.len());
+        }
     }
 }
 
 #[no_mangle]
 pub extern "C" fn register_len(register_id: i64) -> i64 {
     let registers = REGISTERS.lock().unwrap();
-    return (registers.get(&register_id).unwrap().to_vec()).len() as i64;
+    let val = registers.get(&register_id);
+
+    if val.is_some() {
+        return (val.unwrap().to_vec()).len() as i64;
+    } else {
+        return u64::MAX as i64;
+    }
 }
 
 #[no_mangle]
@@ -292,7 +303,12 @@ pub fn assert_latest_return_value_string_eq(expected_return_value: String) {
 
 #[no_mangle]
 pub extern "C" fn storage_usage() -> i64 {
-    return 0;
+    return STORAGE
+        .lock()
+        .unwrap()
+        .values()
+        .map(|x| x.len() as i64)
+        .sum();
 }
 
 #[no_mangle]
@@ -301,7 +317,18 @@ pub extern "C" fn prepaid_gas() -> i64 {
 }
 
 #[no_mangle]
-pub extern "C" fn sha256(_value_len: i64, _value_ptr: i64, _register_id: i64) {}
+pub extern "C" fn sha256(value_len: i64, value_ptr: i64, register_id: i64) {
+    let valueptr: *const u8 = value_ptr as *const u8;
+    let valuelen: usize = value_len as usize;
+    let mut registers = REGISTERS.lock().unwrap();
+    unsafe {
+        let value = std::slice::from_raw_parts(valueptr, valuelen).to_vec();
+
+        let value_hash = sha2::Sha256::digest(&value);
+        
+        registers.insert(register_id, value_hash.as_slice().to_vec());
+    }
+}
 
 #[no_mangle]
 pub extern "C" fn promise_and(_promise_idx_ptr: i64, _promise_idx_count: i64) -> i64 {
@@ -414,9 +441,7 @@ pub extern "C" fn promise_result(_result_idx: i64, _register_id: i64) -> i64 {
 }
 
 #[no_mangle]
-pub extern "C" fn promise_return(_promise_idx: i64) {
-
-}
+pub extern "C" fn promise_return(_promise_idx: i64) {}
 
 #[cfg(test)]
 mod tests {

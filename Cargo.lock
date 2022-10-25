@@ -1017,6 +1017,7 @@ dependencies = [
  "ed25519-dalek",
  "lazy_static",
  "near-sdk",
+ "sha2 0.10.6",
 ]
 
 [[package]]
