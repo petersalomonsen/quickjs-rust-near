@@ -5,28 +5,7 @@ use std::io::{self, Write};
 use std::sync::Once;
 use std::{collections::HashMap, sync::Mutex};
 
-/*
-  Mock of the following Contract WebAssembly imports
-
-  (type $t40 (func (result i32)))
-  (type $t41 (func (param i32 f64 i32 i32 i32 i32) (result i32)))
-  (type $t42 (func (param i64 i64)))
-  (type $t43 (func (param i64) (result i64)))
-  (type $t44 (func (param i64)))
-  (type $t45 (func (param i64 i64 i64 i64 i64) (result i64)))
-  (type $t46 (func (param i64 i64 i64) (result i64)))
-
-  (import "env" "read_register" (func $read_register (type $t42)))
-  (import "env" "register_len" (func $register_len (type $t43)))
-  (import "env" "signer_account_id" (func $signer_account_id (type $t44)))
-  (import "env" "input" (func $input (type $t44)))
-  (import "env" "attached_deposit" (func $attached_deposit (type $t44)))
-  (import "env" "value_return" (func $value_return (type $t42)))
-  (import "env" "panic_utf8" (func $panic_utf8 (type $t42)))
-  (import "env" "log_utf8" (func $log_utf8 (type $t42)))
-  (import "env" "storage_write" (func $storage_write (type $t45)))
-  (import "env" "storage_read" (func $storage_read (type $t46)))
-*/
+const EVICTED_REGISTER: i64 = (u64::MAX - 1) as i64;
 
 #[allow(dead_code)]
 pub fn alice() -> AccountId {
@@ -250,12 +229,18 @@ pub extern "C" fn storage_write(
     let keylen: usize = key_len as usize;
     let valueptr: *const u8 = value_ptr as *const u8;
     let valuelen: usize = value_len as usize;
+    let mut registers = REGISTERS.lock().unwrap();
     unsafe {
         let key = std::slice::from_raw_parts(keyptr, keylen).to_vec();
         let val = std::slice::from_raw_parts(valueptr, valuelen).to_vec();
-        STORAGE.lock().unwrap().insert(key, val);
+        let evicted = STORAGE.lock().unwrap().insert(key, val);
+        if evicted.is_some() {
+            registers.insert(EVICTED_REGISTER as i64, evicted.unwrap());
+            return 1;
+        } else {
+            return 0;
+        }
     }
-    return 0;
 }
 
 #[no_mangle]
@@ -325,7 +310,7 @@ pub extern "C" fn sha256(value_len: i64, value_ptr: i64, register_id: i64) {
         let value = std::slice::from_raw_parts(valueptr, valuelen).to_vec();
 
         let value_hash = sha2::Sha256::digest(&value);
-        
+
         registers.insert(register_id, value_hash.as_slice().to_vec());
     }
 }
