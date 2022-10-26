@@ -19,6 +19,7 @@ near-sdk = "4.0.0"
 lazy_static = "1.4.0"
 ed25519-dalek = "1.0.1"
 quickjs-rust-near = { path = "../../", features=["library"] }
+quickjs-rust-near-testenv = { path = "../../testenv" }
 near-contract-standards = "4.0.0"
 
 [build-dependencies]

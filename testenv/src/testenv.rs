@@ -363,12 +363,13 @@ pub extern "C" fn promise_batch_action_function_call_weight(
     _function_name_len: i64,
     _function_name_ptr: i64,
     _arguments_len: i64,
-    arguments_ptr: i64,
+    _arguments_ptr: i64,
     _amount_ptr: i64,
     _gas: i64,
     _weight: i64,
 ) {
 }
+
 #[no_mangle]
 pub extern "C" fn promise_batch_action_transfer(_promise_index: i64, _amount_ptr: i64) {}
 

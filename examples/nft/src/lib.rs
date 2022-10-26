@@ -106,7 +106,7 @@ impl NonFungibleTokenMetadataProvider for Contract {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use quickjs_rust_near::testenv::testenv::{alice, set_signer_account_id, setup_test_env, assert_latest_return_value_string_eq};
+    use quickjs_rust_near_testenv::testenv::{alice, set_signer_account_id, setup_test_env, assert_latest_return_value_string_eq};
 
     #[test]
     fn test_nft_metadata() {

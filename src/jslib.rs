@@ -174,7 +174,7 @@ pub fn compile_js(script: String) -> Vec<u8> {
 mod tests {
     use super::{run_js, compile_js, run_js_bytecode, js_get_property, js_get_string};
     use std::ffi::CStr;
-    use crate::testenv::testenv::{
+    use quickjs_rust_near_testenv::testenv::{
         alice, assert_latest_return_value_string_eq, set_input, set_signer_account_id,
         setup_test_env
     };

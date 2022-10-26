@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [lib]
-crate-type = ["cdylib", "rlib"]
+crate-type = ["cdylib","rlib"]
 
 [profile.release]
 codegen-units = 1
@@ -19,6 +19,7 @@ near-sdk = "4.0.0"
 lazy_static = "1.4.0"
 ed25519-dalek = "1.0.1"
 sha2 = "0.10.6"
+quickjs-rust-near-testenv = { path = "testenv" }
 
 [build-dependencies]
 bindgen = "0.60.1"
@@ -30,5 +31,6 @@ library = []
 # remember to include a member for each contract
 members = [
   "examples/nft",
+  "testenv",
   "."
 ]
