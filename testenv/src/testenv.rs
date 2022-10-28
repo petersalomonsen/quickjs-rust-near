@@ -279,6 +279,11 @@ pub extern "C" fn storage_remove(key_len: i64, key_ptr: i64, register_id: i64) -
     }
 }
 
+pub fn assert_latest_return_value_contains(value_to_be_contained: String) {
+    let latest_return_value = std::str::from_utf8(TESTENV.lock().unwrap().returned_value.as_ref()).unwrap().to_string();
+    assert_eq!(latest_return_value.contains(&value_to_be_contained), true);    
+}
+
 pub fn assert_latest_return_value_string_eq(expected_return_value: String) {
     assert_eq!(
         std::str::from_utf8(TESTENV.lock().unwrap().returned_value.as_ref()).unwrap(),

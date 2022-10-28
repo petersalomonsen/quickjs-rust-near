@@ -7,10 +7,7 @@ use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::{
     env, near_bindgen, AccountId, BorshStorageKey, PanicOnDefault, Promise, PromiseOrValue,
 };
-use quickjs_rust_near::web4::types::{Web4Request, Web4Response};
 use quickjs_rust_near::jslib::{js_get_property, js_get_string, load_js_bytecode, js_call_function};
-mod web4content;
-use web4content::{INDEX_HTML, MUSIC_WASM, SERVICEWORKER};
 use std::ffi::CStr;
 use std::ffi::CString;
 
@@ -33,20 +30,11 @@ pub struct Contract {
 
 #[near_bindgen]
 impl Contract {
-    pub fn web4_get(&self, #[allow(unused_variables)] request: Web4Request) -> Web4Response {
-        match request.path.as_str() {
-            "/serviceworker.js" => Web4Response::Body {
-                content_type: "application/javascript; charset=UTF-8".to_owned(),
-                body: SERVICEWORKER.to_owned(),
-            },
-            "/music.wasm" => Web4Response::Body {
-                content_type: "application/wasm; charset=UTF-8".to_owned(),
-                body: MUSIC_WASM.to_owned(),
-            },
-            _ => Web4Response::Body {
-                content_type: "text/html; charset=UTF-8".to_owned(),
-                body: INDEX_HTML.to_owned(),
-            },
+    pub fn web4_get(&self) {
+        let jsmod = load_js_bytecode(QUICKJS_BINARY.to_vec());
+        unsafe {
+            let val = js_call_function(jsmod, CString::new("web4_get").unwrap().as_ptr() as i32);
+            print!("returned {}", val);
         }
     }
 
@@ -106,7 +94,7 @@ impl NonFungibleTokenMetadataProvider for Contract {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use quickjs_rust_near_testenv::testenv::{alice, set_signer_account_id, setup_test_env, assert_latest_return_value_string_eq};
+    use quickjs_rust_near_testenv::testenv::{set_input, setup_test_env, assert_latest_return_value_contains};
 
     #[test]
     fn test_nft_metadata() {
@@ -115,5 +103,22 @@ mod tests {
         let metadata = contract.nft_metadata();
         assert_eq!("Example NEAR non-fungible token".to_string(), metadata.name);
         assert_eq!("EXAMPLE".to_string(), metadata.symbol);
+    }
+
+    #[test]
+    fn test_web4_get() {
+        setup_test_env();
+        set_input("{\"request\": {\"path\": \"/serviceworker.js\"}}".try_into().unwrap());
+        let contract = Contract::new();
+        contract.web4_get();
+        assert_latest_return_value_contains("{\"contentType\":\"application/javascript; charset=UTF-8\",\"body\":\"Y29uc".to_owned());
+
+        set_input("{\"request\": {\"path\": \"/music.wasm\"}}".try_into().unwrap());
+        contract.web4_get();
+        assert_latest_return_value_contains("{\"contentType\":\"application/wasm".to_owned());
+
+        set_input("{\"request\": {\"path\": \"/index.html\"}}".try_into().unwrap());
+        contract.web4_get();
+        assert_latest_return_value_contains("{\"contentType\":\"text/html".to_owned());
     }
 }
