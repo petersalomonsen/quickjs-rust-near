@@ -16,7 +16,6 @@ static QUICKJS_BINARY: &'static [u8] = include_bytes!("quickjsbytecode.bin");
 #[derive(BorshSerialize, BorshStorageKey)]
 enum StorageKey {
     NonFungibleToken,
-    Metadata,
     TokenMetadata,
     Enumeration,
     Approval,
@@ -32,8 +31,9 @@ pub struct Contract {
 impl Contract {
     pub fn web4_get(&self) {
         let jsmod = load_js_bytecode(QUICKJS_BINARY.to_vec());
+        let web4_get_str = CString::new("web4_get").unwrap();
         unsafe {
-            let val = js_call_function(jsmod, CString::new("web4_get").unwrap().as_ptr() as i32);
+            let val = js_call_function(jsmod, web4_get_str.as_ptr() as i32);
             print!("returned {}", val);
         }
     }
@@ -73,10 +73,15 @@ impl NonFungibleTokenMetadataProvider for Contract {
         let jsmod = load_js_bytecode(QUICKJS_BINARY.to_vec());
         
         unsafe {
-            let val = js_call_function(jsmod, CString::new("nft_metadata").unwrap().as_ptr() as i32);
-            let name = CStr::from_ptr(js_get_string(js_get_property(val, CString::new("name").unwrap().as_ptr() as i32)) as *const i8).to_str().unwrap();
-            let symbol = CStr::from_ptr(js_get_string(js_get_property(val, CString::new("symbol").unwrap().as_ptr() as i32)) as *const i8).to_str().unwrap();
-            let icon = CStr::from_ptr(js_get_string(js_get_property(val, CString::new("icon").unwrap().as_ptr() as i32)) as *const i8).to_str().unwrap();
+            let nft_metadata_str = CString::new("nft_metadata").unwrap();
+            let name_str = CString::new("name").unwrap();
+            let symbol_str = CString::new("symbol").unwrap();
+            let icon_str = CString::new("icon").unwrap();
+
+            let val = js_call_function(jsmod, nft_metadata_str.as_ptr() as i32);
+            let name = CStr::from_ptr(js_get_string(js_get_property(val, name_str.as_ptr() as i32)) as *const i8).to_str().unwrap();
+            let symbol = CStr::from_ptr(js_get_string(js_get_property(val, symbol_str.as_ptr() as i32)) as *const i8).to_str().unwrap();
+            let icon = CStr::from_ptr(js_get_string(js_get_property(val, icon_str.as_ptr() as i32)) as *const i8).to_str().unwrap();
 
             NFTContractMetadata {
                 spec: NFT_METADATA_SPEC.to_string(),
