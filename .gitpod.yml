@@ -4,8 +4,14 @@
 
 tasks:
   - init: |
+      npm install -g near-cli
+      curl -L https://github.com/WebAssembly/binaryen/releases/download/version_110/binaryen-version_110-x86_64-linux.tar.gz | tar xzf -
+      export PATH="`pwd`/binaryen-version_110/bin:$PATH"
       curl https://wasmtime.dev/install.sh -sSf | bash
       rustup target add wasm32-wasi
+      rustup target add wasm32-unknown-unknown
+      mkdir out
+      mkdir examples/nft/out
       yarn install
 
 

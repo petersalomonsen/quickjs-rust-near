@@ -5,7 +5,7 @@
         "serve": "http-server -p 8085 web4",
         "serve-dist": "http-server -p 8085 web4/dist",
         "web4bundle": "cd web4 && rollup -c rollup.config.js",
-        "test-e2e": "NODE_OPTIONS=--experimental-vm-modules jest e2e",
+        "test-e2e": "NODE_OPTIONS=--experimental-vm-modules jest --testPathPattern=./e2e --testPathIgnorePatterns=./examples",
         "test-web": "NODE_OPTIONS=--experimental-vm-modules jest web4",
         "test-examples-nft-e2e": "cd examples/nft && NODE_OPTIONS=--experimental-vm-modules jest examples/nft/e2e",
         "examples-nft-web4bundle": "cd examples/nft/web4 && rollup -c rollup.config.js",
