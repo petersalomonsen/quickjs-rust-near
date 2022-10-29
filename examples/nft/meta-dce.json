@@ -1,5 +1,10 @@
 [
   {
+    "name": "post_quickjs_bytecode",
+    "export": "post_quickjs_bytecode",
+    "root": true
+  },
+  {
     "name": "nft_mint",
     "export": "nft_mint",
     "root": true

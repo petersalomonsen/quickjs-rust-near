@@ -8,7 +8,7 @@ wasm-metadce -f meta-dce.json ../../target/wasm32-unknown-unknown/release/quickj
 wasm-opt -Oz out/nft.wasm -o out/nft.wasm
 if [ -z "$1" ]
 then
-    echo "Please provide an account name for deploying"
+    near dev-deploy out/nft.wasm --initFunction=new --initArgs '{}'
 else
     # Deploy to account given in argument to this script
     echo "Deploying to $1"

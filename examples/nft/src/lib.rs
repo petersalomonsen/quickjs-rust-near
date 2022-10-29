@@ -5,13 +5,11 @@ use near_contract_standards::non_fungible_token::NonFungibleToken;
 use near_contract_standards::non_fungible_token::{Token, TokenId};
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::{
-    env, near_bindgen, AccountId, BorshStorageKey, PanicOnDefault, Promise, PromiseOrValue,
+    env, near_bindgen, AccountId, BorshStorageKey, PanicOnDefault, Promise, PromiseOrValue, base64,
 };
 use quickjs_rust_near::jslib::{js_get_property, js_get_string, load_js_bytecode, js_call_function};
 use std::ffi::CStr;
 use std::ffi::CString;
-
-static QUICKJS_BINARY: &'static [u8] = include_bytes!("quickjsbytecode.bin");
 
 #[derive(BorshSerialize, BorshStorageKey)]
 enum StorageKey {
@@ -24,18 +22,24 @@ enum StorageKey {
 #[near_bindgen]
 #[derive(BorshDeserialize, BorshSerialize, PanicOnDefault)]
 pub struct Contract {
-    tokens: NonFungibleToken
+    tokens: NonFungibleToken,
+    jsbytecode: Vec<u8>
 }
 
 #[near_bindgen]
 impl Contract {
     pub fn web4_get(&self) {
-        let jsmod = load_js_bytecode(QUICKJS_BINARY.to_vec());
+        let jsmod = load_js_bytecode(self.jsbytecode.as_ptr(), self.jsbytecode.len());
         let web4_get_str = CString::new("web4_get").unwrap();
         unsafe {
             let val = js_call_function(jsmod, web4_get_str.as_ptr() as i32);
             print!("returned {}", val);
         }
+    }
+
+    pub fn post_quickjs_bytecode(&mut self, bytecodebase64: String) {        
+        let bytecode: Result<Vec<u8>, base64::DecodeError> = base64::decode(&bytecodebase64);
+        self.jsbytecode = bytecode.unwrap();
     }
 
     #[payable]
@@ -54,11 +58,12 @@ impl Contract {
         Self {
             tokens: NonFungibleToken::new(
                 StorageKey::NonFungibleToken,
-                AccountId::new_unchecked("psalomo.testnet".to_string()),
+                env::current_account_id(),
                 Some(StorageKey::TokenMetadata),
                 Some(StorageKey::Enumeration),
                 Some(StorageKey::Approval),
             ),
+            jsbytecode: vec![]
         }
     }
 }
@@ -70,7 +75,7 @@ near_contract_standards::impl_non_fungible_token_enumeration!(Contract, tokens);
 #[near_bindgen]
 impl NonFungibleTokenMetadataProvider for Contract {
     fn nft_metadata(&self) -> NFTContractMetadata {
-        let jsmod = load_js_bytecode(QUICKJS_BINARY.to_vec());
+        let jsmod = load_js_bytecode(self.jsbytecode.as_ptr(), self.jsbytecode.len());
         
         unsafe {
             let nft_metadata_str = CString::new("nft_metadata").unwrap();
@@ -100,11 +105,13 @@ impl NonFungibleTokenMetadataProvider for Contract {
 mod tests {
     use super::*;
     use quickjs_rust_near_testenv::testenv::{set_input, setup_test_env, assert_latest_return_value_contains};
+    static QUICKJS_BINARY: &'static [u8] = include_bytes!("quickjsbytecode.bin");
 
     #[test]
     fn test_nft_metadata() {
         setup_test_env();
-        let contract = Contract::new();
+        let mut contract = Contract::new();
+        contract.post_quickjs_bytecode(base64::encode(QUICKJS_BINARY));
         let metadata = contract.nft_metadata();
         assert_eq!("Example NEAR non-fungible token".to_string(), metadata.name);
         assert_eq!("EXAMPLE".to_string(), metadata.symbol);
@@ -114,7 +121,8 @@ mod tests {
     fn test_web4_get() {
         setup_test_env();
         set_input("{\"request\": {\"path\": \"/serviceworker.js\"}}".try_into().unwrap());
-        let contract = Contract::new();
+        let mut contract = Contract::new();
+        contract.post_quickjs_bytecode(base64::encode(QUICKJS_BINARY));
         contract.web4_get();
         assert_latest_return_value_contains("{\"contentType\":\"application/javascript; charset=UTF-8\",\"body\":\"Y29uc".to_owned());
 

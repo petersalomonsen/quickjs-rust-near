@@ -7,7 +7,7 @@ extern "C" {
     fn js_eval(filename: i32, script: i32, is_module: i32) -> i32;
     fn js_eval_bytecode(buf: *const u8, buf_len: usize) -> i64;
     fn js_compile_to_bytecode(filename: i32, source: i32, out_buf_len: i32, module: i32) -> i32;
-    fn js_load_bytecode(buf: *const u8, buf_len: usize) -> i64;
+    pub fn js_load_bytecode(buf: *const u8, buf_len: usize) -> i64;
     pub fn js_call_function(mod_obj: i64, function_name: i32) -> i64;
     pub fn js_get_property(val: i64, propertyname: i32) -> i64;
     pub fn js_get_string(val: i64) -> i32;
@@ -141,12 +141,12 @@ pub fn run_js_bytecode(bytecode: Vec<u8>) -> i64 {
     return result;
 }
 
-pub fn load_js_bytecode(bytecode: Vec<u8>) -> i64 {
+pub fn load_js_bytecode(bytecode: *const u8, len: usize) -> i64 {
     let result: i64;
 
     unsafe {
         setup_quickjs();
-        result = js_load_bytecode(bytecode.as_ptr(), bytecode.len());
+        result = js_load_bytecode(bytecode, len);
     }
     return result;
 }
