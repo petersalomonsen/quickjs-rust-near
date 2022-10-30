@@ -44,6 +44,8 @@ jobs:
           curl -L https://github.com/WebAssembly/binaryen/releases/download/version_110/binaryen-version_110-x86_64-linux.tar.gz | tar xzf -
           export PATH="`pwd`/binaryen-version_110/bin:$PATH"
           npm install -g near-cli
+          mkdir $HOME/.near-config
+          echo "{\"trackingEnabled\": true, \"trackingAccountID\": false}" > $HOME/.near-config/settings.json
           rustup target add wasm32-unknown-unknown
           yarn install
           cd examples/nft
