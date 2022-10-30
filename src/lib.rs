@@ -19,6 +19,7 @@ pub struct Scripts {
 
 #[near_bindgen]
 impl Scripts {
+    #[cfg(not(feature = "library"))]
     pub fn store_signing_key() {
         store_signing_key_for_account();
     }

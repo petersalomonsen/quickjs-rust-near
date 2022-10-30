@@ -43,7 +43,7 @@ test('should submit javascript and call ', async () => {
         args: {
             account_id: accountId
         },
-        gas:  "300000000000000"
+        gas: "300000000000000"
     });
     expect(result.receipts_outcome[0].outcome.logs[0]).toBe('world');
     expect(Buffer.from(result.status.SuccessValue, 'base64').toString()).toBe('"5678"');

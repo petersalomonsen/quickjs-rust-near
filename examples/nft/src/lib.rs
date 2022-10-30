@@ -5,9 +5,12 @@ use near_contract_standards::non_fungible_token::NonFungibleToken;
 use near_contract_standards::non_fungible_token::{Token, TokenId};
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::{
-    env, near_bindgen, AccountId, BorshStorageKey, PanicOnDefault, Promise, PromiseOrValue, base64,
+    base64, env, near_bindgen, AccountId, BorshStorageKey, PanicOnDefault, Promise, PromiseOrValue,
 };
-use quickjs_rust_near::jslib::{js_get_property, js_get_string, load_js_bytecode, js_call_function};
+use quickjs_rust_near::jslib::{
+    js_call_function, js_get_property, js_get_string, load_js_bytecode,
+};
+use quickjs_rust_near::viewaccesscontrol::store_signing_key_for_account;
 use std::ffi::CStr;
 use std::ffi::CString;
 
@@ -23,11 +26,15 @@ enum StorageKey {
 #[derive(BorshDeserialize, BorshSerialize, PanicOnDefault)]
 pub struct Contract {
     tokens: NonFungibleToken,
-    jsbytecode: Vec<u8>
+    jsbytecode: Vec<u8>,
 }
 
 #[near_bindgen]
 impl Contract {
+    pub fn store_signing_key(&self) {
+        store_signing_key_for_account();
+    }
+
     pub fn web4_get(&self) {
         let jsmod = load_js_bytecode(self.jsbytecode.as_ptr(), self.jsbytecode.len());
         let web4_get_str = CString::new("web4_get").unwrap();
@@ -37,7 +44,12 @@ impl Contract {
         }
     }
 
-    pub fn post_quickjs_bytecode(&mut self, bytecodebase64: String) {        
+    pub fn post_quickjs_bytecode(&mut self, bytecodebase64: String) {
+        assert_eq!(
+            env::predecessor_account_id(),
+            self.tokens.owner_id,
+            "Unauthorized"
+        );
         let bytecode: Result<Vec<u8>, base64::DecodeError> = base64::decode(&bytecodebase64);
         self.jsbytecode = bytecode.unwrap();
     }
@@ -49,8 +61,13 @@ impl Contract {
         token_owner_id: AccountId,
         token_metadata: TokenMetadata,
     ) -> Token {
-        assert_eq!(env::predecessor_account_id(), self.tokens.owner_id, "Unauthorized");
-        self.tokens.internal_mint(token_id, token_owner_id, Some(token_metadata))
+        assert_eq!(
+            env::predecessor_account_id(),
+            self.tokens.owner_id,
+            "Unauthorized"
+        );
+        self.tokens
+            .internal_mint(token_id, token_owner_id, Some(token_metadata))
     }
 
     #[init(ignore_state)]
@@ -63,7 +80,7 @@ impl Contract {
                 Some(StorageKey::Enumeration),
                 Some(StorageKey::Approval),
             ),
-            jsbytecode: vec![]
+            jsbytecode: vec![],
         }
     }
 }
@@ -76,7 +93,7 @@ near_contract_standards::impl_non_fungible_token_enumeration!(Contract, tokens);
 impl NonFungibleTokenMetadataProvider for Contract {
     fn nft_metadata(&self) -> NFTContractMetadata {
         let jsmod = load_js_bytecode(self.jsbytecode.as_ptr(), self.jsbytecode.len());
-        
+
         unsafe {
             let nft_metadata_str = CString::new("nft_metadata").unwrap();
             let name_str = CString::new("name").unwrap();
@@ -84,9 +101,22 @@ impl NonFungibleTokenMetadataProvider for Contract {
             let icon_str = CString::new("icon").unwrap();
 
             let val = js_call_function(jsmod, nft_metadata_str.as_ptr() as i32);
-            let name = CStr::from_ptr(js_get_string(js_get_property(val, name_str.as_ptr() as i32)) as *const i8).to_str().unwrap();
-            let symbol = CStr::from_ptr(js_get_string(js_get_property(val, symbol_str.as_ptr() as i32)) as *const i8).to_str().unwrap();
-            let icon = CStr::from_ptr(js_get_string(js_get_property(val, icon_str.as_ptr() as i32)) as *const i8).to_str().unwrap();
+            let name = CStr::from_ptr(
+                js_get_string(js_get_property(val, name_str.as_ptr() as i32)) as *const i8,
+            )
+            .to_str()
+            .unwrap();
+            let symbol = CStr::from_ptr(js_get_string(js_get_property(
+                val,
+                symbol_str.as_ptr() as i32,
+            )) as *const i8)
+            .to_str()
+            .unwrap();
+            let icon = CStr::from_ptr(
+                js_get_string(js_get_property(val, icon_str.as_ptr() as i32)) as *const i8,
+            )
+            .to_str()
+            .unwrap();
 
             NFTContractMetadata {
                 spec: NFT_METADATA_SPEC.to_string(),
@@ -104,15 +134,23 @@ impl NonFungibleTokenMetadataProvider for Contract {
 #[cfg(test)]
 mod tests {
     use super::*;
+
     use quickjs_rust_near::jslib::compile_js;
-    use quickjs_rust_near_testenv::testenv::{set_input, setup_test_env, assert_latest_return_value_contains};
+    use quickjs_rust_near_testenv::testenv::{
+        assert_latest_return_value_contains, set_input, setup_test_env, set_current_account_id,
+        alice,bob,set_signer_account_id,set_signer_account_pk
+    };
     static CONTRACT_JS: &'static [u8] = include_bytes!("contract.js");
 
     #[test]
     fn test_nft_metadata() {
         setup_test_env();
+        set_current_account_id(bob());
         let mut contract = Contract::new();
-        let bytecode = compile_js(String::from_utf8(CONTRACT_JS.to_vec()).unwrap(), Some("main.js".to_string()));
+        let bytecode = compile_js(
+            String::from_utf8(CONTRACT_JS.to_vec()).unwrap(),
+            Some("main.js".to_string()),
+        );
         let bytecodebase64 = base64::encode(bytecode);
 
         contract.post_quickjs_bytecode(bytecodebase64);
@@ -124,20 +162,53 @@ mod tests {
     #[test]
     fn test_web4_get() {
         setup_test_env();
-        set_input("{\"request\": {\"path\": \"/serviceworker.js\"}}".try_into().unwrap());
+        set_current_account_id(bob());
+        set_input(
+            "{\"request\": {\"path\": \"/serviceworker.js\"}}"
+                .try_into()
+                .unwrap(),
+        );
         let mut contract = Contract::new();
-        let bytecode = compile_js(String::from_utf8(CONTRACT_JS.to_vec()).unwrap(),Some("main.js".to_string()));
+        let bytecode = compile_js(
+            String::from_utf8(CONTRACT_JS.to_vec()).unwrap(),
+            Some("main.js".to_string()),
+        );
         let bytecodebase64 = base64::encode(bytecode);
 
         contract.post_quickjs_bytecode(bytecodebase64);
         contract.web4_get();
-        assert_latest_return_value_contains("{\"contentType\":\"application/javascript; charset=UTF-8\",\"body\":\"Y29uc".to_owned());
+        assert_latest_return_value_contains(
+            "{\"contentType\":\"application/javascript; charset=UTF-8\",\"body\":\"Y29uc"
+                .to_owned(),
+        );
 
-        set_input("{\"request\": {\"path\": \"/music.wasm\"}}".try_into().unwrap());
+        set_signer_account_id(alice());
+        set_signer_account_pk(vec![
+            0, 85, 107,  80, 196, 145, 120,  98,  16,
+            245,  69,   9,  42, 212,   6, 131, 229,
+             36, 235, 122, 199,  84,   4, 164,  55,
+            218, 190, 147,  17, 144, 195,  95, 176
+        ].try_into().unwrap());
+
+        contract.store_signing_key();
+
+        let signed_message: String = "the expected message to be signed".to_string();        
+        let signature: String = "yr73SvNvNGkycuOiMCvEKfq6yEXBT31nEjeZIBvSuo6geaNXqfZ9zJS3j1Y7ta7gcRqgGYm6QcQBiY+4s1pTAA==".to_string();        
+
+        set_input(
+            format!("{{\"request\": {{\"path\": \"/music.wasm?account_id=alice.near&message={}&signature={}\"}}}}",
+                signed_message, signature)
+                .try_into()
+                .unwrap(),
+        );
         contract.web4_get();
         assert_latest_return_value_contains("{\"contentType\":\"application/wasm".to_owned());
 
-        set_input("{\"request\": {\"path\": \"/index.html\"}}".try_into().unwrap());
+        set_input(
+            "{\"request\": {\"path\": \"/index.html\"}}"
+                .try_into()
+                .unwrap(),
+        );
         contract.web4_get();
         assert_latest_return_value_contains("{\"contentType\":\"text/html".to_owned());
     }

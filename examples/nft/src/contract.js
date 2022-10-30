@@ -4,21 +4,35 @@ const MUSIC_WASM = "AGFzbQEAAAABpAEcYAJ/fQBgAn9/AGACf38Bf2ABfwF/YAABf2ABfwBgAX0B
 
 export function web4_get() {
   const request = JSON.parse(env.input()).request;
+  
   let response;
-  switch (request.path) {
-    case "/serviceworker.js":
+  if (request.path == '/serviceworker.js') {
       response = {
         contentType: "application/javascript; charset=UTF-8",
         body: SERVICEWORKER
       };
-      break;
-    case "/music.wasm":
-      response = {
-              contentType: "application/wasm; charset=UTF-8",
+    } else if(request.path.startsWith('/music.wasm?')) {
+      const queryString = request.path.substr(request.path.indexOf('?') + 1);
+      const params = queryString.split('&').reduce((p, c) => {
+        const keyValuePair = c.split('=');
+        p[keyValuePair[0]] = keyValuePair[1];
+        return p;
+      },{});
+      
+      const validSignature = env.verify_signed_message(params.message, params.signature, params.account_id);
+
+      if (validSignature) {
+        response = {
+              contentType: "application/wasm",
               body: MUSIC_WASM,
-      };
-      break;
-    default:
+        };
+      } else {
+        response = {
+          contentType: "text/plain",
+          body: "",
+        };
+      }
+    } else {
       response = {
               contentType: "text/html; charset=UTF-8",
               body: INDEX_HTML,
