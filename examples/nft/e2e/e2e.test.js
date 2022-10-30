@@ -20,7 +20,7 @@ test('should run custom javascript in contract', async () => {
         contractId: accountId,
         methodName: 'post_quickjs_bytecode',
         args: {
-            bytecodebase64: await (await readFile('src/quickjsbytecode.bin')).toString('base64')
+            bytecodebase64: await (await readFile('e2e/quickjsbytecode.bin')).toString('base64')
         }
     });
     const result = await account.viewFunction(accountId, 'web4_get', { request: { path: '/index.html' } });

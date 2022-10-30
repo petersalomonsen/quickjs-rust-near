@@ -33,7 +33,7 @@ impl Scripts {
     }
 
     pub fn submit_script(&mut self, script: String) {
-        let compiled = jslib::compile_js(script);
+        let compiled = jslib::compile_js(script, None);
         env::log_str(&(compiled.len().to_string()));
         let account_id = env::signer_account_id();
         self.scripts.insert(account_id.to_string(), compiled);

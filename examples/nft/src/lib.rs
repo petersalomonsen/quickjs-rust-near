@@ -104,14 +104,18 @@ impl NonFungibleTokenMetadataProvider for Contract {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use quickjs_rust_near::jslib::compile_js;
     use quickjs_rust_near_testenv::testenv::{set_input, setup_test_env, assert_latest_return_value_contains};
-    static QUICKJS_BINARY: &'static [u8] = include_bytes!("quickjsbytecode.bin");
+    static CONTRACT_JS: &'static [u8] = include_bytes!("contract.js");
 
     #[test]
     fn test_nft_metadata() {
         setup_test_env();
         let mut contract = Contract::new();
-        contract.post_quickjs_bytecode(base64::encode(QUICKJS_BINARY));
+        let bytecode = compile_js(String::from_utf8(CONTRACT_JS.to_vec()).unwrap(), Some("main.js".to_string()));
+        let bytecodebase64 = base64::encode(bytecode);
+
+        contract.post_quickjs_bytecode(bytecodebase64);
         let metadata = contract.nft_metadata();
         assert_eq!("Example NEAR non-fungible token".to_string(), metadata.name);
         assert_eq!("EXAMPLE".to_string(), metadata.symbol);
@@ -122,7 +126,10 @@ mod tests {
         setup_test_env();
         set_input("{\"request\": {\"path\": \"/serviceworker.js\"}}".try_into().unwrap());
         let mut contract = Contract::new();
-        contract.post_quickjs_bytecode(base64::encode(QUICKJS_BINARY));
+        let bytecode = compile_js(String::from_utf8(CONTRACT_JS.to_vec()).unwrap(),Some("main.js".to_string()));
+        let bytecodebase64 = base64::encode(bytecode);
+
+        contract.post_quickjs_bytecode(bytecodebase64);
         contract.web4_get();
         assert_latest_return_value_contains("{\"contentType\":\"application/javascript; charset=UTF-8\",\"body\":\"Y29uc".to_owned());
 

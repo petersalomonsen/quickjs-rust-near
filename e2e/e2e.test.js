@@ -24,7 +24,7 @@ test('should run custom javascript in contract', async () => {
     });
     expect(result.receipts_outcome[0].outcome.logs[0]).toBe('hello');
     expect(Buffer.from(result.status.SuccessValue, 'base64').toString()).toBe('"1234"');
-}, 20000);
+}, 40000);
 
 test('should submit javascript and call ', async () => {
     const nearConnection = await connect(connectionConfig);
@@ -47,7 +47,7 @@ test('should submit javascript and call ', async () => {
     });
     expect(result.receipts_outcome[0].outcome.logs[0]).toBe('world');
     expect(Buffer.from(result.status.SuccessValue, 'base64').toString()).toBe('"5678"');
-}, 20000);
+}, 40000);
 
 test('should verify signed message in javascript', async () => {
     const nearConnection = await connect(connectionConfig);
@@ -85,5 +85,5 @@ env.value_return(JSON.stringify(result));            `
         }
     );
     expect(result).toBe('valid');
-}, 20000);
+}, 40000);
 

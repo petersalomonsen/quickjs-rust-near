@@ -1,6 +1,6 @@
+use crate::viewaccesscontrol::verify_message_signed_by_account;
 use std::ffi::CString;
 use std::slice;
-use crate::viewaccesscontrol::{verify_message_signed_by_account};
 
 extern "C" {
     fn create_runtime();
@@ -22,7 +22,7 @@ pub const JS_FALSE: i64 = 0x0000000100000000;
 pub const JS_TRUE: i64 = 0x0000000100000001;
 
 fn arg_to_str(ctx: i32, arg_no: i32, argv: i32) -> String {
-    let mut value_len: usize= 0;
+    let mut value_len: usize = 0;
     let value_len_ptr: *mut usize = &mut value_len as *mut usize;
     let argv_ptr = (argv + (arg_no * 8)) as *const i64;
 
@@ -115,8 +115,11 @@ unsafe fn setup_quickjs() {
     );
 
     let verify_signed_message_name = CString::new("verify_signed_message").unwrap();
-    js_add_near_host_function(verify_signed_message_name.as_ptr() as i32,
-            verify_signed_message_func as i32, 2);
+    js_add_near_host_function(
+        verify_signed_message_name.as_ptr() as i32,
+        verify_signed_message_func as i32,
+        2,
+    );
 }
 
 pub fn run_js(script: String) -> i32 {
@@ -151,19 +154,24 @@ pub fn load_js_bytecode(bytecode: *const u8, len: usize) -> i64 {
     return result;
 }
 
-pub fn compile_js(script: String) -> Vec<u8> {
+pub fn compile_js(script: String, modulename: Option<String>) -> Vec<u8> {
     let result: Vec<u8>;
     unsafe {
         create_runtime();
         let mut out_buf_len: usize = 0;
         let out_buf_len_ptr: *mut usize = &mut out_buf_len;
-        let filename = CString::new("main.js").unwrap();
+        let is_module = if modulename.is_some() { 1 } else { 0 };
+        let filename = if is_module == 1 {
+            CString::new(modulename.unwrap()).unwrap()
+        } else {
+            CString::new("main.js").unwrap()
+        };
         let scriptstring = CString::new(script).unwrap();
         let result_ptr = js_compile_to_bytecode(
             filename.as_ptr() as i32,
             scriptstring.as_ptr() as i32,
             out_buf_len_ptr as i32,
-            0,
+            is_module,
         );
         result = slice::from_raw_parts(result_ptr as *mut u8, out_buf_len).to_vec();
     }
@@ -172,13 +180,13 @@ pub fn compile_js(script: String) -> Vec<u8> {
 
 #[cfg(test)]
 mod tests {
-    use super::{run_js, compile_js, run_js_bytecode, js_get_property, js_get_string};
-    use std::ffi::CStr;
+    use super::{compile_js, js_get_property, js_get_string, run_js, run_js_bytecode};
+    use crate::viewaccesscontrol::store_signing_key_for_account;
     use quickjs_rust_near_testenv::testenv::{
         alice, assert_latest_return_value_string_eq, set_input, set_signer_account_id,
-        setup_test_env
+        setup_test_env,
     };
-    use crate::viewaccesscontrol::{store_signing_key_for_account};
+    use std::ffi::CStr;
 
     #[test]
     fn test_value_return_should_return_undefined() {
@@ -216,12 +224,17 @@ mod tests {
 
     #[test]
     fn test_parse_object() {
-        let bytecode = compile_js("(function () { return {'hello': 'world', 'thenumberis': 42}; })()".to_string());
+        let bytecode = compile_js(
+            "(function () { return {'hello': 'world', 'thenumberis': 42}; })()".to_string(),
+            None
+        );
         let result = run_js_bytecode(bytecode);
         unsafe {
             assert_eq!(42, js_get_property(result, "thenumberis".as_ptr() as i32));
             let stringjsval = js_get_property(result, "hello".as_ptr() as i32);
-            let str = CStr::from_ptr(js_get_string(stringjsval) as *const i8).to_str().unwrap();
+            let str = CStr::from_ptr(js_get_string(stringjsval) as *const i8)
+                .to_str()
+                .unwrap();
             assert_eq!("world", str);
         }
     }
