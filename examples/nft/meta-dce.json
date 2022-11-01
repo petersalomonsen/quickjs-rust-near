@@ -1,5 +1,9 @@
 [
   {
+    "name": "post_javascript",
+    "export": "post_javascript",
+    "root": true
+  },{
     "name": "post_quickjs_bytecode",
     "export": "post_quickjs_bytecode",
     "root": true

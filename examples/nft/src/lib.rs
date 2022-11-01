@@ -8,7 +8,7 @@ use near_sdk::{
     base64, env, near_bindgen, AccountId, BorshStorageKey, PanicOnDefault, Promise, PromiseOrValue,
 };
 use quickjs_rust_near::jslib::{
-    js_call_function, js_get_property, js_get_string, load_js_bytecode,
+    compile_js, js_call_function, js_get_property, js_get_string, load_js_bytecode,
 };
 use quickjs_rust_near::viewaccesscontrol::store_signing_key_for_account;
 use std::ffi::CStr;
@@ -52,6 +52,15 @@ impl Contract {
         );
         let bytecode: Result<Vec<u8>, base64::DecodeError> = base64::decode(&bytecodebase64);
         self.jsbytecode = bytecode.unwrap();
+    }
+
+    pub fn post_javascript(&mut self, javascript: String) {
+        assert_eq!(
+            env::predecessor_account_id(),
+            self.tokens.owner_id,
+            "Unauthorized"
+        );
+        self.jsbytecode = compile_js(javascript, Some("main.js".to_string()));
     }
 
     #[payable]
@@ -137,8 +146,8 @@ mod tests {
 
     use quickjs_rust_near::jslib::compile_js;
     use quickjs_rust_near_testenv::testenv::{
-        assert_latest_return_value_contains, set_input, setup_test_env, set_current_account_id,
-        alice,bob,set_signer_account_id,set_signer_account_pk
+        alice, assert_latest_return_value_contains, bob, set_current_account_id, set_input,
+        set_signer_account_id, set_signer_account_pk, setup_test_env,
     };
     static CONTRACT_JS: &'static [u8] = include_bytes!("contract.js");
 
@@ -183,17 +192,19 @@ mod tests {
         );
 
         set_signer_account_id(alice());
-        set_signer_account_pk(vec![
-            0, 85, 107,  80, 196, 145, 120,  98,  16,
-            245,  69,   9,  42, 212,   6, 131, 229,
-             36, 235, 122, 199,  84,   4, 164,  55,
-            218, 190, 147,  17, 144, 195,  95, 176
-        ].try_into().unwrap());
+        set_signer_account_pk(
+            vec![
+                0, 85, 107, 80, 196, 145, 120, 98, 16, 245, 69, 9, 42, 212, 6, 131, 229, 36, 235,
+                122, 199, 84, 4, 164, 55, 218, 190, 147, 17, 144, 195, 95, 176,
+            ]
+            .try_into()
+            .unwrap(),
+        );
 
         contract.store_signing_key();
 
-        let signed_message: String = "the expected message to be signed".to_string();        
-        let signature: String = "yr73SvNvNGkycuOiMCvEKfq6yEXBT31nEjeZIBvSuo6geaNXqfZ9zJS3j1Y7ta7gcRqgGYm6QcQBiY+4s1pTAA==".to_string();        
+        let signed_message: String = "the expected message to be signed".to_string();
+        let signature: String = "yr73SvNvNGkycuOiMCvEKfq6yEXBT31nEjeZIBvSuo6geaNXqfZ9zJS3j1Y7ta7gcRqgGYm6QcQBiY+4s1pTAA==".to_string();
 
         set_input(
             format!("{{\"request\": {{\"path\": \"/music.wasm?account_id=alice.near&message={}&signature={}\"}}}}",

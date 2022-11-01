@@ -29,7 +29,7 @@ export function web4_get() {
       } else {
         response = {
           contentType: "text/plain",
-          body: "",
+          body: "INVALID SIGNATURE",
         };
       }
     } else {
