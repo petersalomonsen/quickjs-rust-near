@@ -56,14 +56,19 @@ function writeString(view, offset, string) {
 }
 
 let wasmInstancePromise = new Promise(async resolve => {
-    console.log('starting wasm');
-    resolve((await WebAssembly.instantiate(await (await fetch('music.wasm')).arrayBuffer(),
-        {
-            environment: {
-                SAMPLERATE: SAMPLERATE
-            }
-        })).instance.exports);
+    self.addEventListener('message', async (event) => {
+        if (event.data && event.data.wasmbytes) {
+            console.log('got wasmbytes');
+            resolve((await WebAssembly.instantiate(event.data.wasmbytes,
+            {
+                environment: {
+                    SAMPLERATE: SAMPLERATE
+                }
+            })).instance.exports);
+        }
+    });
 });;
+
 let currentBytePos = 0;
 
 const samplesLength = 2 * 60 * SAMPLERATE * 4 * 2;

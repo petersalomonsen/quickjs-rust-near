@@ -3,9 +3,23 @@
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <style>
+            body {
+                max-width: 400px;
+                margin: auto;
+                background-color: black;
+                color: #cc8;
+                font-family: Arial, Helvetica, sans-serif;
+            }
+            #message {
+                margin-top: 20px;
+            }
+        </style>
     </head>
     <body>
+        <h1>WebAssembly Music</h1>
         <audio id="player" controls></audio>
+        <div id="message"></div>
     </body>
     <script src="main.js" type="module"></script>
 </html>

@@ -15,13 +15,13 @@ export default {
       const musicwasm = readFileSync('music.wasm');
       writeFileSync('dist/index.html', html);
       unlinkSync(`dist/main.js`);
-      writeFileSync('../src/web4content.rs', `
-        pub static INDEX_HTML: &str = "${Buffer.from(html).toString('base64')}";
-        pub static SERVICEWORKER: &str = "${Buffer.from(serviceworker).toString('base64')}";
-        pub static MUSIC_WASM: &str = "${Buffer.from(musicwasm).toString('base64')}";
-
-        
-        `);
+      const contractFileName = '../src/contract.js';
+      const contractjs = readFileSync(contractFileName).toString();
+      const contractlines = contractjs.split('\n');
+      contractlines[0] = `const INDEX_HTML = '${Buffer.from(html).toString('base64')}'`;
+      contractlines[1] = `const SERVICEWORKER = '${Buffer.from(serviceworker).toString('base64')}'`;
+      contractlines[2] = `const MUSIC_WASM = '${Buffer.from(musicwasm).toString('base64')}'`;
+      writeFileSync('../src/contract.js', contractlines.join('\n'));
     }
   }],
 };

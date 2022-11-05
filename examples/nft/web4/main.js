@@ -11,17 +11,26 @@ if ('serviceWorker' in navigator) {
             // registration failed
             console.log('Registration failed with ' + error);
         });
-        navigator.serviceWorker.ready.then(async (registration) => {            
-            if (registration.active.state !== 'activated') {
-                await new Promise((resolve) =>
-                    registration.active.addEventListener('statechange', (e) => {
-                        if(e.target.state === 'activated') {
-                            resolve();
-                        }
-                    })
-                );
-            }
+    navigator.serviceWorker.ready.then(async (registration) => {            
+        if (registration.active.state !== 'activated') {
+            await new Promise((resolve) =>
+                registration.active.addEventListener('statechange', (e) => {
+                    if(e.target.state === 'activated') {
+                        resolve();
+                    }
+                })
+            );
+        }
 
-            document.getElementById('player').src = 'music.wav';            
-        });
+        const wasmbytesresponse = await fetch('music.wasm'+location.search);
+        const messageArea = document.getElementById('message');
+        if (wasmbytesresponse.headers.get('content-type') == 'application/wasm') {
+            const wasmbytes = await wasmbytesresponse.arrayBuffer();
+            navigator.serviceWorker.controller.postMessage({wasmbytes: wasmbytes},[wasmbytes]);
+            document.getElementById('player').src = 'music.wav';
+            messageArea.innerHTML = location.search.match(/message=([^&]+)/)[1];
+        } else {
+            messageArea.innerHTML = 'unable to load music. check that you have a valid link signed by the NFT owner';
+        }
+    });
 }
