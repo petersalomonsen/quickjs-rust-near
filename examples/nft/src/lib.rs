@@ -207,10 +207,20 @@ mod tests {
         let signature: String = "yr73SvNvNGkycuOiMCvEKfq6yEXBT31nEjeZIBvSuo6geaNXqfZ9zJS3j1Y7ta7gcRqgGYm6QcQBiY+4s1pTAA==".to_string();
 
         set_input(
-            format!("{{\"request\": {{\"path\": \"/music.wasm?account_id=alice.near&message={}&signature={}\"}}}}",
+            format!("
+            {{
+                \"request\": {{
+                        \"path\": \"/music.wasm\", 
+                        \"query\": {{
+                            \"account_id\": [\"alice.near\"],
+                            \"message\": [\"{}\"],
+                            \"signature\": [\"{}\"]
+                        }}
+                }}
+            }}",
                 signed_message, signature)
                 .try_into()
-                .unwrap(),
+                .unwrap()
         );
         contract.web4_get();
         assert_latest_return_value_contains("{\"contentType\":\"application/wasm".to_owned());

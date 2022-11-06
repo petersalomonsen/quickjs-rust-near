@@ -1,6 +1,7 @@
 {
     "name": "quickjs-rust-near",
     "type": "module",
+    "license": "MIT",
     "scripts": {
         "serve": "http-server -p 8085 web4",
         "serve-dist": "http-server -p 8085 web4/dist",
@@ -18,10 +19,9 @@
         "@web/rollup-plugin-html": "^1.11.0",
         "http-server": "^14.1.1",
         "jest": "^28.1.3",
+        "near-api-js": "^1.1.0",
         "rollup": "^2.79.0",
         "rollup-plugin-terser": "^7.0.2"
     },
-    "dependencies": {
-        "near-api-js": "^0.45.1"
-    }
+    "dependencies": {}
 }

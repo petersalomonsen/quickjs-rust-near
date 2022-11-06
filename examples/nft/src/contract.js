@@ -11,15 +11,8 @@ export function web4_get() {
         contentType: "application/javascript; charset=UTF-8",
         body: SERVICEWORKER
       };
-    } else if(request.path.startsWith('/music.wasm?')) {
-      const queryString = request.path.substr(request.path.indexOf('?') + 1);
-      const params = queryString.split('&').reduce((p, c) => {
-        const keyValuePair = c.split('=');
-        p[keyValuePair[0]] = keyValuePair[1];
-        return p;
-      },{});
-      
-      const validSignature = env.verify_signed_message(params.message, params.signature, params.account_id);
+    } else if(request.path == '/music.wasm') {      
+      const validSignature = env.verify_signed_message(request.query.message[0], request.query.signature[0], request.query.account_id[0]);
 
       if (validSignature) {
         response = {
