@@ -1,4 +1,4 @@
-use crate::viewaccesscontrol::verify_message_signed_by_account;
+use crate::viewaccesscontrol::{verify_message_signed_by_account, store_signing_key_for_account};
 use std::ffi::CString;
 use std::slice;
 
@@ -93,33 +93,33 @@ fn verify_signed_message_func(ctx: i32, _this_val: i64, _argc: i32, argv: i32) -
     }
 }
 
+fn store_signing_key_func(ctx: i32, _this_val: i64, _argc: i32, argv: i32) -> i64 {
+    store_signing_key_for_account();
+    return JS_UNDEFINED;
+}
+
+unsafe fn add_function_to_js(
+    function_name: &str,
+    function_impl: fn(i32, i64, i32, i32) -> i64,
+    num_params: i32,
+) {
+    let function_name_cstr = CString::new(function_name).unwrap();
+    js_add_near_host_function(
+        function_name_cstr.as_ptr() as i32,
+        function_impl as i32,
+        num_params,
+    );
+}
+
 unsafe fn setup_quickjs() {
     create_runtime();
     createNearEnv();
 
-    let value_return_name = CString::new("value_return").unwrap();
-    js_add_near_host_function(
-        value_return_name.as_ptr() as i32,
-        value_return_func as i32,
-        1,
-    );
-
-    let input_name = CString::new("input").unwrap();
-    js_add_near_host_function(input_name.as_ptr() as i32, input_func as i32, 1);
-
-    let signer_account_id_name = CString::new("signer_account_id").unwrap();
-    js_add_near_host_function(
-        signer_account_id_name.as_ptr() as i32,
-        signer_account_id_func as i32,
-        1,
-    );
-
-    let verify_signed_message_name = CString::new("verify_signed_message").unwrap();
-    js_add_near_host_function(
-        verify_signed_message_name.as_ptr() as i32,
-        verify_signed_message_func as i32,
-        2,
-    );
+    add_function_to_js("value_return", value_return_func, 1);
+    add_function_to_js("input", input_func, 1);
+    add_function_to_js("signer_account_id", signer_account_id_func, 1);
+    add_function_to_js("verify_signed_message", verify_signed_message_func, 2);
+    add_function_to_js("store_signing_key", store_signing_key_func, 0);
 }
 
 pub fn run_js(script: String) -> i32 {
@@ -226,7 +226,7 @@ mod tests {
     fn test_parse_object() {
         let bytecode = compile_js(
             "(function () { return {'hello': 'world', 'thenumberis': 42}; })()".to_string(),
-            None
+            None,
         );
         let result = run_js_bytecode(bytecode);
         unsafe {

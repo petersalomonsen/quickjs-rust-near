@@ -23,11 +23,11 @@ test('should run custom javascript (quickjs bytecode ) in contract', async () =>
             bytecodebase64: await (await readFile('e2e/quickjsbytecode.bin')).toString('base64')
         }
     });
-    const result = await account.viewFunction(accountId, 'web4_get', { request: { path: '/index.html' } });
+    const result = await account.viewFunction({ contractId: accountId, methodName: 'web4_get', args: { request: { path: '/index.html' } } });
     expect(result.contentType).toBe('text/html; charset=UTF-8');
     expect(result.body).toBeDefined();
 
-    const wasmresult = await account.viewFunction(accountId, 'web4_get', { request: { path: '/music.wasm' } });
+    const wasmresult = await account.viewFunction({ contractId: accountId, methodName: 'web4_get', args: { request: { path: '/music.wasm' } } });
     expect(wasmresult.contentType).toBe('application/wasm; charset=UTF-8');
     expect(wasmresult.body).toBeDefined();
 }, 20000);
@@ -45,7 +45,7 @@ test('should run custom javascript in contract', async () => {
             javascript: await (await readFile('src/contract.js')).toString()
         }
     });
-    const result = await account.viewFunction(accountId, 'web4_get', { request: { path: '/index.html' } });
+    const result = await account.viewFunction({ contractId: accountId, methodName: 'web4_get', args: { request: { path: '/index.html' } } });
     expect(result.contentType).toBe('text/html; charset=UTF-8');
     expect(result.body).toBeDefined();
 }, 20000);
@@ -60,18 +60,20 @@ test('should require owners signature to get content', async () => {
         methodName: 'post_javascript',
         args: {
             javascript: `
+            export function store_signing_key() {
+                env.store_signing_key();
+            }
+              
             export function web4_get() {
                 const request = JSON.parse(env.input()).request;
                 let response;
 
-                if(request.path.startsWith('/content?')) {
-                    const queryString = request.path.substr(request.path.indexOf('?') + 1);
-                    const params = queryString.split('&').reduce((p, c) => {
-                      const keyValuePair = c.split('=');
-                      p[keyValuePair[0]] = keyValuePair[1];
-                      return p;
+                if(request.path == '/content') {
+                    const params = Object.keys(request.query).reduce((p, c) => {
+                        p[c] = request.query[c][0];
+                        return p;
                     },{});
-                    
+
                     const validSignature = env.verify_signed_message(params.message, params.signature, '${accountId}');
               
                     if (validSignature) {
@@ -107,14 +109,16 @@ test('should require owners signature to get content', async () => {
         `
         }
     });
-    let result = await account.viewFunction(accountId, 'web4_get', { request: { path: '/' } });
+    let result = await account.viewFunction({ contractId: accountId, methodName: 'web4_get', args: { request: { path: '/' } } });
     expect(result.contentType).toBe('text/plain; charset=UTF-8');
     expect(result.body).toBe('DEFAULT RESPONSE');
 
     await account.functionCall({
         contractId: accountId,
-        methodName: 'store_signing_key',
-        args: {}
+        methodName: 'call_js_func',
+        args: {
+            'function_name': 'store_signing_key'
+        }
     });
 
     const messageToBeSigned = 'some message to be signed';
@@ -122,11 +126,31 @@ test('should require owners signature to get content', async () => {
     const signature = await keyPair.sign(new TextEncoder().encode(messageToBeSigned));
     const signatureBase64 = btoa(String.fromCharCode(...signature.signature));
 
-    result = await account.viewFunction(accountId, 'web4_get', { request: { path: `/content?message=${messageToBeSigned}&signature=${signatureBase64}` } });
+    result = await account.viewFunction({
+        contractId: accountId, methodName: 'web4_get', args: {
+            request: {
+                path: `/content`,
+                query: {
+                    message: [messageToBeSigned],
+                    signature: [signatureBase64]
+                }
+            }
+        }
+    });
     expect(result.contentType).toBe('text/plain; charset=UTF-8');
     expect(result.body).toBe('VALID SIGNATURE');
 
-    result = await account.viewFunction(accountId, 'web4_get', { request: { path: `/content?message=blabla&signature=${signatureBase64}` } });
+    result = await account.viewFunction({
+        contractId: accountId, methodName: 'web4_get', args: {
+            request: {
+                path: `/content`,
+                query: {
+                    message: ['blabla'],
+                    signature: [signatureBase64]
+                }
+            }
+        }
+    });
     expect(result.contentType).toBe('text/plain; charset=UTF-8');
     expect(result.body).toBe('INVALID SIGNATURE');
 }, 20000);

@@ -1,7 +1,7 @@
 [
   {
-    "name": "store_signing_key",
-    "export": "store_signing_key",
+    "name": "call_js_func",
+    "export": "call_js_func",
     "root": true
   },
   {

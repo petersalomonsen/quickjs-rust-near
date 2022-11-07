@@ -34,6 +34,10 @@ export function web4_get() {
   env.value_return(JSON.stringify(response));     
 }
 
+export function store_signing_key() {
+  env.store_signing_key();
+}
+
 export function nft_metadata() {
   return {
     name: "Example NEAR non-fungible token",

@@ -31,16 +31,19 @@ pub struct Contract {
 
 #[near_bindgen]
 impl Contract {
-    pub fn store_signing_key(&self) {
-        store_signing_key_for_account();
+    pub fn call_js_func(&self, function_name: String) {
+        let jsmod = load_js_bytecode(self.jsbytecode.as_ptr(), self.jsbytecode.len());
+        let function_name_cstr = CString::new(function_name).unwrap();
+        unsafe {
+            js_call_function(jsmod, function_name_cstr.as_ptr() as i32);            
+        }
     }
 
     pub fn web4_get(&self) {
         let jsmod = load_js_bytecode(self.jsbytecode.as_ptr(), self.jsbytecode.len());
         let web4_get_str = CString::new("web4_get").unwrap();
         unsafe {
-            let val = js_call_function(jsmod, web4_get_str.as_ptr() as i32);
-            print!("returned {}", val);
+            js_call_function(jsmod, web4_get_str.as_ptr() as i32);
         }
     }
 
@@ -201,7 +204,7 @@ mod tests {
             .unwrap(),
         );
 
-        contract.store_signing_key();
+        contract.call_js_func("store_signing_key".to_string());
 
         let signed_message: String = "the expected message to be signed".to_string();
         let signature: String = "yr73SvNvNGkycuOiMCvEKfq6yEXBT31nEjeZIBvSuo6geaNXqfZ9zJS3j1Y7ta7gcRqgGYm6QcQBiY+4s1pTAA==".to_string();
