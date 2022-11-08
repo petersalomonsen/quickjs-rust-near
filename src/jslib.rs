@@ -1,4 +1,4 @@
-use crate::viewaccesscontrol::{verify_message_signed_by_account, store_signing_key_for_account};
+use crate::viewaccesscontrol::{store_signing_key_for_account, verify_message_signed_by_account};
 use std::ffi::CString;
 use std::slice;
 
@@ -93,7 +93,7 @@ fn verify_signed_message_func(ctx: i32, _this_val: i64, _argc: i32, argv: i32) -
     }
 }
 
-fn store_signing_key_func(ctx: i32, _this_val: i64, _argc: i32, argv: i32) -> i64 {
+fn store_signing_key_func(_ctx: i32, _this_val: i64, _argc: i32, _argv: i32) -> i64 {
     store_signing_key_for_account();
     return JS_UNDEFINED;
 }

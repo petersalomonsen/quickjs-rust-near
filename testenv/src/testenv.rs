@@ -1,5 +1,5 @@
 use lazy_static::lazy_static;
-use near_sdk::{AccountId, PublicKey};
+use near_sdk::{AccountId, Balance, PublicKey};
 use sha2::Digest;
 use std::io::{self, Write};
 use std::sync::Once;
@@ -27,6 +27,7 @@ struct TestEnv {
     signer_account_pk: PublicKey,
     current_account_id: AccountId,
     predecessor_account_id: AccountId,
+    attached_deposit: Balance,
     input: Vec<u8>,
     returned_value: Vec<u8>,
 }
@@ -37,6 +38,7 @@ impl TestEnv {
             signer_account_id: bob(),
             current_account_id: alice(),
             predecessor_account_id: bob(),
+            attached_deposit: 0,
             signer_account_pk: vec![
                 00, 66, 211, 21, 84, 20, 241, 129, 29, 118, 83, 184, 41, 215, 240, 117, 106, 56,
                 29, 69, 103, 43, 191, 167, 199, 102, 3, 16, 194, 250, 138, 198, 78,
@@ -87,6 +89,10 @@ pub fn set_predecessor_account_id(account_id: AccountId) {
 #[allow(dead_code)]
 pub fn set_input(input: Vec<u8>) {
     TESTENV.lock().unwrap().input = input;
+}
+
+pub fn set_attached_deposit(deposit: Balance) {
+    TESTENV.lock().unwrap().attached_deposit = deposit;
 }
 
 #[no_mangle]
@@ -178,7 +184,17 @@ pub extern "C" fn input(register: i64) {
 }
 
 #[no_mangle]
-pub extern "C" fn attached_deposit(_p1: i64) {}
+pub extern "C" fn attached_deposit(data_ptr: i64) {
+    let src = TESTENV
+        .lock()
+        .unwrap()
+        .attached_deposit
+        .to_le_bytes()
+        .to_vec();
+    unsafe {
+        std::ptr::copy(src.as_ptr(), data_ptr as *mut u8, src.len());
+    }
+}
 
 #[no_mangle]
 pub extern "C" fn value_return(value_len: i64, value_ptr: i64) {
@@ -280,8 +296,10 @@ pub extern "C" fn storage_remove(key_len: i64, key_ptr: i64, register_id: i64) -
 }
 
 pub fn assert_latest_return_value_contains(value_to_be_contained: String) {
-    let latest_return_value = std::str::from_utf8(TESTENV.lock().unwrap().returned_value.as_ref()).unwrap().to_string();
-    assert_eq!(latest_return_value.contains(&value_to_be_contained), true);    
+    let latest_return_value = std::str::from_utf8(TESTENV.lock().unwrap().returned_value.as_ref())
+        .unwrap()
+        .to_string();
+    assert_eq!(latest_return_value.contains(&value_to_be_contained), true);
 }
 
 pub fn assert_latest_return_value_string_eq(expected_return_value: String) {

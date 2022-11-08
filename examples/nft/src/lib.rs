@@ -10,7 +10,6 @@ use near_sdk::{
 use quickjs_rust_near::jslib::{
     compile_js, js_call_function, js_get_property, js_get_string, load_js_bytecode,
 };
-use quickjs_rust_near::viewaccesscontrol::store_signing_key_for_account;
 use std::ffi::CStr;
 use std::ffi::CString;
 
@@ -33,9 +32,10 @@ pub struct Contract {
 impl Contract {
     pub fn call_js_func(&self, function_name: String) {
         let jsmod = load_js_bytecode(self.jsbytecode.as_ptr(), self.jsbytecode.len());
-        let function_name_cstr = CString::new(function_name).unwrap();
+
         unsafe {
-            js_call_function(jsmod, function_name_cstr.as_ptr() as i32);            
+            let function_name_cstr = CString::new(function_name).unwrap();
+            js_call_function(jsmod, function_name_cstr.as_ptr() as i32);
         }
     }
 
@@ -149,8 +149,9 @@ mod tests {
 
     use quickjs_rust_near::jslib::compile_js;
     use quickjs_rust_near_testenv::testenv::{
-        alice, assert_latest_return_value_contains, bob, set_current_account_id, set_input,
-        set_signer_account_id, set_signer_account_pk, setup_test_env,
+        alice, assert_latest_return_value_contains, bob, set_attached_deposit,
+        set_current_account_id, set_input, set_signer_account_id, set_signer_account_pk,
+        setup_test_env,
     };
     static CONTRACT_JS: &'static [u8] = include_bytes!("contract.js");
 
@@ -169,6 +170,34 @@ mod tests {
         let metadata = contract.nft_metadata();
         assert_eq!("Example NEAR non-fungible token".to_string(), metadata.name);
         assert_eq!("EXAMPLE".to_string(), metadata.symbol);
+    }
+
+    #[test]
+    fn test_mint() {
+        setup_test_env();
+        set_current_account_id(bob());
+        set_attached_deposit(1600000000000000000000);
+
+        let mut contract = Contract::new();
+        contract.nft_mint(
+            "1".to_string(),
+            bob(),
+            TokenMetadata {
+                title: Some("test".to_string()),
+                description: None,
+                media: None,
+                media_hash: None,
+                copies: None,
+                issued_at: None,
+                expires_at: None,
+                starts_at: None,
+                updated_at: None,
+                extra: None,
+                reference: None,
+                reference_hash: None,
+            },
+        );
+        assert_eq!(contract.nft_supply_for_owner(bob()).0, 1 as u128);
     }
 
     #[test]
@@ -210,7 +239,8 @@ mod tests {
         let signature: String = "yr73SvNvNGkycuOiMCvEKfq6yEXBT31nEjeZIBvSuo6geaNXqfZ9zJS3j1Y7ta7gcRqgGYm6QcQBiY+4s1pTAA==".to_string();
 
         set_input(
-            format!("
+            format!(
+                "
             {{
                 \"request\": {{
                         \"path\": \"/music.wasm\", 
@@ -221,9 +251,10 @@ mod tests {
                         }}
                 }}
             }}",
-                signed_message, signature)
-                .try_into()
-                .unwrap()
+                signed_message, signature
+            )
+            .try_into()
+            .unwrap(),
         );
         contract.web4_get();
         assert_latest_return_value_contains("{\"contentType\":\"application/wasm".to_owned());
