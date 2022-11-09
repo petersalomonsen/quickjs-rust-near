@@ -57,11 +57,23 @@ test('should require owners signature to get content', async () => {
     const account = await nearConnection.account(accountId);
     await account.functionCall({
         contractId: accountId,
+        methodName: 'nft_mint',
+        attachedDeposit: '16250000000000000000000',
+        args: {
+            token_id: `${new Date().getTime()}`,
+            token_owner_id: accountId,
+            token_metadata: {}
+        }
+    });
+    await account.functionCall({
+        contractId: accountId,
         methodName: 'post_javascript',
         args: {
             javascript: `
             export function store_signing_key() {
-                env.store_signing_key();
+                if (env.nft_supply_for_owner(env.signer_account_id()) > 0) {
+                    env.store_signing_key();
+                }
             }
               
             export function web4_get() {

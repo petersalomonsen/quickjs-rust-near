@@ -98,7 +98,7 @@ fn store_signing_key_func(_ctx: i32, _this_val: i64, _argc: i32, _argv: i32) -> 
     return JS_UNDEFINED;
 }
 
-unsafe fn add_function_to_js(
+pub unsafe fn add_function_to_js(
     function_name: &str,
     function_impl: fn(i32, i64, i32, i32) -> i64,
     num_params: i32,

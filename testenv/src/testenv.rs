@@ -83,7 +83,7 @@ pub fn set_current_account_id(account_id: AccountId) {
 
 #[allow(dead_code)]
 pub fn set_predecessor_account_id(account_id: AccountId) {
-    TESTENV.lock().unwrap().current_account_id = account_id;
+    TESTENV.lock().unwrap().predecessor_account_id = account_id;
 }
 
 #[allow(dead_code)]

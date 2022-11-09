@@ -8,7 +8,8 @@ use near_sdk::{
     base64, env, near_bindgen, AccountId, BorshStorageKey, PanicOnDefault, Promise, PromiseOrValue,
 };
 use quickjs_rust_near::jslib::{
-    compile_js, js_call_function, js_get_property, js_get_string, load_js_bytecode,
+    add_function_to_js, compile_js, js_call_function, js_get_property, js_get_string,
+    load_js_bytecode,
 };
 use std::ffi::CStr;
 use std::ffi::CString;
@@ -28,12 +29,25 @@ pub struct Contract {
     jsbytecode: Vec<u8>,
 }
 
+static mut CONTRACT_REF: *const Contract = 0 as *const Contract;
+
 #[near_bindgen]
 impl Contract {
     pub fn call_js_func(&self, function_name: String) {
         let jsmod = load_js_bytecode(self.jsbytecode.as_ptr(), self.jsbytecode.len());
 
         unsafe {
+            CONTRACT_REF = self as *const Contract;
+            add_function_to_js(
+                "nft_supply_for_owner",
+                |_ctx: i32, _this_val: i64, _argc: i32, _argv: i32| -> i64 {
+                    return (*CONTRACT_REF)
+                        .nft_supply_for_owner(env::signer_account_id())
+                        .0 as i64;
+                },
+                1,
+            );
+
             let function_name_cstr = CString::new(function_name).unwrap();
             js_call_function(jsmod, function_name_cstr.as_ptr() as i32);
         }
@@ -149,9 +163,9 @@ mod tests {
 
     use quickjs_rust_near::jslib::compile_js;
     use quickjs_rust_near_testenv::testenv::{
-        alice, assert_latest_return_value_contains, bob, set_attached_deposit,
-        set_current_account_id, set_input, set_signer_account_id, set_signer_account_pk,
-        setup_test_env,
+        alice, assert_latest_return_value_contains, assert_latest_return_value_string_eq, bob,
+        set_attached_deposit, set_current_account_id, set_input, set_predecessor_account_id,
+        set_signer_account_id, set_signer_account_pk, setup_test_env,
     };
     static CONTRACT_JS: &'static [u8] = include_bytes!("contract.js");
 
@@ -179,6 +193,18 @@ mod tests {
         set_attached_deposit(1600000000000000000000);
 
         let mut contract = Contract::new();
+        contract.post_javascript(
+            "
+        export function get_supply_for_bob() {
+            env.value_return('bob supply: '+env.nft_supply_for_owner('bob.near'))
+        }
+        "
+            .to_string(),
+        );
+
+        contract.call_js_func("get_supply_for_bob".to_string());
+        assert_latest_return_value_string_eq("bob supply: 0".to_string());
+
         contract.nft_mint(
             "1".to_string(),
             bob(),
@@ -198,12 +224,16 @@ mod tests {
             },
         );
         assert_eq!(contract.nft_supply_for_owner(bob()).0, 1 as u128);
+
+        contract.call_js_func("get_supply_for_bob".to_string());
+        assert_latest_return_value_string_eq("bob supply: 1".to_string());
     }
 
     #[test]
     fn test_web4_get() {
         setup_test_env();
-        set_current_account_id(bob());
+        set_current_account_id(alice());
+        set_predecessor_account_id(alice());
         set_input(
             "{\"request\": {\"path\": \"/serviceworker.js\"}}"
                 .try_into()
@@ -224,6 +254,27 @@ mod tests {
         );
 
         set_signer_account_id(alice());
+        set_attached_deposit(1620000000000000000000);
+
+        contract.nft_mint(
+            "2".to_string(),
+            alice(),
+            TokenMetadata {
+                title: Some("test".to_string()),
+                description: None,
+                media: None,
+                media_hash: None,
+                copies: None,
+                issued_at: None,
+                expires_at: None,
+                starts_at: None,
+                updated_at: None,
+                extra: None,
+                reference: None,
+                reference_hash: None,
+            },
+        );
+
         set_signer_account_pk(
             vec![
                 0, 85, 107, 80, 196, 145, 120, 98, 16, 245, 69, 9, 42, 212, 6, 131, 229, 36, 235,
@@ -232,7 +283,6 @@ mod tests {
             .try_into()
             .unwrap(),
         );
-
         contract.call_js_func("store_signing_key".to_string());
 
         let signed_message: String = "the expected message to be signed".to_string();
