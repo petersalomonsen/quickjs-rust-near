@@ -23,6 +23,7 @@ pub fn carol() -> AccountId {
 }
 
 struct TestEnv {
+    block_timestamp: u64,
     signer_account_id: AccountId,
     signer_account_pk: PublicKey,
     current_account_id: AccountId,
@@ -35,6 +36,7 @@ struct TestEnv {
 impl TestEnv {
     pub fn new() -> Self {
         Self {
+            block_timestamp: 0,
             signer_account_id: bob(),
             current_account_id: alice(),
             predecessor_account_id: bob(),
@@ -93,6 +95,10 @@ pub fn set_input(input: Vec<u8>) {
 
 pub fn set_attached_deposit(deposit: Balance) {
     TESTENV.lock().unwrap().attached_deposit = deposit;
+}
+
+pub fn set_block_timestamp(timestamp_nanos: u64) {
+    TESTENV.lock().unwrap().block_timestamp = timestamp_nanos;
 }
 
 #[no_mangle]
@@ -451,6 +457,11 @@ pub extern "C" fn promise_result(_result_idx: i64, _register_id: i64) -> i64 {
 
 #[no_mangle]
 pub extern "C" fn promise_return(_promise_idx: i64) {}
+
+#[no_mangle]
+pub extern "C" fn block_timestamp() -> i64 {
+    return TESTENV.lock().unwrap().block_timestamp.try_into().unwrap();
+}
 
 #[cfg(test)]
 mod tests {

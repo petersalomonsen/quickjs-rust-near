@@ -72,7 +72,7 @@ test('should require owners signature to get content', async () => {
             javascript: `
             export function store_signing_key() {
                 if (env.nft_supply_for_owner(env.signer_account_id()) > 0) {
-                    env.store_signing_key();
+                    env.store_signing_key(env.block_timestamp_ms() + 60 * 1000);
                 }
             }
               

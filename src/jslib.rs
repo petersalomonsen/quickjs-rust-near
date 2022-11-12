@@ -1,4 +1,5 @@
 use crate::viewaccesscontrol::{store_signing_key_for_account, verify_message_signed_by_account};
+use near_sdk::env;
 use std::ffi::CString;
 use std::slice;
 
@@ -93,8 +94,9 @@ fn verify_signed_message_func(ctx: i32, _this_val: i64, _argc: i32, argv: i32) -
     }
 }
 
-fn store_signing_key_func(_ctx: i32, _this_val: i64, _argc: i32, _argv: i32) -> i64 {
-    store_signing_key_for_account();
+fn store_signing_key_func(_ctx: i32, _this_val: i64, _argc: i32, argv: i32) -> i64 {
+    let expires_timestamp_ms = unsafe { *(argv as *const u64) };
+    store_signing_key_for_account(expires_timestamp_ms);
     return JS_UNDEFINED;
 }
 
@@ -117,9 +119,10 @@ unsafe fn setup_quickjs() {
 
     add_function_to_js("value_return", value_return_func, 1);
     add_function_to_js("input", input_func, 1);
+    add_function_to_js("block_timestamp_ms", |_ctx: i32, _this_val: i64, _argc: i32, _argv: i32| -> i64 {env::block_timestamp_ms() as i64}, 1);
     add_function_to_js("signer_account_id", signer_account_id_func, 1);
     add_function_to_js("verify_signed_message", verify_signed_message_func, 2);
-    add_function_to_js("store_signing_key", store_signing_key_func, 0);
+    add_function_to_js("store_signing_key", store_signing_key_func, 1);
 }
 
 pub fn run_js(script: String) -> i32 {
@@ -217,7 +220,7 @@ mod tests {
     fn test_verify_signed_message_func() {
         setup_test_env();
         set_signer_account_id(alice());
-        store_signing_key_for_account();
+        store_signing_key_for_account(24 * 60 * 60 * 1000);
         run_js("env.value_return(env.verify_signed_message('invitation1','LtXiPcOxOC8n5/qiICscp3P5Ku8ymC3gj1eYJuq8GFR9co2pZYwbWLBiu5CrtVFtvmeWwMzOIkp4tJaosJ40Dg==', 'alice.near') ? 'valid' : 'invalid')".to_string());
         assert_latest_return_value_string_eq("valid".to_string());
     }

@@ -22,7 +22,7 @@ pub struct Scripts {
 impl Scripts {
     #[cfg(not(feature = "library"))]
     pub fn store_signing_key() {
-        store_signing_key_for_account();
+        store_signing_key_for_account(env::block_timestamp_ms() + 24 * 60 * 60 * 1000);
     }
 
     pub fn run_script(&self, script: String) -> String {

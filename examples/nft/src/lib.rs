@@ -165,7 +165,7 @@ mod tests {
     use quickjs_rust_near_testenv::testenv::{
         alice, assert_latest_return_value_contains, assert_latest_return_value_string_eq, bob,
         set_attached_deposit, set_current_account_id, set_input, set_predecessor_account_id,
-        set_signer_account_id, set_signer_account_pk, setup_test_env,
+        set_signer_account_id, set_signer_account_pk, setup_test_env, set_block_timestamp,
     };
     static CONTRACT_JS: &'static [u8] = include_bytes!("contract.js");
 
@@ -283,8 +283,9 @@ mod tests {
             .try_into()
             .unwrap(),
         );
+        
         contract.call_js_func("store_signing_key".to_string());
-
+        set_block_timestamp(env::block_timestamp() + 23 * 60 * 60 * 1_000_000_000);
         let signed_message: String = "the expected message to be signed".to_string();
         let signature: String = "yr73SvNvNGkycuOiMCvEKfq6yEXBT31nEjeZIBvSuo6geaNXqfZ9zJS3j1Y7ta7gcRqgGYm6QcQBiY+4s1pTAA==".to_string();
 
