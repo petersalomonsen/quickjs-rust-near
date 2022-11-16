@@ -78,12 +78,14 @@ const wavfilebytes = new Uint8Array(totalLength);
 async function createWav() {
     console.log('create wav');
     const wasmInstance = await wasmInstancePromise;
+    
+    const samplebuffer = wasmInstance.allocateSampleBuffer ? wasmInstance.allocateSampleBuffer(SAMPLE_FRAMES) : wasmInstance.samplebuffer;
 
     const leftbuffer = new Float32Array(wasmInstance.memory.buffer,
-        wasmInstance.samplebuffer,
+        samplebuffer,
         SAMPLE_FRAMES);
     const rightbuffer = new Float32Array(wasmInstance.memory.buffer,
-        wasmInstance.samplebuffer + (SAMPLE_FRAMES * 4),
+        samplebuffer + (SAMPLE_FRAMES * 4),
         SAMPLE_FRAMES);
 
     const rawsamplesview = new DataView(wavfilebytes.buffer);
@@ -92,8 +94,9 @@ async function createWav() {
     let pos = WAV_HEADER_LENGTH;
 
     let lastIdleTime = new Date().getTime();
-    while (pos < totalLength) {
-        wasmInstance.playEventsAndFillSampleBuffer();
+    while (pos < totalLength) {        
+        wasmInstance.playEventsAndFillSampleBuffer ? wasmInstance.playEventsAndFillSampleBuffer() : wasmInstance.fillSampleBuffer();
+
         for (let bufferpos = 0; bufferpos < SAMPLE_FRAMES && pos < totalLength; bufferpos++) {
             rawsamplesview.setFloat32(pos, leftbuffer[bufferpos], true);
             pos += 4;
@@ -116,7 +119,6 @@ let wavpromise;
 self.addEventListener('fetch', (event) =>
     event.respondWith(new Promise(async resolve => {
         if (event.request.url.indexOf('.wav') > -1 && event.request.headers.has('range')) {
-
             if (!wavpromise) {
                 wavpromise = createWav();
             }

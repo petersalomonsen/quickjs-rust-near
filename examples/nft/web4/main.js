@@ -22,10 +22,11 @@ if ('serviceWorker' in navigator) {
             );
         }
 
-        const wasmbytesresponse = await fetch('music.wasm'+location.search);
+        const wasmbytesresponse = await fetch('musicwasms/fall.wasm'+location.search);
         const messageArea = document.getElementById('message');
         if (wasmbytesresponse.headers.get('content-type') == 'application/wasm') {
             const wasmbytes = await wasmbytesresponse.arrayBuffer();
+            const mod = await WebAssembly.compile(wasmbytes);
             navigator.serviceWorker.controller.postMessage({wasmbytes: wasmbytes},[wasmbytes]);
             document.getElementById('player').src = 'music.wav';
             messageArea.innerHTML = location.search.match(/message=([^&]+)/)[1];
