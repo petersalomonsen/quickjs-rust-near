@@ -11,23 +11,45 @@ if ('serviceWorker' in navigator) {
             // registration failed
             console.log('Registration failed with ' + error);
         });
-    navigator.serviceWorker.ready.then(async (registration) => {            
+    navigator.serviceWorker.ready.then(async (registration) => {
         if (registration.active.state !== 'activated') {
             await new Promise((resolve) =>
                 registration.active.addEventListener('statechange', (e) => {
-                    if(e.target.state === 'activated') {
+                    if (e.target.state === 'activated') {
                         resolve();
                     }
                 })
             );
         }
 
-        const wasmbytesresponse = await fetch('musicwasms/fall.wasm'+location.search);
+        const musicwasms = [
+            { path: 'musicwasms/fall.wasm', durationSeconds: 60 },
+            { path: 'musicwasms/noiseandmadness.wasm', durationSeconds: 60 },
+            { path: 'musicwasms/goodtimes.wasm', durationSeconds: 60 }
+        ];
+
+        let loadSuccessful = true;
+        for (let n = 0; n < musicwasms.length; n++) {
+            const musicwasm = musicwasms[n];
+            const wasmbytesresponse = await fetch(musicwasm.path + location.search);
+
+            if (wasmbytesresponse.headers.get('content-type') == 'application/wasm') {
+                const wasmbytes = await wasmbytesresponse.arrayBuffer();
+                navigator.serviceWorker.controller.postMessage(
+                    {
+                        wasmbytes: wasmbytes,
+                        durationSeconds: musicwasm.durationSeconds,
+                        lastInstance: n == (musicwasms.length - 1)
+                    },
+                    [wasmbytes]);
+            } else {
+                loadSuccessful = false;
+                break;
+            }
+        }
+
         const messageArea = document.getElementById('message');
-        if (wasmbytesresponse.headers.get('content-type') == 'application/wasm') {
-            const wasmbytes = await wasmbytesresponse.arrayBuffer();
-            const mod = await WebAssembly.compile(wasmbytes);
-            navigator.serviceWorker.controller.postMessage({wasmbytes: wasmbytes},[wasmbytes]);
+        if (loadSuccessful) {
             document.getElementById('player').src = 'music.wav';
             messageArea.innerHTML = location.search.match(/message=([^&]+)/)[1];
         } else {

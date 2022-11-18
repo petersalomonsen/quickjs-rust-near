@@ -55,74 +55,92 @@ function writeString(view, offset, string) {
     }
 }
 
-let wasmInstancePromise = new Promise(async resolve => {
+let samplesLength = 0;
+let totalLength;
+let wavfilebytes = null;
+
+const wasmInstances = [];
+const wasmInstancesReceivedPromise = new Promise(resolve => {
     self.addEventListener('message', async (event) => {
-        if (event.data && event.data.wasmbytes) {
-            console.log('got wasmbytes');
-            resolve((await WebAssembly.instantiate(event.data.wasmbytes,
-            {
-                environment: {
-                    SAMPLERATE: SAMPLERATE
-                }
-            })).instance.exports);
+        if (!wavfilebytes && event.data && event.data.wasmbytes) {
+            wasmInstances.push({
+                instanceExportsPromise: (await WebAssembly.instantiate(event.data.wasmbytes,
+                    {
+                        environment: {
+                            SAMPLERATE: SAMPLERATE
+                        }
+                    })).instance.exports,
+                durationSeconds: event.data.durationSeconds
+            });
+
+            samplesLength += (event.data.durationSeconds * SAMPLERATE * 4 * 2);
+
+            if (event.data.lastInstance == true) {
+                totalLength = samplesLength + WAV_HEADER_LENGTH;
+                wavfilebytes = new Uint8Array(totalLength);
+                console.log('all instances received', wasmInstances.length);
+                resolve();
+            }
         }
     });
-});;
+});
 
 let currentBytePos = 0;
 
-const samplesLength = 2 * 60 * SAMPLERATE * 4 * 2;
-const totalLength = samplesLength + WAV_HEADER_LENGTH;
-const wavfilebytes = new Uint8Array(totalLength);
-
 async function createWav() {
     console.log('create wav');
-    const wasmInstance = await wasmInstancePromise;
-    
-    const samplebuffer = wasmInstance.allocateSampleBuffer ? wasmInstance.allocateSampleBuffer(SAMPLE_FRAMES) : wasmInstance.samplebuffer;
-
-    const leftbuffer = new Float32Array(wasmInstance.memory.buffer,
-        samplebuffer,
-        SAMPLE_FRAMES);
-    const rightbuffer = new Float32Array(wasmInstance.memory.buffer,
-        samplebuffer + (SAMPLE_FRAMES * 4),
-        SAMPLE_FRAMES);
+    await wasmInstancesReceivedPromise;
 
     const rawsamplesview = new DataView(wavfilebytes.buffer);
     writeWavHeader(samplesLength, SAMPLERATE, 2, 32, rawsamplesview);
 
     let pos = WAV_HEADER_LENGTH;
 
-    let lastIdleTime = new Date().getTime();
-    while (pos < totalLength) {        
-        wasmInstance.playEventsAndFillSampleBuffer ? wasmInstance.playEventsAndFillSampleBuffer() : wasmInstance.fillSampleBuffer();
+    for (let n = 0; n < wasmInstances.length; n++) {
+        const instanceData = wasmInstances[n];
+        console.log('rendering wasminstance', n, instanceData.durationSeconds);
+        const endpos = pos + instanceData.durationSeconds * SAMPLERATE * 4 * 2
+        const wasmInstance = await instanceData.instanceExportsPromise;
 
-        for (let bufferpos = 0; bufferpos < SAMPLE_FRAMES && pos < totalLength; bufferpos++) {
-            rawsamplesview.setFloat32(pos, leftbuffer[bufferpos], true);
-            pos += 4;
-            rawsamplesview.setFloat32(pos, rightbuffer[bufferpos], true);
-            pos += 4;
-        }
+        const samplebuffer = wasmInstance.allocateSampleBuffer ? wasmInstance.allocateSampleBuffer(SAMPLE_FRAMES) : wasmInstance.samplebuffer;
 
-        if (new Date().getTime() - lastIdleTime > 50) {
-            // release resources every 50 msecs
-            await new Promise(r => setTimeout(r, 0));
-            lastIdleTime = new Date().getTime();
-            console.log(pos / totalLength);
+        let lastIdleTime = new Date().getTime();
+        while (pos < endpos && pos < totalLength) {
+            wasmInstance.playEventsAndFillSampleBuffer != undefined ?
+                wasmInstance.playEventsAndFillSampleBuffer() :
+                wasmInstance.fillSampleBuffer();
+
+            const leftbuffer = new Float32Array(wasmInstance.memory.buffer,
+                samplebuffer,
+                SAMPLE_FRAMES);
+            const rightbuffer = new Float32Array(wasmInstance.memory.buffer,
+                samplebuffer + (SAMPLE_FRAMES * 4),
+                SAMPLE_FRAMES);
+
+            for (let bufferpos = 0; bufferpos < SAMPLE_FRAMES && pos < totalLength; bufferpos++) {
+                rawsamplesview.setFloat32(pos, leftbuffer[bufferpos], true);
+                pos += 4;
+                rawsamplesview.setFloat32(pos, rightbuffer[bufferpos], true);
+                pos += 4;
+            }
+
+            if (new Date().getTime() - lastIdleTime > 20) {
+                // release resources every 50 msecs
+                await new Promise(r => setTimeout(r, 0));
+                lastIdleTime = new Date().getTime();
+                console.log(n, pos / totalLength, pos, endpos);
+            }
+            currentBytePos = pos;
         }
-        currentBytePos = pos;
     }
+    console.log('all audio rendered');
 }
 
-let wavpromise;
+const wavpromise = createWav();
 
 self.addEventListener('fetch', (event) =>
     event.respondWith(new Promise(async resolve => {
         if (event.request.url.indexOf('.wav') > -1 && event.request.headers.has('range')) {
-            if (!wavpromise) {
-                wavpromise = createWav();
-            }
-
             while (currentBytePos == 0) {
                 await new Promise(r => setTimeout(() => r(), 20));
             }
