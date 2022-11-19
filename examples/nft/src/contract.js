@@ -12,23 +12,30 @@ export function web4_get() {
       body: SERVICEWORKER
     };
   } else if (request.path == '/music.wasm') {
-    const validSignature = env.verify_signed_message(
-      request.query.message[0],
-      request.query.signature[0],
-      request.query.account_id[0]
-    );
+      if(env.nft_supply_for_owner(request.query.account_id[0]) > 0) {
+        const validSignature = env.verify_signed_message(
+          request.query.message[0],
+          request.query.signature[0],
+          request.query.account_id[0]
+        );
 
-    if (validSignature) {
-      response = {
-        contentType: "application/wasm",
-        body: MUSIC_WASM,
-      };
-    } else {
-      response = {
-        contentType: "text/plain",
-        body: "INVALID SIGNATURE",
-      };
-    }
+        if (validSignature) {
+          response = {
+            contentType: "application/wasm",
+            body: MUSIC_WASM,
+          };
+        } else {
+          response = {
+            contentType: "text/plain",
+            body: "INVALID SIGNATURE",
+          };
+        }
+      } else {
+        response = {
+          contentType: "text/plain",
+          body: "NOT OWNER",
+        };
+      }
   } else {
     response = {
       contentType: "text/html; charset=UTF-8",

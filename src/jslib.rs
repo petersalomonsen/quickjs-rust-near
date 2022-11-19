@@ -22,7 +22,7 @@ pub const JS_UNDEFINED: i64 = 0x0000000300000000;
 pub const JS_FALSE: i64 = 0x0000000100000000;
 pub const JS_TRUE: i64 = 0x0000000100000001;
 
-fn arg_to_str(ctx: i32, arg_no: i32, argv: i32) -> String {
+pub fn arg_to_str(ctx: i32, arg_no: i32, argv: i32) -> String {
     let mut value_len: usize = 0;
     let value_len_ptr: *mut usize = &mut value_len as *mut usize;
     let argv_ptr = (argv + (arg_no * 8)) as *const i64;

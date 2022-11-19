@@ -9,7 +9,7 @@ use near_sdk::{
 };
 use quickjs_rust_near::jslib::{
     add_function_to_js, compile_js, js_call_function, js_get_property, js_get_string,
-    load_js_bytecode,
+    load_js_bytecode, arg_to_str,
 };
 use std::ffi::CStr;
 use std::ffi::CString;
@@ -33,21 +33,27 @@ static mut CONTRACT_REF: *const Contract = 0 as *const Contract;
 
 #[near_bindgen]
 impl Contract {
+    unsafe fn add_js_functions(&self) {
+        CONTRACT_REF = self as *const Contract;
+        add_function_to_js(
+            "nft_supply_for_owner",
+            |ctx: i32, _this_val: i64, _argc: i32, argv: i32| -> i64 {
+                return (*CONTRACT_REF)
+                    .nft_supply_for_owner(
+                            AccountId::new_unchecked(arg_to_str(ctx, 0, argv)
+                        )
+                    )
+                    .0 as i64;
+            },
+            1,
+        );
+    }
+
     pub fn call_js_func(&self, function_name: String) {
         let jsmod = load_js_bytecode(self.jsbytecode.as_ptr(), self.jsbytecode.len());
 
-        unsafe {
-            CONTRACT_REF = self as *const Contract;
-            add_function_to_js(
-                "nft_supply_for_owner",
-                |_ctx: i32, _this_val: i64, _argc: i32, _argv: i32| -> i64 {
-                    return (*CONTRACT_REF)
-                        .nft_supply_for_owner(env::signer_account_id())
-                        .0 as i64;
-                },
-                1,
-            );
-
+        unsafe {            
+            self.add_js_functions();
             let function_name_cstr = CString::new(function_name).unwrap();
             js_call_function(jsmod, function_name_cstr.as_ptr() as i32);
         }
@@ -57,6 +63,7 @@ impl Contract {
         let jsmod = load_js_bytecode(self.jsbytecode.as_ptr(), self.jsbytecode.len());
         let web4_get_str = CString::new("web4_get").unwrap();
         unsafe {
+            self.add_js_functions();
             js_call_function(jsmod, web4_get_str.as_ptr() as i32);
         }
     }
@@ -309,6 +316,51 @@ mod tests {
         );
         contract.web4_get();
         assert_latest_return_value_contains("{\"contentType\":\"application/wasm".to_owned());
+
+        set_input(
+            format!(
+                "
+            {{
+                \"request\": {{
+                        \"path\": \"/music.wasm\", 
+                        \"query\": {{
+                            \"account_id\": [\"alice.near\"],
+                            \"message\": [\"{}ee\"],
+                            \"signature\": [\"{}\"]
+                        }}
+                }}
+            }}",
+                signed_message, signature
+            )
+            .try_into()
+            .unwrap(),
+        );
+        contract.web4_get();
+        
+        assert_latest_return_value_contains("INVALID SIGNATURE".to_owned());
+
+        assert_eq!(contract.nft_supply_for_owner(AccountId::new_unchecked("unknown.near".to_string())).0, 0 as u128);
+        set_input(
+            format!(
+                "
+            {{
+                \"request\": {{
+                        \"path\": \"/music.wasm\", 
+                        \"query\": {{
+                            \"account_id\": [\"unknown.near\"],
+                            \"message\": [\"{}\"],
+                            \"signature\": [\"{}\"]
+                        }}
+                }}
+            }}",
+                signed_message, signature
+            )
+            .try_into()
+            .unwrap(),
+        );
+        contract.web4_get();
+        
+        assert_latest_return_value_contains("NOT OWNER".to_owned());
 
         set_input(
             "{\"request\": {\"path\": \"/index.html\"}}"

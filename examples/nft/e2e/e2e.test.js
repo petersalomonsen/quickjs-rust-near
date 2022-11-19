@@ -86,18 +86,26 @@ test('should require owners signature to get content', async () => {
                         return p;
                     },{});
 
-                    const validSignature = env.verify_signed_message(params.message, params.signature, '${accountId}');
-              
-                    if (validSignature) {
-                      response = {
-                            contentType: "text/plain; charset=UTF-8",
-                            body: "VALID SIGNATURE",
-                      };
+                    if (env.nft_supply_for_owner(params.account) > 0) {
+                                            
+                        const validSignature = env.verify_signed_message(params.message, params.signature, '${accountId}');
+                
+                        if (validSignature) {
+                            response = {
+                                    contentType: "text/plain; charset=UTF-8",
+                                    body: "VALID SIGNATURE",
+                            };
+                        } else {
+                            response = {
+                                contentType: "text/plain; charset=UTF-8",
+                                body: "INVALID SIGNATURE",
+                            };
+                        }
                     } else {
-                      response = {
-                        contentType: "text/plain; charset=UTF-8",
-                        body: "INVALID SIGNATURE",
-                      };
+                        response = {
+                            contentType: "text/plain; charset=UTF-8",
+                            body: "NOT OWNER",
+                        };
                     }
                 } else {
                     response = {
@@ -144,7 +152,8 @@ test('should require owners signature to get content', async () => {
                 path: `/content`,
                 query: {
                     message: [messageToBeSigned],
-                    signature: [signatureBase64]
+                    signature: [signatureBase64],
+                    account: [accountId]
                 }
             }
         }
@@ -158,11 +167,27 @@ test('should require owners signature to get content', async () => {
                 path: `/content`,
                 query: {
                     message: ['blabla'],
-                    signature: [signatureBase64]
+                    signature: [signatureBase64],
+                    account: [accountId]
                 }
             }
         }
     });
     expect(result.contentType).toBe('text/plain; charset=UTF-8');
     expect(result.body).toBe('INVALID SIGNATURE');
+
+    result = await account.viewFunction({
+        contractId: accountId, methodName: 'web4_get', args: {
+            request: {
+                path: `/content`,
+                query: {
+                    message: ['blabla'],
+                    signature: [signatureBase64],
+                    account: ['blabla']
+                }
+            }
+        }
+    });
+    expect(result.contentType).toBe('text/plain; charset=UTF-8');
+    expect(result.body).toBe('NOT OWNER');
 }, 20000);

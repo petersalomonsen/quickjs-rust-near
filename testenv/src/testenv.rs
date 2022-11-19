@@ -305,7 +305,7 @@ pub fn assert_latest_return_value_contains(value_to_be_contained: String) {
     let latest_return_value = std::str::from_utf8(TESTENV.lock().unwrap().returned_value.as_ref())
         .unwrap()
         .to_string();
-    assert_eq!(latest_return_value.contains(&value_to_be_contained), true);
+    assert_eq!(latest_return_value.contains(&value_to_be_contained), true, "latest return value should contain {}, but was {}",value_to_be_contained,latest_return_value);
 }
 
 pub fn assert_latest_return_value_string_eq(expected_return_value: String) {
