@@ -128,7 +128,7 @@ async function createWav() {
                 // release resources every 50 msecs
                 await new Promise(r => setTimeout(r, 1));
                 lastIdleTime = new Date().getTime();
-                console.log(n, pos / totalLength, pos, endpos);
+                //console.log(n, pos / totalLength, pos, endpos);
             }
             currentBytePos = pos;
         }
@@ -153,7 +153,7 @@ self.addEventListener('fetch', (event) =>
             }
 
             if (rangeStart > rangeEnd) {
-                rangeStart = rangeEnd;
+                rangeStart = 0;
             }
 
             const respondblob = new Blob([wavfilebytes.buffer.slice(rangeStart, rangeEnd + 1)], { type: 'audio/wav' });
