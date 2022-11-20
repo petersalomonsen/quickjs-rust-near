@@ -18,16 +18,16 @@ if (!walletConnection.isSignedIn()) {
     loginbutton.style.display = 'block';
     loginbutton.addEventListener('click', () => {
         walletConnection.requestSignIn(
-            {contractId: contractAccountId, methodNames: ['store_signing_key']}
+            {contractId: contractAccountId, methodNames: ['call_js_func']}
         );
     });
 } else {
     const account = walletConnection.account();
     const contract = new Contract(account, contractAccountId, {
-        changeMethods: ['store_signing_key'],
+        changeMethods: ['call_js_func'],
         viewMethods: ['web4_get']
     });
-    //await contract.store_signing_key();
+    await contract.call_js_func({'function_name': 'store_signing_key'});
 
     const message = 'hello';
 

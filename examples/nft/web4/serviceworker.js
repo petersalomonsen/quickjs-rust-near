@@ -124,9 +124,9 @@ async function createWav() {
                 pos += 4;
             }
 
-            if (new Date().getTime() - lastIdleTime > 20) {
+            if (new Date().getTime() - lastIdleTime > 50) {
                 // release resources every 50 msecs
-                await new Promise(r => setTimeout(r, 0));
+                await new Promise(r => setTimeout(r, 1));
                 lastIdleTime = new Date().getTime();
                 console.log(n, pos / totalLength, pos, endpos);
             }

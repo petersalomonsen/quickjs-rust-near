@@ -301,7 +301,7 @@ mod tests {
                 "
             {{
                 \"request\": {{
-                        \"path\": \"/music.wasm\", 
+                        \"path\": \"/musicwasms/grooveisinthecode.wasm\", 
                         \"query\": {{
                             \"account_id\": [\"alice.near\"],
                             \"message\": [\"{}\"],
@@ -322,7 +322,7 @@ mod tests {
                 "
             {{
                 \"request\": {{
-                        \"path\": \"/music.wasm\", 
+                        \"path\": \"/musicwasms/grooveisinthecode.wasm\", 
                         \"query\": {{
                             \"account_id\": [\"alice.near\"],
                             \"message\": [\"{}ee\"],
@@ -345,7 +345,7 @@ mod tests {
                 "
             {{
                 \"request\": {{
-                        \"path\": \"/music.wasm\", 
+                        \"path\": \"/musicwasms/grooveisinthecode.wasm\", 
                         \"query\": {{
                             \"account_id\": [\"unknown.near\"],
                             \"message\": [\"{}\"],
