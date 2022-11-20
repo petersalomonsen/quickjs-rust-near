@@ -19,6 +19,7 @@ test('should run custom javascript (quickjs bytecode ) in contract', async () =>
     await account.functionCall({
         contractId: accountId,
         methodName: 'post_quickjs_bytecode',
+        gas: '300000000000000',
         args: {
             bytecodebase64: await (await readFile('e2e/quickjsbytecode.bin')).toString('base64')
         }
@@ -41,6 +42,7 @@ test('should run custom javascript in contract', async () => {
     await account.functionCall({
         contractId: accountId,
         methodName: 'post_javascript',
+        gas: '300000000000000',
         args: {
             javascript: await (await readFile('src/contract.js')).toString()
         }
@@ -59,6 +61,7 @@ test('should require owners signature to get content', async () => {
         contractId: accountId,
         methodName: 'nft_mint',
         attachedDeposit: '16250000000000000000000',
+        gas: '300000000000000',
         args: {
             token_id: `${new Date().getTime()}`,
             token_owner_id: accountId,
