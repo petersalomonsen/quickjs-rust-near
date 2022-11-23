@@ -71,12 +71,14 @@ const wasmInstancesReceivedPromise = new Promise(resolve => {
                         SAMPLERATE: SAMPLERATE
                     }
                 })).instance.exports;
-            
+
+            const startPos = samplesLength + WAV_HEADER_LENGTH;
             wasmInstances.push({
                 instance: wasmInstance,
-                startPos: samplesLength + WAV_HEADER_LENGTH,
-                endPos: samplesLength + WAV_HEADER_LENGTH + durationBytes,
+                startPos: startPos,
+                endPos: startPos + durationBytes,
                 durationSeconds: event.data.durationSeconds,
+                renderPos: startPos,
                 allocatedSampleBuffer: wasmInstance.allocateSampleBuffer ? wasmInstance.allocateSampleBuffer(SAMPLE_FRAMES) : undefined
             });
 
@@ -90,7 +92,6 @@ const wasmInstancesReceivedPromise = new Promise(resolve => {
                 const rawsamplesview = new DataView(wavfilebytes.buffer);
                 writeWavHeader(samplesLength, SAMPLERATE, 2, 32, rawsamplesview);
 
-                currentBytePos = WAV_HEADER_LENGTH;
                 console.log('wav header written, ready for rendering from wasm');
                 resolve();
             }
@@ -98,47 +99,57 @@ const wasmInstancesReceivedPromise = new Promise(resolve => {
     });
 });
 
-let currentBytePos = 0;
-let currentWasmInstanceIndex = 0;
-
-async function nextChunk() {
+async function nextChunk(wantedRangeStart, wantedRangeEnd) {
     await wasmInstancesReceivedPromise;
-    console.log( currentWasmInstanceIndex, currentBytePos);
-    if (currentWasmInstanceIndex < wasmInstances.length) {
-        const rawsamplesview = new DataView(wavfilebytes.buffer);
-        const instanceData = wasmInstances[currentWasmInstanceIndex];
-        const endpos = instanceData.endPos;
+    const currentWasmInstanceIndex = wasmInstances.findIndex((instanceData, ndx) =>
+        (ndx == 0 && wantedRangeStart < instanceData.startPos)
+        ||
+        (instanceData.startPos <= wantedRangeStart &&
+            instanceData.endPos > wantedRangeStart)
+    );
 
-        const wasmInstance = instanceData.instance;
-        const samplebuffer = instanceData.allocatedSampleBuffer ? instanceData.allocatedSampleBuffer : wasmInstance.samplebuffer;
+    const rawsamplesview = new DataView(wavfilebytes.buffer);
+    const instanceData = wasmInstances[currentWasmInstanceIndex];
+    console.log(currentWasmInstanceIndex, wantedRangeStart, wantedRangeEnd, instanceData.startPos, instanceData.endPos);
 
-        for (let n = 0; n < 50; n++) {
-            if (currentBytePos < endpos && currentBytePos < totalLength) {
-                wasmInstance.playEventsAndFillSampleBuffer != undefined ?
-                    wasmInstance.playEventsAndFillSampleBuffer() :
-                    wasmInstance.fillSampleBuffer();
+    const endpos = instanceData.endPos;
+    let currentBytePos = instanceData.renderPos;
 
-                const leftbuffer = new Float32Array(wasmInstance.memory.buffer,
-                    samplebuffer,
-                    SAMPLE_FRAMES);
-                const rightbuffer = new Float32Array(wasmInstance.memory.buffer,
-                    samplebuffer + (SAMPLE_FRAMES * 4),
-                    SAMPLE_FRAMES);
+    const wasmInstance = instanceData.instance;
+    const samplebuffer = instanceData.allocatedSampleBuffer ? instanceData.allocatedSampleBuffer : wasmInstance.samplebuffer;
 
-                for (let bufferpos = 0; bufferpos < SAMPLE_FRAMES && currentBytePos < totalLength; bufferpos++) {
-                    rawsamplesview.setFloat32(currentBytePos, leftbuffer[bufferpos], true);
-                    currentBytePos += 4;
-                    rawsamplesview.setFloat32(currentBytePos, rightbuffer[bufferpos], true);
-                    currentBytePos += 4;
-                }
-            } else if (currentBytePos >= endpos) {
-                currentWasmInstanceIndex++;
-                console.log('rendering wasminstance', currentWasmInstanceIndex, instanceData.durationSeconds);
+    for (let n = 0; n < 100 && currentBytePos < endpos && currentBytePos < totalLength; n++) {
+        wasmInstance.playEventsAndFillSampleBuffer != undefined ?
+            wasmInstance.playEventsAndFillSampleBuffer() :
+            wasmInstance.fillSampleBuffer();
 
-                break;
-            }
+        const leftbuffer = new Float32Array(wasmInstance.memory.buffer,
+            samplebuffer,
+            SAMPLE_FRAMES);
+        const rightbuffer = new Float32Array(wasmInstance.memory.buffer,
+            samplebuffer + (SAMPLE_FRAMES * 4),
+            SAMPLE_FRAMES);
+
+        for (let bufferpos = 0; bufferpos < SAMPLE_FRAMES && currentBytePos < totalLength; bufferpos++) {
+            rawsamplesview.setFloat32(currentBytePos, leftbuffer[bufferpos], true);
+            currentBytePos += 4;
+            rawsamplesview.setFloat32(currentBytePos, rightbuffer[bufferpos], true);
+            currentBytePos += 4;
         }
+        instanceData.renderPos = currentBytePos;
     }
+    let rangeStart = wantedRangeStart;
+    let rangeEnd = wantedRangeEnd;
+    if (!rangeEnd || currentBytePos <= rangeEnd) {
+        rangeEnd = currentBytePos - 1;
+    }
+    if (rangeEnd < rangeStart) {
+        rangeEnd = endpos;
+    }
+    return {
+        rangeStart: rangeStart,
+        rangeEnd: rangeEnd
+    };
 }
 
 self.addEventListener('fetch', (event) =>
@@ -146,19 +157,11 @@ self.addEventListener('fetch', (event) =>
         if (event.request.url.indexOf('.wav') > -1 && event.request.headers.has('range')) {
             const range = event.request.headers.get('range').match(/bytes=([0-9]+)-([0-9]*)/);
 
-            await nextChunk();
-            
-            let rangeStart = parseInt(range[1]);
-            let rangeEnd = range[2] ? parseInt(range[2]) : currentBytePos;
-            
-            if (rangeEnd >= currentBytePos) {
-                rangeEnd = currentBytePos - 1;
-            }
+            let wantedRangeStart = parseInt(range[1]);
+            let wantedRangeEnd = range[2] ? parseInt(range[2]) : null;
 
-            if (rangeStart > rangeEnd) {
-                rangeStart = 0;
-            }
-
+            let { rangeStart, rangeEnd } = await nextChunk(wantedRangeStart, wantedRangeEnd);
+            //console.log(rangeStart, rangeEnd);
             const buf = wavfilebytes.subarray(rangeStart, rangeEnd + 1);
 
             const respondblob = new Blob([buf], { type: 'audio/wav' });
