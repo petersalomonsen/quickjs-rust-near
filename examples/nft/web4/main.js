@@ -23,22 +23,25 @@ if ('serviceWorker' in navigator) {
         }
 
         const musicwasms = [
-            { name: 'Groove is in the code', path: 'musicwasms/grooveisinthecode.wasm', durationSeconds: 154 },
-            { name: 'Fall', path: 'musicwasms/fall.wasm', durationSeconds: 174 },
-            { name: 'Noise and madness', path: 'musicwasms/noiseandmadness.wasm', durationSeconds: 163 },
-            { name: 'Web chip-music', path: 'musicwasms/webchipmusic.wasm', durationSeconds: 133 },
-            { name: 'Wasm song', path: 'musicwasms/wasmsong.wasm', durationSeconds: 232 },
-            { name: 'Good times', path: 'musicwasms/goodtimes.wasm', durationSeconds: 176 },
-            { name: 'WebAssembly summit 1', path: 'musicwasms/wasmsummit1.wasm', durationSeconds: 154 },
-            { name: 'First attempt', path: 'musicwasms/firstattempt.wasm', durationSeconds: 217 },
-            { name: 'Shuffle chill', path: 'musicwasms/shufflechill.wasm', durationSeconds: 131 },
-            { name: 'WebAssembly summit 2', path: 'musicwasms/wasmsummit2.wasm', durationSeconds: 191 }
+            { name: 'Groove is in the code', path: 'grooveisinthecode.wasm', durationSeconds: 154 },
+            { name: 'Noise and madness', path: 'noiseandmadness.wasm', durationSeconds: 163 },
+            { name: 'Web chip-music', path: 'webchipmusic.wasm', durationSeconds: 133 },
+            { name: 'Wasm song', path: 'wasmsong.wasm', durationSeconds: 232 },
+            { name: 'Good times', path: 'goodtimes.wasm', durationSeconds: 176 },
+            { name: 'WebAssembly summit 1', path: 'wasmsummit1.wasm', durationSeconds: 154 },
+            { name: 'First attempt', path: 'firstattempt.wasm', durationSeconds: 217 },
+            { name: 'Shuffle chill', path: 'shufflechill.wasm', durationSeconds: 131 },
+            { name: 'Fall', path: 'fall.wasm', durationSeconds: 174 },
+            { name: 'WebAssembly summit 2', path: 'wasmsummit2.wasm', durationSeconds: 191 }
         ];
 
         let loadSuccessful = true;
+        const messageArea = document.getElementById('message');
+
         for (let n = 0; n < musicwasms.length; n++) {
             const musicwasm = musicwasms[n];
-            const wasmbytesresponse = await fetch(musicwasm.path);
+            messageArea.innerHTML = `Loading ${musicwasm.name} ( ${musicwasm.path} ) ...`;
+            const wasmbytesresponse = await fetch(`musicwasms/${musicwasm.path}`);
 
             if (wasmbytesresponse.headers.get('content-type') == 'application/wasm') {
                 const wasmbytes = await wasmbytesresponse.arrayBuffer();
@@ -55,7 +58,6 @@ if ('serviceWorker' in navigator) {
             }
         }
 
-        const messageArea = document.getElementById('message');
         if (loadSuccessful) {
             const playerElement = document.getElementById('player');
             playerElement.src = 'music.wav';
