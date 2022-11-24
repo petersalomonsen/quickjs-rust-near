@@ -161,7 +161,7 @@ self.addEventListener('fetch', (event) =>
             let wantedRangeEnd = range[2] ? parseInt(range[2]) : null;
 
             let { rangeStart, rangeEnd } = await nextChunk(wantedRangeStart, wantedRangeEnd);
-            //console.log(rangeStart, rangeEnd);
+
             const buf = wavfilebytes.subarray(rangeStart, rangeEnd + 1);
 
             const respondblob = new Blob([buf], { type: 'audio/wav' });

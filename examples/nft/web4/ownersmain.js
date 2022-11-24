@@ -39,8 +39,6 @@ if (!walletConnection.isSignedIn()) {
     const signatureBase64 = btoa(String.fromCharCode(...signature.signature));
 
     const requestQuery = `?message=${encodeURIComponent(message)}&account_id=${encodeURIComponent(account.accountId)}&signature=${encodeURIComponent(signatureBase64)}`;
-    const playerUrl = `https://psalomo.testnet.page/${requestQuery}`;
+    const playerUrl = `https://psalomo.testnet.page/webassemblymusicsources.zip${requestQuery}`;
     console.log(playerUrl);
-    const result = await contract.web4_get({request: {path: `/music.wasm${requestQuery}`}});
-    console.log(result);
 }

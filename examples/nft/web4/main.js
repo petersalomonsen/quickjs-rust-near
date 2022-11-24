@@ -38,7 +38,7 @@ if ('serviceWorker' in navigator) {
         let loadSuccessful = true;
         for (let n = 0; n < musicwasms.length; n++) {
             const musicwasm = musicwasms[n];
-            const wasmbytesresponse = await fetch(musicwasm.path + location.search);
+            const wasmbytesresponse = await fetch(musicwasm.path);
 
             if (wasmbytesresponse.headers.get('content-type') == 'application/wasm') {
                 const wasmbytes = await wasmbytesresponse.arrayBuffer();
@@ -68,7 +68,7 @@ if ('serviceWorker' in navigator) {
                 pos += song.durationSeconds;
 
                 return ret;
-            }).join('\n') + location.search.match(/message=([^&]+)/)[1];
+            }).join('\n');
         } else {
             messageArea.innerHTML = 'unable to load music. check that you have a valid link signed by the NFT owner';
         }

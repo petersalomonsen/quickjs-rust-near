@@ -301,7 +301,7 @@ mod tests {
                 "
             {{
                 \"request\": {{
-                        \"path\": \"/musicwasms/grooveisinthecode.wasm\", 
+                        \"path\": \"/webassemblymusicsources.zip\", 
                         \"query\": {{
                             \"account_id\": [\"alice.near\"],
                             \"message\": [\"{}\"],
@@ -315,14 +315,14 @@ mod tests {
             .unwrap(),
         );
         contract.web4_get();
-        assert_latest_return_value_contains("{\"contentType\":\"application/wasm".to_owned());
+        assert_latest_return_value_contains("{\"contentType\":\"application/zip".to_owned());
 
         set_input(
             format!(
                 "
             {{
                 \"request\": {{
-                        \"path\": \"/musicwasms/grooveisinthecode.wasm\", 
+                        \"path\": \"/webassemblymusicsources.zip\", 
                         \"query\": {{
                             \"account_id\": [\"alice.near\"],
                             \"message\": [\"{}ee\"],
@@ -345,7 +345,7 @@ mod tests {
                 "
             {{
                 \"request\": {{
-                        \"path\": \"/musicwasms/grooveisinthecode.wasm\", 
+                        \"path\": \"/webassemblymusicsources.zip\", 
                         \"query\": {{
                             \"account_id\": [\"unknown.near\"],
                             \"message\": [\"{}\"],

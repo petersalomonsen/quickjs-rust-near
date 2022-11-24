@@ -28,8 +28,8 @@ test('should run custom javascript (quickjs bytecode ) in contract', async () =>
     expect(result.contentType).toBe('text/html; charset=UTF-8');
     expect(result.body).toBeDefined();
 
-    const wasmresult = await account.viewFunction({ contractId: accountId, methodName: 'web4_get', args: { request: { path: '/music.wasm' } } });
-    expect(wasmresult.contentType).toBe('application/wasm; charset=UTF-8');
+    const wasmresult = await account.viewFunction({ contractId: accountId, methodName: 'web4_get', args: { request: { path: '/musicwasms/fall.wasm' } } });
+    expect(wasmresult.contentType).toBe('application/wasm');
     expect(wasmresult.body).toBeDefined();
 }, 20000);
 
@@ -71,6 +71,7 @@ test('should require owners signature to get content', async () => {
     await account.functionCall({
         contractId: accountId,
         methodName: 'post_javascript',
+        gas: '300000000000000',
         args: {
             javascript: `
             export function store_signing_key() {
