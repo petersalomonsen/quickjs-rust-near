@@ -118,7 +118,7 @@ async function nextChunk(wantedRangeStart, wantedRangeEnd) {
     const wasmInstance = instanceData.instance;
     const samplebuffer = instanceData.allocatedSampleBuffer ? instanceData.allocatedSampleBuffer : wasmInstance.samplebuffer;
 
-    for (let n = 0; n < 100 && currentBytePos < endpos && currentBytePos < totalLength; n++) {
+    for (let n = 0; n < 50 && currentBytePos < endpos && currentBytePos < totalLength; n++) {
         wasmInstance.playEventsAndFillSampleBuffer != undefined ?
             wasmInstance.playEventsAndFillSampleBuffer() :
             wasmInstance.fillSampleBuffer();

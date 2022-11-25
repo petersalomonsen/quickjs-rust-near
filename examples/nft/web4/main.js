@@ -30,7 +30,7 @@ if ('serviceWorker' in navigator) {
             { name: 'Good times', path: 'goodtimes.wasm', durationSeconds: 176 },
             { name: 'WebAssembly summit 1', path: 'wasmsummit1.wasm', durationSeconds: 154 },
             { name: 'First attempt', path: 'firstattempt.wasm', durationSeconds: 217 },
-            { name: 'Shuffle chill', path: 'shufflechill.wasm', durationSeconds: 131 },
+            { name: 'Shuffle chill', path: 'shufflechill.wasm', durationSeconds: 151 },
             { name: 'Fall', path: 'fall.wasm', durationSeconds: 174 },
             { name: 'WebAssembly summit 2', path: 'wasmsummit2.wasm', durationSeconds: 191 }
         ];
@@ -40,7 +40,7 @@ if ('serviceWorker' in navigator) {
 
         for (let n = 0; n < musicwasms.length; n++) {
             const musicwasm = musicwasms[n];
-            messageArea.innerHTML = `Loading ${musicwasm.name} ( ${musicwasm.path} ) ...`;
+            messageArea.innerHTML = `Loading ${n} / ${musicwasms.length} ${musicwasm.name} ( ${musicwasm.path} )`;
             const wasmbytesresponse = await fetch(`musicwasms/${musicwasm.path}`);
 
             if (wasmbytesresponse.headers.get('content-type') == 'application/wasm') {
@@ -66,7 +66,7 @@ if ('serviceWorker' in navigator) {
                 const jsondateminutesstart = 'yyyy-MM-dd HH:'.length;
                 const timestring = new Date(pos * 1000).toJSON().substring(jsondateminutesstart, jsondateminutesstart + 5);
 
-                let ret = `<a onclick="document.getElementById('player').currentTime=${pos}">${timestring} ${song.name}</a><br />`
+                let ret = `<button onclick="document.getElementById('player').currentTime=${pos}">${timestring}&nbsp;&nbsp;&nbsp;${song.name}</button><br />`
                 pos += song.durationSeconds;
 
                 return ret;
