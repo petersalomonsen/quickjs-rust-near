@@ -1,18 +1,16 @@
-if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('serviceworker.js', { scope: './' })
-        .then((reg) => {
-            console.log('Registration succeeded. Scope is ' + reg.scope);
+(async () => {
+    if ('serviceWorker' in navigator) {
+        const reg = navigator.serviceWorker.register('serviceworker.js', { scope: './' })
+        console.log('Service worker registration succeeded. Scope is ' + reg.scope);
 
-            if (reg.active) {
-                reg.update();
-                console.log('update requested');
-            }
-        }).catch((error) => {
-            // registration failed
-            console.log('Registration failed with ' + error);
-        });
-    navigator.serviceWorker.ready.then(async (registration) => {
-        if (registration.active.state !== 'activated') {
+        if (reg.active) {
+            console.log('Requesting service worker update');
+            await reg.update();
+        }
+
+        const registration = await navigator.serviceWorker.ready;
+        while (registration.active.state !== 'activated') {
+            console.log(`Waiting for service worker to be activated. Current state is ${registration.active.state}`);
             await new Promise((resolve) =>
                 registration.active.addEventListener('statechange', (e) => {
                     if (e.target.state === 'activated') {
@@ -22,57 +20,68 @@ if ('serviceWorker' in navigator) {
             );
         }
 
-        const musicwasms = [
-            { name: 'Groove is in the code', path: 'grooveisinthecode.wasm', durationSeconds: 154 },
-            { name: 'Noise and madness', path: 'noiseandmadness.wasm', durationSeconds: 163 },
-            { name: 'Web chip-music', path: 'webchipmusic.wasm', durationSeconds: 133 },
-            { name: 'Wasm song', path: 'wasmsong.wasm', durationSeconds: 232 },
-            { name: 'Good times', path: 'goodtimes.wasm', durationSeconds: 176 },
-            { name: 'WebAssembly summit 1', path: 'wasmsummit1.wasm', durationSeconds: 154 },
-            { name: 'First attempt', path: 'firstattempt.wasm', durationSeconds: 217 },
-            { name: 'Shuffle chill', path: 'shufflechill.wasm', durationSeconds: 151 },
-            { name: 'Fall', path: 'fall.wasm', durationSeconds: 174 },
-            { name: 'WebAssembly summit 2', path: 'wasmsummit2.wasm', durationSeconds: 191 }
-        ];
-
-        let loadSuccessful = true;
         const messageArea = document.getElementById('message');
+        messageArea.innerHTML = 'Loading music...';
+        const musicwasms = await fetch('songlist.json').then(r => r.json());
 
-        for (let n = 0; n < musicwasms.length; n++) {
-            const musicwasm = musicwasms[n];
-            messageArea.innerHTML = `Loading ${n} / ${musicwasms.length} ${musicwasm.name} ( ${musicwasm.path} )`;
-            const wasmbytesresponse = await fetch(`musicwasms/${musicwasm.path}`);
+        const playerElement = document.getElementById('player');
+        const togglePlayButton = document.getElementById('togglePlayButton');
+        const timeSliderDiv = document.getElementById('timeslidercontainer');
 
-            if (wasmbytesresponse.headers.get('content-type') == 'application/wasm') {
-                const wasmbytes = await wasmbytesresponse.arrayBuffer();
-                navigator.serviceWorker.controller.postMessage(
-                    {
-                        wasmbytes: wasmbytes,
-                        durationSeconds: musicwasm.durationSeconds,
-                        lastInstance: n == (musicwasms.length - 1)
-                    },
-                    [wasmbytes]);
+        playerElement.innerHTML = `<source src="music.wav" type="audio/wav">`;
+        playerElement.addEventListener('timeupdate', (event) => {
+            const percentage = playerElement.currentTime * 100 / playerElement.duration;
+            timeSliderDiv.style.background = `linear-gradient(90deg, rgba(50, 40, 30, 0.8) 0%, rgba(50, 40, 30, 0.8) ${percentage}%, rgba(0, 0, 0, 0) ${percentage + 10}%)`;
+            const timeStringStart = 'yyyy-MM-dd HH:'.length;
+
+            document.getElementById('timespan').innerHTML = new Date(playerElement.currentTime * 1000).toJSON().substring(timeStringStart, timeStringStart + 'mm:ss'.length);
+        });
+        const setPlayIcon = () => {
+            togglePlayButton.innerHTML = `                
+                <svg height='40px' width='40px' fill="#ffffff" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 24 24" version="1.1" x="0px" y="0px">
+                    <g stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+                        <path d="M0,5 L11,12 L0,19 L0,5 Z" fill="#ffffff"></path>
+                    </g>
+                </svg>`;
+        };
+        const setPauseIcon = () => {
+            togglePlayButton.innerHTML = `
+                <svg height='40px' width='40px' fill="#ffffff" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 24 24" version="1.1" x="0px" y="0px">
+                    <g stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+                        <path d="M0,18 L0,6 L2,6 L2,18 L0,18 Z M5,18 L5,6 L7,6 L7,18 L5,18 Z" fill="#ffffff"></path>
+                    </g>
+                </svg>`;
+        };
+        setPlayIcon();
+
+        window.togglePlay = () => {
+            if (playerElement.paused == true) {
+                console.log('play', playerElement.paused);
+                playerElement.play();
+                setPauseIcon();
             } else {
-                loadSuccessful = false;
-                break;
+                playerElement.pause();
+                setPlayIcon();
             }
         }
+        window.selectSong = (pos) => {
+            playerElement.load();
+            playerElement.currentTime = pos;
+            playerElement.play();
+            setPauseIcon();
+        };
 
-        if (loadSuccessful) {
-            const playerElement = document.getElementById('player');
-            playerElement.src = 'music.wav';
-            let pos = 0;
-            messageArea.innerHTML = musicwasms.map((song) => {
-                const jsondateminutesstart = 'yyyy-MM-dd HH:'.length;
-                const timestring = new Date(pos * 1000).toJSON().substring(jsondateminutesstart, jsondateminutesstart + 5);
+        let pos = 0;
+        messageArea.innerHTML = musicwasms.map((song) => {
+            const jsondateminutesstart = 'yyyy-MM-dd HH:'.length;
+            const timestring = new Date(pos * 1000).toJSON().substring(jsondateminutesstart, jsondateminutesstart + 5);
 
-                let ret = `<button onclick="document.getElementById('player').currentTime=${pos}">${timestring}&nbsp;&nbsp;&nbsp;${song.name}</button><br />`
-                pos += song.durationSeconds;
+            let ret = `<button onclick="selectSong(${pos})">${timestring}&nbsp;&nbsp;&nbsp;${song.name}</button><br />`
+            pos += song.durationSeconds;
 
-                return ret;
-            }).join('\n');
-        } else {
-            messageArea.innerHTML = 'unable to load music. check that you have a valid link signed by the NFT owner';
-        }
-    });
-}
+            return ret;
+        }).join('\n');
+    } else {
+        document.documentElement.innerHTML = 'This app requires that your browser supports serviceworkers';
+    }
+})();
