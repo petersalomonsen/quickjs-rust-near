@@ -81,6 +81,14 @@
 
             return ret;
         }).join('\n');
+
+        const nftowners = await (await fetch(new URL('nftowners.json?t='+new Date().getTime(), import.meta.url))).json();
+        const nftownerstablebody = document.getElementById('nftownerstablebody');
+
+        nftownerstablebody.innerHTML = nftowners.map(o => `<tr>
+            <td>${o.token_id}</td>
+            <td><a href="https://near.social/#/mob.near/widget/ProfilePage?accountId=${o.owner_id}" target="_blank">${o.owner_id}</a></td>
+        </tr>`).join('');
     } else {
         document.documentElement.innerHTML = 'This app requires that your browser supports serviceworkers';
     }
