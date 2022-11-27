@@ -37,6 +37,13 @@ pub fn arg_to_str(ctx: i32, arg_no: i32, argv: i32) -> String {
     return value_string;
 }
 
+pub fn arg_to_number(_ctx: i32, arg_no: i32, argv: i32) -> i64 {
+    let argv_ptr = (argv + (arg_no * 8)) as *const i64;
+    unsafe {
+        return *argv_ptr;
+    }
+}
+
 /**
  * From near_sdk_js
 
@@ -113,13 +120,27 @@ pub unsafe fn add_function_to_js(
     );
 }
 
+pub fn to_js_string(ctx: i32, str: String) -> i64 {
+    let str_ptr = str.as_ptr();
+
+    unsafe {
+        return JS_NewStringLen(ctx, str_ptr as i32, str.len());
+    }
+}
+
 unsafe fn setup_quickjs() {
     create_runtime();
     createNearEnv();
 
     add_function_to_js("value_return", value_return_func, 1);
     add_function_to_js("input", input_func, 1);
-    add_function_to_js("block_timestamp_ms", |_ctx: i32, _this_val: i64, _argc: i32, _argv: i32| -> i64 {env::block_timestamp_ms() as i64}, 1);
+    add_function_to_js(
+        "block_timestamp_ms",
+        |_ctx: i32, _this_val: i64, _argc: i32, _argv: i32| -> i64 {
+            env::block_timestamp_ms() as i64
+        },
+        1,
+    );
     add_function_to_js("signer_account_id", signer_account_id_func, 1);
     add_function_to_js("verify_signed_message", verify_signed_message_func, 2);
     add_function_to_js("store_signing_key", store_signing_key_func, 1);

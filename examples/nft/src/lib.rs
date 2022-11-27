@@ -4,12 +4,14 @@ use near_contract_standards::non_fungible_token::metadata::{
 use near_contract_standards::non_fungible_token::NonFungibleToken;
 use near_contract_standards::non_fungible_token::{Token, TokenId};
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
+use near_sdk::json_types::U128;
 use near_sdk::{
-    base64, env, near_bindgen, AccountId, BorshStorageKey, PanicOnDefault, Promise, PromiseOrValue,
+    base64, env, near_bindgen, serde_json, AccountId, BorshStorageKey, PanicOnDefault, Promise,
+    PromiseOrValue,
 };
 use quickjs_rust_near::jslib::{
-    add_function_to_js, compile_js, js_call_function, js_get_property, js_get_string,
-    load_js_bytecode, arg_to_str,
+    add_function_to_js, arg_to_number, arg_to_str, compile_js, js_call_function, js_get_property,
+    js_get_string, load_js_bytecode, to_js_string,
 };
 use std::ffi::CStr;
 use std::ffi::CString;
@@ -39,11 +41,21 @@ impl Contract {
             "nft_supply_for_owner",
             |ctx: i32, _this_val: i64, _argc: i32, argv: i32| -> i64 {
                 return (*CONTRACT_REF)
-                    .nft_supply_for_owner(
-                            AccountId::new_unchecked(arg_to_str(ctx, 0, argv)
-                        )
-                    )
+                    .nft_supply_for_owner(AccountId::new_unchecked(arg_to_str(ctx, 0, argv)))
                     .0 as i64;
+            },
+            1,
+        );
+        add_function_to_js(
+            "nft_tokens",
+            |ctx: i32, _this_val: i64, _argc: i32, argv: i32| -> i64 {
+                let str = serde_json::to_string(&(*CONTRACT_REF).nft_tokens(
+                    Some(U128::from(arg_to_number(ctx, 0, argv) as u128)),
+                    Some(arg_to_number(ctx, 1, argv) as u64),
+                ))
+                .unwrap();
+
+                return to_js_string(ctx, str);
             },
             1,
         );
@@ -52,7 +64,7 @@ impl Contract {
     pub fn call_js_func(&self, function_name: String) {
         let jsmod = load_js_bytecode(self.jsbytecode.as_ptr(), self.jsbytecode.len());
 
-        unsafe {            
+        unsafe {
             self.add_js_functions();
             let function_name_cstr = CString::new(function_name).unwrap();
             js_call_function(jsmod, function_name_cstr.as_ptr() as i32);
@@ -171,8 +183,8 @@ mod tests {
     use quickjs_rust_near::jslib::compile_js;
     use quickjs_rust_near_testenv::testenv::{
         alice, assert_latest_return_value_contains, assert_latest_return_value_string_eq, bob,
-        set_attached_deposit, set_current_account_id, set_input, set_predecessor_account_id,
-        set_signer_account_id, set_signer_account_pk, setup_test_env, set_block_timestamp,
+        carol, set_attached_deposit, set_block_timestamp, set_current_account_id, set_input,
+        set_predecessor_account_id, set_signer_account_id, set_signer_account_pk, setup_test_env,
     };
     static CONTRACT_JS: &'static [u8] = include_bytes!("contract.js");
 
@@ -180,6 +192,7 @@ mod tests {
     fn test_nft_metadata() {
         setup_test_env();
         set_current_account_id(bob());
+        set_predecessor_account_id(bob());
         let mut contract = Contract::new();
         let bytecode = compile_js(
             String::from_utf8(CONTRACT_JS.to_vec()).unwrap(),
@@ -197,7 +210,8 @@ mod tests {
     fn test_mint() {
         setup_test_env();
         set_current_account_id(bob());
-        set_attached_deposit(1600000000000000000000);
+        set_predecessor_account_id(bob());
+        set_attached_deposit(1640000000000000000000);
 
         let mut contract = Contract::new();
         contract.post_javascript(
@@ -213,7 +227,7 @@ mod tests {
         assert_latest_return_value_string_eq("bob supply: 0".to_string());
 
         contract.nft_mint(
-            "1".to_string(),
+            "abc".to_string(),
             bob(),
             TokenMetadata {
                 title: Some("test".to_string()),
@@ -261,10 +275,10 @@ mod tests {
         );
 
         set_signer_account_id(alice());
-        set_attached_deposit(1620000000000000000000);
+        set_attached_deposit(1680000000000000000000);
 
         contract.nft_mint(
-            "2".to_string(),
+            "2222".to_string(),
             alice(),
             TokenMetadata {
                 title: Some("test".to_string()),
@@ -290,7 +304,7 @@ mod tests {
             .try_into()
             .unwrap(),
         );
-        
+
         contract.call_js_func("store_signing_key".to_string());
         set_block_timestamp(env::block_timestamp() + 23 * 60 * 60 * 1_000_000_000);
         let signed_message: String = "the expected message to be signed".to_string();
@@ -336,10 +350,15 @@ mod tests {
             .unwrap(),
         );
         contract.web4_get();
-        
+
         assert_latest_return_value_contains("INVALID SIGNATURE".to_owned());
 
-        assert_eq!(contract.nft_supply_for_owner(AccountId::new_unchecked("unknown.near".to_string())).0, 0 as u128);
+        assert_eq!(
+            contract
+                .nft_supply_for_owner(AccountId::new_unchecked("unknown.near".to_string()))
+                .0,
+            0 as u128
+        );
         set_input(
             format!(
                 "
@@ -359,7 +378,7 @@ mod tests {
             .unwrap(),
         );
         contract.web4_get();
-        
+
         assert_latest_return_value_contains("NOT OWNER".to_owned());
 
         set_input(
@@ -369,5 +388,55 @@ mod tests {
         );
         contract.web4_get();
         assert_latest_return_value_contains("{\"contentType\":\"text/html".to_owned());
+    }
+
+    #[test]
+    fn test_js_list_tokens() {
+        setup_test_env();
+        set_current_account_id(carol());
+        set_predecessor_account_id(carol());
+        set_attached_deposit(1620000000000000000000);
+
+        let mut contract = Contract::new();
+        contract.post_javascript(
+            "
+        export function get_tokens_json() {
+            const from_index = JSON.parse(env.input()).from_index;
+            const tokens = JSON.parse(env.nft_tokens(from_index,3));
+            env.value_return(tokens.map(t => `${t.token_id}:${t.owner_id}`).join(','));
+        }
+        "
+            .to_string(),
+        );
+
+        set_input("{\"from_index\": 0}".try_into().unwrap());
+        contract.call_js_func("get_tokens_json".to_string());
+        assert_latest_return_value_string_eq("".to_string());
+
+        for n in 1..9 {
+            contract.nft_mint(
+                n.to_string(),
+                carol(),
+                TokenMetadata {
+                    title: Some("test".to_string()),
+                    description: None,
+                    media: None,
+                    media_hash: None,
+                    copies: None,
+                    issued_at: None,
+                    expires_at: None,
+                    starts_at: None,
+                    updated_at: None,
+                    extra: None,
+                    reference: None,
+                    reference_hash: None,
+                },
+            );
+        }
+
+        set_input("{\"from_index\": 2}".try_into().unwrap());
+
+        contract.call_js_func("get_tokens_json".to_string());
+        assert_latest_return_value_string_eq("3:carol.near,4:carol.near,5:carol.near".to_string());
     }
 }
