@@ -1,5 +1,5 @@
 use crate::viewaccesscontrol::{store_signing_key_for_account, verify_message_signed_by_account};
-use near_sdk::env;
+use near_sdk::{env, base64};
 use std::ffi::CString;
 use std::slice;
 
@@ -144,6 +144,10 @@ unsafe fn setup_quickjs() {
     add_function_to_js("signer_account_id", signer_account_id_func, 1);
     add_function_to_js("verify_signed_message", verify_signed_message_func, 2);
     add_function_to_js("store_signing_key", store_signing_key_func, 1);
+    add_function_to_js("base64_encode", |ctx: i32, _this_val: i64, _argc: i32, argv: i32| -> i64 {
+        return to_js_string(ctx, base64::encode(arg_to_str(ctx, 0, argv)));
+    }, 1);
+
 }
 
 pub fn run_js(script: String) -> i32 {
@@ -260,6 +264,22 @@ mod tests {
                 .to_str()
                 .unwrap();
             assert_eq!("world", str);
+        }
+    }
+
+    #[test]
+    fn test_base64_encode() {
+        let bytecode = compile_js(
+            "(function () { return { val: env.base64_encode('hello')}; })()".to_string(),
+            None,
+        );
+        let result = run_js_bytecode(bytecode);
+        unsafe {
+            let stringjsval = js_get_property(result, "val".as_ptr() as i32);
+            let str = CStr::from_ptr(js_get_string(stringjsval) as *const i8)
+                .to_str()
+                .unwrap();
+            assert_eq!("aGVsbG8=", str);
         }
     }
 }

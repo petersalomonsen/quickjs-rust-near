@@ -202,8 +202,8 @@ mod tests {
 
         contract.post_quickjs_bytecode(bytecodebase64);
         let metadata = contract.nft_metadata();
-        assert_eq!("Example NEAR non-fungible token".to_string(), metadata.name);
-        assert_eq!("EXAMPLE".to_string(), metadata.symbol);
+        assert_eq!("WebAssembly Music by Peter Salomonsen".to_string(), metadata.name);
+        assert_eq!("PSMUSIC".to_string(), metadata.symbol);
     }
 
     #[test]
@@ -351,7 +351,7 @@ mod tests {
         );
         contract.web4_get();
 
-        assert_latest_return_value_contains("INVALID SIGNATURE".to_owned());
+        assert_latest_return_value_contains(base64::encode("INVALID SIGNATURE").to_owned());
 
         assert_eq!(
             contract
@@ -379,7 +379,7 @@ mod tests {
         );
         contract.web4_get();
 
-        assert_latest_return_value_contains("NOT OWNER".to_owned());
+        assert_latest_return_value_contains(base64::encode("NOT OWNER").to_owned());
 
         set_input(
             "{\"request\": {\"path\": \"/index.html\"}}"
