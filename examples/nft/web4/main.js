@@ -27,6 +27,7 @@
         const playerElement = document.getElementById('player');
         const togglePlayButton = document.getElementById('togglePlayButton');
         const timeSliderDiv = document.getElementById('timeslidercontainer');
+        const timeSpan = document.getElementById('timespan');
 
         playerElement.innerHTML = `<source src="music.wav" type="audio/wav">`;
         playerElement.addEventListener('timeupdate', (event) => {
@@ -34,7 +35,7 @@
             timeSliderDiv.style.background = `linear-gradient(90deg, rgba(32, 196, 196, 0.8) 0%, rgba(32, 196, 196, 0.8) ${percentage}%, rgba(0, 0, 0, 0) ${percentage + 10}%)`;
             const timeStringStart = 'yyyy-MM-dd HH:'.length;
 
-            document.getElementById('timespan').innerHTML = new Date(playerElement.currentTime * 1000).toJSON().substring(timeStringStart, timeStringStart + 'mm:ss'.length);
+            timeSpan.innerHTML = new Date(playerElement.currentTime * 1000).toJSON().substring(timeStringStart, timeStringStart + 'mm:ss'.length);
         });
         const setPlayIcon = () => {
             togglePlayButton.innerHTML = `                
@@ -65,8 +66,9 @@
             }
         }
 
-        window.selectSong = (pos) => {
+        window.selectSong = (pos) => {            
             playerElement.load();
+            timeSpan.innerHTML = 'Loading...';
             playerElement.currentTime = pos;
             playerElement.play();
             setPauseIcon();

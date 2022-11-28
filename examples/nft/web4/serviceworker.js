@@ -77,7 +77,7 @@ let wavfilebytes = null;
 const wasmInstances = [];
 const wasmInstancesReceivedPromise = new Promise(async resolve => {
     const wasmbytes = await Promise.all(musicwasms.map(wasmInstanceData => fetch(`/musicwasms/${wasmInstanceData.path}`).then(r => r.arrayBuffer())));
-    for (let n = 0; n <musicwasms.length; n++) {
+    for (let n = 0; n < musicwasms.length; n++) {
         const wasmInstanceData = musicwasms[n];
         console.log('creating wasm', wasmInstanceData.name);
         const durationBytes = (wasmInstanceData.durationSeconds * ONE_SECOND);
@@ -111,8 +111,7 @@ const wasmInstancesReceivedPromise = new Promise(async resolve => {
     resolve();
 });
 
-async function nextChunk(wantedRangeStart, wantedRangeEnd) {
-    await wasmInstancesReceivedPromise;
+function nextChunk(wantedRangeStart, wantedRangeEnd) {
     const currentWasmInstanceIndex = wasmInstances.findIndex((instanceData, ndx) =>
         (ndx == 0 && wantedRangeStart < instanceData.startPos)
         ||
@@ -129,7 +128,7 @@ async function nextChunk(wantedRangeStart, wantedRangeEnd) {
     const wasmInstance = instanceData.instance;
     const samplebuffer = instanceData.allocatedSampleBuffer ? instanceData.allocatedSampleBuffer : wasmInstance.samplebuffer;
 
-    for (let n = 0; n < 500 && currentBytePos < endpos && currentBytePos < totalLength; n++) {
+    for (let n = 0; n < 200 && currentBytePos < endpos && currentBytePos < totalLength; n++) {
         wasmInstance.playEventsAndFillSampleBuffer != undefined ?
             wasmInstance.playEventsAndFillSampleBuffer() :
             wasmInstance.fillSampleBuffer();
@@ -156,7 +155,7 @@ async function nextChunk(wantedRangeStart, wantedRangeEnd) {
     }
     if (rangeEnd < rangeStart) {
         rangeEnd = endpos - 1;
-        console.log(`had to send empty data for song ${currentWasmInstanceIndex}, range: ${currentBytePos} - ${rangeEnd}, totally ${((rangeEnd - currentBytePos) / ONE_SECOND).toFixed(3)} seconds`);
+        console.log(`had to send empty data for song ${currentWasmInstanceIndex}, range: ${rangeStart} - ${rangeEnd}, totally ${((rangeEnd - rangeStart) / ONE_SECOND).toFixed(3)} seconds`);
     }
 
     return {
@@ -170,10 +169,15 @@ self.addEventListener('fetch', (event) =>
         if (event.request.url.indexOf('.wav') > -1 && event.request.headers.has('range')) {
             const range = event.request.headers.get('range').match(/bytes=([0-9]+)-([0-9]*)/);
 
+            await wasmInstancesReceivedPromise;
+
             let wantedRangeStart = parseInt(range[1]);
             let wantedRangeEnd = range[2] ? parseInt(range[2]) : null;
 
-            let { rangeStart, rangeEnd } = await nextChunk(wantedRangeStart, wantedRangeEnd);
+            let { rangeStart, rangeEnd } = nextChunk(wantedRangeStart, wantedRangeEnd);
+            for (let n = 0; n < 4 && wantedRangeEnd && rangeEnd < wantedRangeEnd; n++) {
+                rangeEnd = nextChunk(rangeEnd + 1, wantedRangeEnd).rangeEnd;
+            }
 
             const buf = wavfilebytes.subarray(rangeStart, rangeEnd + 1);
 
@@ -185,9 +189,9 @@ self.addEventListener('fetch', (event) =>
                     'Content-Range': `bytes ${rangeStart}-${rangeEnd}/${totalLength}`
                 }
             }));
-        } else if(event.request.url.indexOf('songlist.json') > -1 ) {
+        } else if (event.request.url.indexOf('songlist.json') > -1) {
             await wasmInstancesReceivedPromise;
-            resolve(new Response(new Blob([JSON.stringify(musicwasms)], { type: 'application/json'})));
+            resolve(new Response(new Blob([JSON.stringify(musicwasms)], { type: 'application/json' })));
         } else {
             resolve(fetch(event.request));
         }
