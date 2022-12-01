@@ -1,6 +1,6 @@
 use crate::viewaccesscontrol::{store_signing_key_for_account, verify_message_signed_by_account};
 use near_sdk::{env, base64};
-use std::ffi::CString;
+use std::ffi::{CString, CStr};
 use std::slice;
 
 extern "C" {
@@ -132,6 +132,15 @@ unsafe fn setup_quickjs() {
     create_runtime();
     createNearEnv();
 
+    add_function_to_js("panic", |ctx: i32, _this_val: i64, _argc: i32, argv: i32| -> i64 {
+        let mut value_len = 0;
+        let value_len_ptr: *mut usize = &mut value_len;
+        let argv_ptr = argv as *const i64;
+
+        let ptr = JS_ToCStringLen2(ctx, value_len_ptr as i32, *argv_ptr, 0) as *const i8;
+        let str = CStr::from_ptr(ptr).to_str().unwrap();
+        near_sdk::env::panic_str(str);        
+    }, 1);
     add_function_to_js("value_return", value_return_func, 1);
     add_function_to_js("input", input_func, 1);
     add_function_to_js(
@@ -141,6 +150,12 @@ unsafe fn setup_quickjs() {
         },
         1,
     );
+    add_function_to_js("current_account_id", 
+        |ctx: i32, _this_val: i64, _argc: i32, _argv: i32| -> i64 {
+        let current_account_id = env::current_account_id().to_string();
+        let current_account_id_ptr = current_account_id.as_ptr();
+        return JS_NewStringLen(ctx, current_account_id_ptr as i32, current_account_id.len());
+    }, 0);
     add_function_to_js("signer_account_id", signer_account_id_func, 1);
     add_function_to_js("verify_signed_message", verify_signed_message_func, 2);
     add_function_to_js("store_signing_key", store_signing_key_func, 1);

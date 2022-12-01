@@ -213,12 +213,19 @@ pub extern "C" fn value_return(value_len: i64, value_ptr: i64) {
 }
 
 #[no_mangle]
-pub extern "C" fn panic_utf8(_p1: i64, _p2: i64) {}
+fn panic_utf8(len: i64, ptr: i64) -> ! {
+    let bufptr: *const u8 = ptr as *const u8;
+    let buflen: usize = len as usize;
+    unsafe {
+        let str = std::str::from_utf8_unchecked(std::slice::from_raw_parts(bufptr, buflen));
+        panic!("env_panic: {}", str);
+    }
+}
 
 #[no_mangle]
-pub extern "C" fn log_utf8(_len: i64, _ptr: i64) {
-    let bufptr: *const u8 = _ptr as *const u8;
-    let buflen: usize = _len as usize;
+pub extern "C" fn log_utf8(len: i64, ptr: i64) {
+    let bufptr: *const u8 = ptr as *const u8;
+    let buflen: usize = len as usize;
     unsafe {
         let str = std::str::from_utf8_unchecked(std::slice::from_raw_parts(bufptr, buflen));
         println!("{}", str);

@@ -11,7 +11,7 @@ use near_sdk::{
 };
 use quickjs_rust_near::jslib::{
     add_function_to_js, arg_to_number, arg_to_str, compile_js, js_call_function, js_get_property,
-    js_get_string, load_js_bytecode, to_js_string,
+    js_get_string, load_js_bytecode, to_js_string
 };
 use std::ffi::CStr;
 use std::ffi::CString;
@@ -57,7 +57,7 @@ impl Contract {
 
                 return to_js_string(ctx, str);
             },
-            1,
+            3,
         );
     }
 
@@ -103,16 +103,21 @@ impl Contract {
     pub fn nft_mint(
         &mut self,
         token_id: TokenId,
-        token_owner_id: AccountId,
-        token_metadata: TokenMetadata,
+        token_owner_id: AccountId
     ) -> Token {
-        assert_eq!(
-            env::predecessor_account_id(),
-            self.tokens.owner_id,
-            "Unauthorized"
-        );
-        self.tokens
-            .internal_mint(token_id, token_owner_id, Some(token_metadata))
+        let jsmod = load_js_bytecode(self.jsbytecode.as_ptr(), self.jsbytecode.len());
+        let nft_mint_str = CString::new("nft_mint").unwrap();
+        unsafe {
+            self.add_js_functions();
+            
+            let mint_metadata_json_string = CStr::from_ptr(js_get_string(
+                js_call_function(jsmod, nft_mint_str.as_ptr() as i32)) as *const i8)
+            .to_str().unwrap();
+
+            let parsed_json = serde_json::from_str(mint_metadata_json_string);            
+            let token_metadata: TokenMetadata = parsed_json.unwrap();
+            self.tokens.internal_mint(token_id, token_owner_id, Some(token_metadata))
+        }
     }
 
     #[init(ignore_state)]
@@ -219,6 +224,14 @@ mod tests {
         export function get_supply_for_bob() {
             env.value_return('bob supply: '+env.nft_supply_for_owner('bob.near'))
         }
+
+        export function nft_mint() {
+            print ('calling mint');
+            return JSON.stringify({
+                title: 'test_title',
+                description: 'test_description'
+            });
+        }
         "
             .to_string(),
         );
@@ -226,23 +239,10 @@ mod tests {
         contract.call_js_func("get_supply_for_bob".to_string());
         assert_latest_return_value_string_eq("bob supply: 0".to_string());
 
+        set_attached_deposit(1900000000000000000000);
         contract.nft_mint(
             "abc".to_string(),
-            bob(),
-            TokenMetadata {
-                title: Some("test".to_string()),
-                description: None,
-                media: None,
-                media_hash: None,
-                copies: None,
-                issued_at: None,
-                expires_at: None,
-                starts_at: None,
-                updated_at: None,
-                extra: None,
-                reference: None,
-                reference_hash: None,
-            },
+            bob()
         );
         assert_eq!(contract.nft_supply_for_owner(bob()).0, 1 as u128);
 
@@ -275,25 +275,11 @@ mod tests {
         );
 
         set_signer_account_id(alice());
-        set_attached_deposit(1680000000000000000000);
+        set_attached_deposit(1940000000000000000000);
 
         contract.nft_mint(
             "2222".to_string(),
-            alice(),
-            TokenMetadata {
-                title: Some("test".to_string()),
-                description: None,
-                media: None,
-                media_hash: None,
-                copies: None,
-                issued_at: None,
-                expires_at: None,
-                starts_at: None,
-                updated_at: None,
-                extra: None,
-                reference: None,
-                reference_hash: None,
-            },
+            alice()
         );
 
         set_signer_account_pk(
@@ -395,7 +381,7 @@ mod tests {
         setup_test_env();
         set_current_account_id(carol());
         set_predecessor_account_id(carol());
-        set_attached_deposit(1620000000000000000000);
+        set_attached_deposit(1900000000000000000000);
 
         let mut contract = Contract::new();
         contract.post_javascript(
@@ -404,6 +390,14 @@ mod tests {
             const from_index = JSON.parse(env.input()).from_index;
             const tokens = JSON.parse(env.nft_tokens(from_index,3));
             env.value_return(tokens.map(t => `${t.token_id}:${t.owner_id}`).join(','));
+        }
+
+        export function nft_mint() {
+            print ('calling mint');
+            return JSON.stringify({
+                title: 'test_title',
+                description: 'test_description'
+            });
         }
         "
             .to_string(),
@@ -416,21 +410,7 @@ mod tests {
         for n in 1..9 {
             contract.nft_mint(
                 n.to_string(),
-                carol(),
-                TokenMetadata {
-                    title: Some("test".to_string()),
-                    description: None,
-                    media: None,
-                    media_hash: None,
-                    copies: None,
-                    issued_at: None,
-                    expires_at: None,
-                    starts_at: None,
-                    updated_at: None,
-                    extra: None,
-                    reference: None,
-                    reference_hash: None,
-                },
+                carol()
             );
         }
 
