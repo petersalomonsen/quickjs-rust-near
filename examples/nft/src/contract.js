@@ -86,8 +86,23 @@ export function nft_mint() {
   if(env.signer_account_id() != env.current_account_id()) {
     env.panic('only contract account can mint');
   }
+  const args = JSON.parse(env.input());
+  const svgstring = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 9 9">
+  <rect y="0" width="9" height="3" fill="#0bf"/>
+  <rect y="3" width="6" height="3" fill="#f82"/>
+  <rect x="6" y="3" width="3" height="3" fill="#333" />
+  <rect y="6" width="3" height="3" fill="#2aa"/>
+  <rect x="3" y="6" width="6" height="3" fill="#666" />
+  <text x="4.5" y="5.5" text-anchor="middle" font-size="3"
+          font-family="system-ui" fill="white">
+      ${args.token_id}
+  </text>
+</svg>`;
+
   return JSON.stringify({
-      title: 'test_title',
-      description: 'test_description'
+      title: `WebAssembly Music token number #${args.token_id}`,
+      description: `An album by Peter Salomonsen with the first generation of tunes made in the browser using the "WebAssembly Music" web application. webassemblymusic.near.page`,
+      media: `data:image/svg+xml;base64,${env.base64_encode(svgstring)}`,
+      media_hash: env.sha256_utf8_to_base64(svgstring)
   });
 }

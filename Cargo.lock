@@ -1015,6 +1015,7 @@ version = "0.1.0"
 dependencies = [
  "bindgen",
  "ed25519-dalek",
+ "hex",
  "lazy_static",
  "near-sdk",
  "quickjs-rust-near-testenv",

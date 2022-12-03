@@ -162,7 +162,9 @@ unsafe fn setup_quickjs() {
     add_function_to_js("base64_encode", |ctx: i32, _this_val: i64, _argc: i32, argv: i32| -> i64 {
         return to_js_string(ctx, base64::encode(arg_to_str(ctx, 0, argv)));
     }, 1);
-
+    add_function_to_js("sha256_utf8_to_base64", |ctx: i32, _this_val: i64, _argc: i32, argv: i32| -> i64 {
+        return to_js_string(ctx, base64::encode(near_sdk::env::sha256(arg_to_str(ctx, 0, argv).as_bytes())));
+    }, 1);
 }
 
 pub fn run_js(script: String) -> i32 {
@@ -225,6 +227,7 @@ pub fn compile_js(script: String, modulename: Option<String>) -> Vec<u8> {
 mod tests {
     use super::{compile_js, js_get_property, js_get_string, run_js, run_js_bytecode};
     use crate::viewaccesscontrol::store_signing_key_for_account;
+    use near_sdk::base64;
     use quickjs_rust_near_testenv::testenv::{
         alice, assert_latest_return_value_string_eq, set_input, set_signer_account_id,
         setup_test_env,
@@ -295,6 +298,22 @@ mod tests {
                 .to_str()
                 .unwrap();
             assert_eq!("aGVsbG8=", str);
+        }
+    }
+
+    #[test]
+    fn test_sha256_utf8_to_base64() {
+        let bytecode = compile_js(
+            "(function () { return { val: env.sha256_utf8_to_base64('hello\\n')}; })()".to_string(),
+            None,
+        );
+        let result = run_js_bytecode(bytecode);
+        unsafe {
+            let stringjsval = js_get_property(result, "val".as_ptr() as i32);
+            let str = CStr::from_ptr(js_get_string(stringjsval) as *const i8)
+                .to_str()
+                .unwrap();
+            assert_eq!(base64::encode(hex::decode("5891b5b522d5df086d0ff0b110fbd9d21bb4fc7163af34d08286a2e846f6be03").unwrap()), str);
         }
     }
 }

@@ -275,7 +275,7 @@ mod tests {
         );
 
         set_signer_account_id(alice());
-        set_attached_deposit(1940000000000000000000);
+        set_attached_deposit(10440000000000000000000);
 
         contract.nft_mint(
             "2222".to_string(),

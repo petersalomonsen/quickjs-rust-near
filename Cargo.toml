@@ -19,6 +19,7 @@ near-sdk = "4.0.0"
 lazy_static = "1.4.0"
 ed25519-dalek = "1.0.1"
 sha2 = "0.10.6"
+hex = "0.4.3"
 quickjs-rust-near-testenv = { path = "testenv" }
 
 [build-dependencies]
