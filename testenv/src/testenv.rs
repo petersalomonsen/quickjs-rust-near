@@ -334,7 +334,7 @@ pub extern "C" fn storage_usage() -> i64 {
 
 #[no_mangle]
 pub extern "C" fn prepaid_gas() -> i64 {
-    return 0;
+    return 300000000000000;
 }
 
 #[no_mangle]

@@ -93,5 +93,15 @@
     "name": "nft_tokens_for_owner",
     "export": "nft_tokens_for_owner",
     "root": true
+  },
+  {
+    "name": "nft_payout",
+    "export": "nft_payout",
+    "root": true
+  },
+  {
+    "name": "nft_transfer_payout",
+    "export": "nft_transfer_payout",
+    "root": true
   }
 ]

@@ -1,17 +1,19 @@
+mod payouts;
 use near_contract_standards::non_fungible_token::metadata::{
     NFTContractMetadata, NonFungibleTokenMetadataProvider, TokenMetadata, NFT_METADATA_SPEC,
 };
-use near_contract_standards::non_fungible_token::NonFungibleToken;
-use near_contract_standards::non_fungible_token::{Token, TokenId};
+use near_contract_standards::non_fungible_token::{NonFungibleToken, Token, TokenId};
+
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::json_types::U128;
 use near_sdk::{
-    base64, env, near_bindgen, serde_json, AccountId, BorshStorageKey, PanicOnDefault, Promise,
-    PromiseOrValue,
+    assert_one_yocto, base64, env, near_bindgen, serde_json, AccountId, BorshStorageKey,
+    PanicOnDefault, Promise, PromiseOrValue,
 };
+use payouts::{Payout, Payouts};
 use quickjs_rust_near::jslib::{
     add_function_to_js, arg_to_number, arg_to_str, compile_js, js_call_function, js_get_property,
-    js_get_string, load_js_bytecode, to_js_string
+    js_get_string, load_js_bytecode, to_js_string,
 };
 use std::ffi::CStr;
 use std::ffi::CString;
@@ -100,23 +102,23 @@ impl Contract {
     }
 
     #[payable]
-    pub fn nft_mint(
-        &mut self,
-        token_id: TokenId,
-        token_owner_id: AccountId
-    ) -> Token {
+    pub fn nft_mint(&mut self, token_id: TokenId, token_owner_id: AccountId) -> Token {
         let jsmod = load_js_bytecode(self.jsbytecode.as_ptr(), self.jsbytecode.len());
         let nft_mint_str = CString::new("nft_mint").unwrap();
         unsafe {
             self.add_js_functions();
-            
-            let mint_metadata_json_string = CStr::from_ptr(js_get_string(
-                js_call_function(jsmod, nft_mint_str.as_ptr() as i32)) as *const i8)
-            .to_str().unwrap();
 
-            let parsed_json = serde_json::from_str(mint_metadata_json_string);            
+            let mint_metadata_json_string = CStr::from_ptr(js_get_string(js_call_function(
+                jsmod,
+                nft_mint_str.as_ptr() as i32,
+            )) as *const i8)
+            .to_str()
+            .unwrap();
+
+            let parsed_json = serde_json::from_str(mint_metadata_json_string);
             let token_metadata: TokenMetadata = parsed_json.unwrap();
-            self.tokens.internal_mint(token_id, token_owner_id, Some(token_metadata))
+            self.tokens
+                .internal_mint(token_id, token_owner_id, Some(token_metadata))
         }
     }
 
@@ -132,6 +134,54 @@ impl Contract {
             ),
             jsbytecode: vec![],
         }
+    }
+}
+
+#[near_bindgen]
+impl Payouts for Contract {
+    /// Given a `token_id` and NEAR-denominated balance, return the `Payout`.
+    /// struct for the given token. Panic if the length of the payout exceeds
+    /// `max_len_payout.
+    fn nft_payout(
+        &self,
+        _token_id: String,
+        _balance: U128,
+        _max_len_payout: Option<u32>,
+    ) -> Payout {
+        let jsmod = load_js_bytecode(self.jsbytecode.as_ptr(), self.jsbytecode.len());
+        let nft_payout_str = CString::new("nft_payout").unwrap();
+        unsafe {
+            self.add_js_functions();
+
+            let nft_payout_json_string = CStr::from_ptr(js_get_string(js_call_function(
+                jsmod,
+                nft_payout_str.as_ptr() as i32,
+            )) as *const i8)
+            .to_str()
+            .unwrap();
+
+            let parsed_json = serde_json::from_str(nft_payout_json_string);
+            return parsed_json.unwrap();
+        }
+    }
+
+    /// Given a `token_id` and NEAR-denominated balance, transfer the token
+    /// and return the `Payout` struct for the given token. Panic if the
+    /// length of the payout exceeds `max_len_payout.`
+    #[payable]
+    fn nft_transfer_payout(
+        &mut self,
+        receiver_id: AccountId,
+        token_id: String,
+        approval_id: Option<u64>,
+        memo: Option<String>,
+        balance: U128,
+        max_len_payout: Option<u32>,
+    ) -> Payout {
+        assert_one_yocto();
+        let payout = self.nft_payout(token_id.to_owned(), balance, max_len_payout);
+        self.nft_transfer(receiver_id, token_id, approval_id, memo);
+        payout
     }
 }
 
@@ -207,7 +257,10 @@ mod tests {
 
         contract.post_quickjs_bytecode(bytecodebase64);
         let metadata = contract.nft_metadata();
-        assert_eq!("WebAssembly Music by Peter Salomonsen".to_string(), metadata.name);
+        assert_eq!(
+            "WebAssembly Music by Peter Salomonsen".to_string(),
+            metadata.name
+        );
         assert_eq!("PSMUSIC".to_string(), metadata.symbol);
     }
 
@@ -240,10 +293,7 @@ mod tests {
         assert_latest_return_value_string_eq("bob supply: 0".to_string());
 
         set_attached_deposit(1900000000000000000000);
-        contract.nft_mint(
-            "abc".to_string(),
-            bob()
-        );
+        contract.nft_mint("abc".to_string(), bob());
         assert_eq!(contract.nft_supply_for_owner(bob()).0, 1 as u128);
 
         contract.call_js_func("get_supply_for_bob".to_string());
@@ -277,10 +327,7 @@ mod tests {
         set_signer_account_id(alice());
         set_attached_deposit(10440000000000000000000);
 
-        contract.nft_mint(
-            "2222".to_string(),
-            alice()
-        );
+        contract.nft_mint("2222".to_string(), alice());
 
         set_signer_account_pk(
             vec![
@@ -408,15 +455,79 @@ mod tests {
         assert_latest_return_value_string_eq("".to_string());
 
         for n in 1..9 {
-            contract.nft_mint(
-                n.to_string(),
-                carol()
-            );
+            contract.nft_mint(n.to_string(), carol());
         }
 
         set_input("{\"from_index\": 2}".try_into().unwrap());
 
         contract.call_js_func("get_tokens_json".to_string());
         assert_latest_return_value_string_eq("3:carol.near,4:carol.near,5:carol.near".to_string());
+    }
+
+    #[test]
+    fn test_nft_approve() {
+        setup_test_env();
+        set_predecessor_account_id(bob());
+        let mut contract = Contract::new();
+        contract.post_javascript(
+            "
+
+        export function nft_mint() {
+            print ('calling mint');
+            return JSON.stringify({
+                title: 'test_title',
+                description: 'test_description'
+            });
+        }
+        "
+            .to_string(),
+        );
+
+        set_attached_deposit(1900000000000000000000);
+        
+        contract.nft_mint("554433".to_string(), bob());
+
+        let promise = contract.nft_approve("554433".to_string(), carol(), Some("test".to_string()));
+    }
+
+    #[test]
+    fn test_nft_payout() {
+        setup_test_env();
+
+        let mut contract = Contract::new();
+        contract.post_javascript(
+            "
+        export function nft_payout() {
+            const args = JSON.parse(env.input());
+            const balance = BigInt(args.balance);
+            return JSON.stringify({
+                    payout: {
+                        'abc.testnet': (balance / BigInt(2)).toString(),
+                        'def.testnet': (balance / BigInt(2)).toString()
+                    }
+                }
+            );
+        }
+
+        "
+            .to_string(),
+        );
+
+        set_input("{\"token_id\": \"1\", \"balance\": \"1000000000000000000000000\",\"max_len_payout\": \"3\"}".try_into().unwrap());
+        let ret = contract.nft_payout("1".to_string(), U128(10000_0000000000_0000000000), Some(3));
+        assert_eq!(
+            U128(5000_0000000000_0000000000).0,
+            ret.payout
+                .get(&AccountId::new_unchecked("abc.testnet".to_string()))
+                .unwrap()
+                .0
+        );
+        assert_eq!(
+            U128(5000_0000000000_0000000000).0,
+            ret.payout
+                .get(&AccountId::new_unchecked("def.testnet".to_string()))
+                .unwrap()
+                .0
+        );
     }
 }

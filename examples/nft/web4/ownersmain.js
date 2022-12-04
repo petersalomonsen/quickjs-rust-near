@@ -22,23 +22,27 @@ if (!walletConnection.isSignedIn()) {
         );
     });
 } else {
-    const account = walletConnection.account();
-    const contract = new Contract(account, contractAccountId, {
-        changeMethods: ['call_js_func'],
-        viewMethods: ['web4_get']
+    const downloadSourcesButton = document.getElementById('download_sources_button');
+    downloadSourcesButton.style.display = 'block';
+    downloadSourcesButton.addEventListener('click', async () => {
+        const account = walletConnection.account();
+        const contract = new Contract(account, contractAccountId, {
+            changeMethods: ['call_js_func'],
+            viewMethods: ['web4_get']
+        });
+        await contract.call_js_func({'function_name': 'store_signing_key'});
+
+        const message = 'hello';
+
+        const keyPair = await account.connection.signer.keyStore.getKey(
+            connectionConfig.networkId,
+            account.accountId
+        );
+        const signature = await keyPair.sign(new TextEncoder().encode(message));
+        const signatureBase64 = btoa(String.fromCharCode(...signature.signature));
+
+        const requestQuery = `?message=${encodeURIComponent(message)}&account_id=${encodeURIComponent(account.accountId)}&signature=${encodeURIComponent(signatureBase64)}`;
+        const downloadUrl = `https://psalomo.testnet.page/webassemblymusicsources.zip${requestQuery}`;
+       
     });
-    await contract.call_js_func({'function_name': 'store_signing_key'});
-
-    const message = 'hello';
-
-    const keyPair = await account.connection.signer.keyStore.getKey(
-        connectionConfig.networkId,
-        account.accountId
-    );
-    const signature = await keyPair.sign(new TextEncoder().encode(message));
-    const signatureBase64 = btoa(String.fromCharCode(...signature.signature));
-
-    const requestQuery = `?message=${encodeURIComponent(message)}&account_id=${encodeURIComponent(account.accountId)}&signature=${encodeURIComponent(signatureBase64)}`;
-    const playerUrl = `https://psalomo.testnet.page/webassemblymusicsources.zip${requestQuery}`;
-    console.log(playerUrl);
 }

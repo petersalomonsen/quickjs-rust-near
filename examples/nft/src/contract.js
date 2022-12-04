@@ -106,3 +106,15 @@ export function nft_mint() {
       media_hash: env.sha256_utf8_to_base64(svgstring)
   });
 }
+
+export function nft_payout() {
+  const args = JSON.parse(env.input());
+  const balance = BigInt(args.balance);
+  return JSON.stringify({
+          payout: {
+              'abc.testnet': (balance / BigInt(2)).toString(),
+              'def.testnet': (balance / BigInt(2)).toString()
+          }
+      }
+  );
+}
