@@ -18,6 +18,8 @@ use quickjs_rust_near::jslib::{
 use std::ffi::CStr;
 use std::ffi::CString;
 
+const JS_BYTECODE_STORAGE_KEY: &[u8] = b"JS";
+
 #[derive(BorshSerialize, BorshStorageKey)]
 enum StorageKey {
     NonFungibleToken,
@@ -29,8 +31,7 @@ enum StorageKey {
 #[near_bindgen]
 #[derive(BorshDeserialize, BorshSerialize, PanicOnDefault)]
 pub struct Contract {
-    tokens: NonFungibleToken,
-    jsbytecode: Vec<u8>,
+    tokens: NonFungibleToken
 }
 
 static mut CONTRACT_REF: *const Contract = 0 as *const Contract;
@@ -63,8 +64,17 @@ impl Contract {
         );
     }
 
+    fn load_js_bytecode(&self) -> i64 {
+        let bytecode = env::storage_read(JS_BYTECODE_STORAGE_KEY).unwrap();
+        return load_js_bytecode(bytecode.as_ptr(), bytecode.len());   
+    }
+
+    fn store_js_bytecode(&self, bytecode: Vec<u8>) {
+        env::storage_write(JS_BYTECODE_STORAGE_KEY, &bytecode);
+    }
+
     pub fn call_js_func(&self, function_name: String) {
-        let jsmod = load_js_bytecode(self.jsbytecode.as_ptr(), self.jsbytecode.len());
+        let jsmod = self.load_js_bytecode();
 
         unsafe {
             self.add_js_functions();
@@ -74,7 +84,7 @@ impl Contract {
     }
 
     pub fn web4_get(&self) {
-        let jsmod = load_js_bytecode(self.jsbytecode.as_ptr(), self.jsbytecode.len());
+        let jsmod = self.load_js_bytecode();
         let web4_get_str = CString::new("web4_get").unwrap();
         unsafe {
             self.add_js_functions();
@@ -89,7 +99,7 @@ impl Contract {
             "Unauthorized"
         );
         let bytecode: Result<Vec<u8>, base64::DecodeError> = base64::decode(&bytecodebase64);
-        self.jsbytecode = bytecode.unwrap();
+        self.store_js_bytecode(bytecode.unwrap());
     }
 
     pub fn post_javascript(&mut self, javascript: String) {
@@ -98,12 +108,12 @@ impl Contract {
             self.tokens.owner_id,
             "Unauthorized"
         );
-        self.jsbytecode = compile_js(javascript, Some("main.js".to_string()));
+        self.store_js_bytecode(compile_js(javascript, Some("main.js".to_string())));
     }
 
     #[payable]
     pub fn nft_mint(&mut self, token_id: TokenId, token_owner_id: AccountId) -> Token {
-        let jsmod = load_js_bytecode(self.jsbytecode.as_ptr(), self.jsbytecode.len());
+        let jsmod = self.load_js_bytecode();
         let nft_mint_str = CString::new("nft_mint").unwrap();
         unsafe {
             self.add_js_functions();
@@ -131,8 +141,7 @@ impl Contract {
                 Some(StorageKey::TokenMetadata),
                 Some(StorageKey::Enumeration),
                 Some(StorageKey::Approval),
-            ),
-            jsbytecode: vec![],
+            )
         }
     }
 }
@@ -148,7 +157,7 @@ impl Payouts for Contract {
         _balance: U128,
         _max_len_payout: Option<u32>,
     ) -> Payout {
-        let jsmod = load_js_bytecode(self.jsbytecode.as_ptr(), self.jsbytecode.len());
+        let jsmod = self.load_js_bytecode();
         let nft_payout_str = CString::new("nft_payout").unwrap();
         unsafe {
             self.add_js_functions();
@@ -192,7 +201,7 @@ near_contract_standards::impl_non_fungible_token_enumeration!(Contract, tokens);
 #[near_bindgen]
 impl NonFungibleTokenMetadataProvider for Contract {
     fn nft_metadata(&self) -> NFTContractMetadata {
-        let jsmod = load_js_bytecode(self.jsbytecode.as_ptr(), self.jsbytecode.len());
+        let jsmod = self.load_js_bytecode();
 
         unsafe {
             let nft_metadata_str = CString::new("nft_metadata").unwrap();
@@ -485,9 +494,11 @@ mod tests {
 
         set_attached_deposit(1900000000000000000000);
         
-        contract.nft_mint("554433".to_string(), bob());
+        let token_id = "554433".to_string();
+        contract.nft_mint(token_id.to_owned(), bob());
 
-        let promise = contract.nft_approve("554433".to_string(), carol(), Some("test".to_string()));
+        contract.nft_approve(token_id.to_owned(), carol(), Some("test".to_string()));
+        assert_eq!(true, contract.nft_is_approved(token_id, carol(), None));
     }
 
     #[test]
