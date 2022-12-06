@@ -151,11 +151,12 @@ impl Payouts for Contract {
     /// Given a `token_id` and NEAR-denominated balance, return the `Payout`.
     /// struct for the given token. Panic if the length of the payout exceeds
     /// `max_len_payout.
+    #[allow(unused_variables)]
     fn nft_payout(
         &self,
-        _token_id: String,
-        _balance: U128,
-        _max_len_payout: Option<u32>,
+        token_id: String,
+        balance: U128,
+        max_len_payout: Option<u32>,
     ) -> Payout {
         let jsmod = self.load_js_bytecode();
         let nft_payout_str = CString::new("nft_payout").unwrap();
