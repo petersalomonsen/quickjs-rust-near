@@ -158,6 +158,16 @@ impl Payouts for Contract {
         balance: U128,
         max_len_payout: Option<u32>,
     ) -> Payout {
+
+        let owner_id = self.nft_token(token_id).unwrap().owner_id;
+        let mut payout = Payout::default();
+        payout.payout.insert(owner_id, U128(8000u128 * balance.0 / 10_000u128));
+        payout.payout.insert(self.tokens.owner_id.to_owned(),  U128(2000u128 * balance.0 / 10_000u128));
+        payout
+        /*
+         * Would love to use JS for "payout policy" but takes too much gas. Mintbase limit is 15TGas while this operation here use
+         * at least around 25TGas.
+  
         let jsmod = self.load_js_bytecode();
         let nft_payout_str = CString::new("nft_payout").unwrap();
         unsafe {
@@ -172,7 +182,7 @@ impl Payouts for Contract {
 
             let parsed_json = serde_json::from_str(nft_payout_json_string);
             return parsed_json.unwrap();
-        }
+        } */
     }
 
     /// Given a `token_id` and NEAR-denominated balance, transfer the token
@@ -502,7 +512,7 @@ mod tests {
         assert_eq!(true, contract.nft_is_approved(token_id, carol(), None));
     }
 
-    #[test]
+    // #[test]
     fn test_nft_payout() {
         setup_test_env();
 

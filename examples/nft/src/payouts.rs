@@ -8,11 +8,12 @@ use std::collections::HashMap;
 /// maximum length specified by the financial contract obtaining this
 /// payout data. Any mapping of length 10 or less MUST be accepted by
 /// financial contracts, so 10 is a safe upper limit.
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Default)]
 #[serde(crate = "near_sdk::serde")]
 pub struct Payout {
     pub payout: HashMap<AccountId, U128>,
 }
+
 pub trait Payouts {
     /// Given a `token_id` and NEAR-denominated balance, return the `Payout`.
     /// struct for the given token. Panic if the length of the payout exceeds

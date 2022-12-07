@@ -107,6 +107,11 @@ export function nft_mint() {
   });
 }
 
+/**
+ * Would love to use JS for "payout policy" but takes too much gas. 
+ * Mintbase limit is 15TGas while this operation here use at least around 25TGas.
+ * @returns 
+ */
 export function nft_payout() {
   const args = JSON.parse(env.input());
   const balance = BigInt(args.balance);
