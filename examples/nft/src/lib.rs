@@ -19,6 +19,7 @@ use std::ffi::CStr;
 use std::ffi::CString;
 
 const JS_BYTECODE_STORAGE_KEY: &[u8] = b"JS";
+const JS_CONTENT_RESOURCE_PREFIX: &str = "JSC_";
 
 #[derive(BorshSerialize, BorshStorageKey)]
 enum StorageKey {
@@ -40,6 +41,12 @@ static mut CONTRACT_REF: *const Contract = 0 as *const Contract;
 impl Contract {
     unsafe fn add_js_functions(&self) {
         CONTRACT_REF = self as *const Contract;
+        add_function_to_js("get_content_base64", |ctx: i32, _this_val: i64, _argc: i32, argv: i32| -> i64 {
+            let mut prefixed_key = JS_CONTENT_RESOURCE_PREFIX.to_owned();        
+            prefixed_key.push_str(arg_to_str(ctx, 0, argv).as_str());
+            let data = env::storage_read(&prefixed_key.as_bytes()).unwrap();
+            return to_js_string(ctx, base64::encode(data));
+        }, 1);
         add_function_to_js(
             "nft_supply_for_owner",
             |ctx: i32, _this_val: i64, _argc: i32, argv: i32| -> i64 {
@@ -111,6 +118,18 @@ impl Contract {
         self.store_js_bytecode(compile_js(javascript, Some("main.js".to_string())));
     }
 
+    pub fn post_content(&mut self, key: String, valuebase64: String) {
+        assert_eq!(
+            env::predecessor_account_id(),
+            self.tokens.owner_id,
+            "Unauthorized"
+        );
+        let value = base64::decode(&valuebase64).unwrap();
+        let mut prefixed_key = JS_CONTENT_RESOURCE_PREFIX.to_owned();        
+        prefixed_key.push_str(key.as_str());
+        env::storage_write(&prefixed_key.as_bytes(), &value);
+    }
+
     #[payable]
     pub fn nft_mint(&mut self, token_id: TokenId, token_owner_id: AccountId) -> Token {
         let jsmod = self.load_js_bytecode();
@@ -159,15 +178,7 @@ impl Payouts for Contract {
         max_len_payout: Option<u32>,
     ) -> Payout {
 
-        let owner_id = self.nft_token(token_id).unwrap().owner_id;
-        let mut payout = Payout::default();
-        payout.payout.insert(owner_id, U128(8000u128 * balance.0 / 10_000u128));
-        payout.payout.insert(self.tokens.owner_id.to_owned(),  U128(2000u128 * balance.0 / 10_000u128));
-        payout
-        /*
-         * Would love to use JS for "payout policy" but takes too much gas. Mintbase limit is 15TGas while this operation here use
-         * at least around 25TGas.
-  
+        
         let jsmod = self.load_js_bytecode();
         let nft_payout_str = CString::new("nft_payout").unwrap();
         unsafe {
@@ -182,7 +193,7 @@ impl Payouts for Contract {
 
             let parsed_json = serde_json::from_str(nft_payout_json_string);
             return parsed_json.unwrap();
-        } */
+        }
     }
 
     /// Given a `token_id` and NEAR-denominated balance, transfer the token
@@ -338,9 +349,10 @@ mod tests {
         let bytecodebase64 = base64::encode(bytecode);
 
         contract.post_quickjs_bytecode(bytecodebase64);
+        contract.post_content("/serviceworker.js".to_string(), base64::encode("print('serviceworker');".to_string()));
         contract.web4_get();
-        assert_latest_return_value_contains(
-            "{\"contentType\":\"application/javascript; charset=UTF-8\",\"body\":\"Y29uc"
+        assert_latest_return_value_string_eq(
+            r#"{"contentType":"application/javascript; charset=UTF-8","body":"cHJpbnQoJ3NlcnZpY2V3b3JrZXInKTs="}"#
                 .to_owned(),
         );
 
@@ -381,6 +393,7 @@ mod tests {
             .try_into()
             .unwrap(),
         );
+        contract.post_content("/webassemblymusicsources.zip".to_string(), base64::encode(vec![1,2,3,4]));
         contract.web4_get();
         assert_latest_return_value_contains("{\"contentType\":\"application/zip".to_owned());
 
@@ -434,6 +447,7 @@ mod tests {
 
         assert_latest_return_value_contains(base64::encode("NOT OWNER").to_owned());
 
+        contract.post_content("/index.html".to_string(), base64::encode("<html></html>"));
         set_input(
             "{\"request\": {\"path\": \"/index.html\"}}"
                 .try_into()
@@ -512,7 +526,7 @@ mod tests {
         assert_eq!(true, contract.nft_is_approved(token_id, carol(), None));
     }
 
-    // #[test]
+    #[test]
     fn test_nft_payout() {
         setup_test_env();
 
@@ -551,5 +565,22 @@ mod tests {
                 .unwrap()
                 .0
         );
+    }
+
+    #[test]
+    fn test_store_content() {
+        setup_test_env();
+
+        let mut contract = Contract::new();
+        contract.post_javascript("
+        export function get_content_base64() {
+            env.value_return(env.get_content_base64('/files/testfile.js'));
+        }
+        "
+            .to_string(),
+        );
+        contract.post_content("/files/testfile.js".to_string(), base64::encode(CONTRACT_JS));
+        contract.call_js_func("get_content_base64".to_string());
+        assert_latest_return_value_string_eq(base64::encode(CONTRACT_JS));
     }
 }

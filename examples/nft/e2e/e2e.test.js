@@ -24,10 +24,26 @@ test('should run custom javascript (quickjs bytecode ) in contract', async () =>
             bytecodebase64: await (await readFile('e2e/quickjsbytecode.bin')).toString('base64')
         }
     });
+    await account.functionCall({
+        contractId: accountId,
+        methodName: 'post_content',
+        args: {
+        key: '/index.html',
+        valuebase64: await (await readFile('web4/dist/index.html')).toString('base64')
+       }
+    });
     const result = await account.viewFunction({ contractId: accountId, methodName: 'web4_get', args: { request: { path: '/index.html' } } });
     expect(result.contentType).toBe('text/html; charset=UTF-8');
     expect(result.body).toBeDefined();
 
+    await account.functionCall({
+        contractId: accountId,
+        methodName: 'post_content',
+        args: {
+        key: '/musicwasms/fall.wasm',
+        valuebase64: await (await readFile('web4/musicwasms/fall.wasm')).toString('base64')
+       }
+    });
     const wasmresult = await account.viewFunction({ contractId: accountId, methodName: 'web4_get', args: { request: { path: '/musicwasms/fall.wasm' } } });
     expect(wasmresult.contentType).toBe('application/wasm');
     expect(wasmresult.body).toBeDefined();

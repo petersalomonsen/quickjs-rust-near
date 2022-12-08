@@ -16,13 +16,6 @@ export default {
       const musicwasms = readdirSync(musicwasmsdir);
       writeFileSync('dist/index.html', html);
       unlinkSync(`dist/main.js`);
-      const contractFileName = '../src/contract.js';
-      const contractjs = readFileSync(contractFileName).toString();
-      const contractlines = contractjs.split('\n');
-      contractlines[0] = `const INDEX_HTML = '${Buffer.from(html).toString('base64')}';`;
-      contractlines[1] = `const SERVICEWORKER = '${Buffer.from(serviceworker).toString('base64')}';`;
-      contractlines[2] = `const MUSIC_WASMS = {${musicwasms.map(musicwasm => `"${musicwasm}": "${Buffer.from(readFileSync(`${musicwasmsdir}/${musicwasm}`)).toString('base64')}"`)}};`;
-      writeFileSync('../src/contract.js', contractlines.join('\n'));
     }
   }],
 };

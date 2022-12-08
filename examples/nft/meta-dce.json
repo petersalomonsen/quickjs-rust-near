@@ -15,6 +15,11 @@
     "root": true
   },
   {
+    "name": "post_content",
+    "export": "post_content",
+    "root": true
+  },
+  {
     "name": "nft_mint",
     "export": "nft_mint",
     "root": true
