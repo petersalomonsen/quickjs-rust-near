@@ -102,18 +102,13 @@ export function nft_mint() {
 }
 
 /**
- * Would love to use JS for "payout policy" but takes too much gas. 
- * Mintbase limit is 15TGas while this operation here use at least around 25TGas.
  * @returns 
  */
 export function nft_payout() {
   const args = JSON.parse(env.input());
   const balance = BigInt(args.balance);
-  return JSON.stringify({
-          payout: {
-              'abc.testnet': (balance / BigInt(2)).toString(),
-              'def.testnet': (balance / BigInt(2)).toString()
-          }
-      }
-  );
+  const payout = {};  
+  payout[JSON.parse(env.nft_token(args.token_id)).owner_id] = (balance * BigInt(80) / BigInt(100)).toString();
+  payout[env.contract_owner()] = (balance * BigInt(20) / BigInt(100)).toString();
+  return JSON.stringify({payout});
 }

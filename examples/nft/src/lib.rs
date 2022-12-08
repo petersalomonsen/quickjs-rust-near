@@ -47,6 +47,17 @@ impl Contract {
             let data = env::storage_read(&prefixed_key.as_bytes()).unwrap();
             return to_js_string(ctx, base64::encode(data));
         }, 1);
+        add_function_to_js("contract_owner",
+            |ctx: i32, _this_val: i64, _argc: i32, _argv: i32| -> i64 {
+                return to_js_string(ctx, (*CONTRACT_REF).tokens.owner_id.to_string());
+            }, 0
+        );
+        add_function_to_js("nft_token",
+            |ctx: i32, _this_val: i64, _argc: i32, argv: i32| -> i64 {
+                let token_id = arg_to_str(ctx, 0, argv).to_string();
+                return to_js_string(ctx, serde_json::to_string(&(*CONTRACT_REF).tokens.nft_token(token_id).unwrap()).unwrap());
+            }, 1
+        );
         add_function_to_js(
             "nft_supply_for_owner",
             |ctx: i32, _this_val: i64, _argc: i32, argv: i32| -> i64 {
@@ -530,38 +541,50 @@ mod tests {
     fn test_nft_payout() {
         setup_test_env();
 
+        set_predecessor_account_id(bob());
+        set_current_account_id(bob());
         let mut contract = Contract::new();
         contract.post_javascript(
             "
-        export function nft_payout() {
-            const args = JSON.parse(env.input());
-            const balance = BigInt(args.balance);
-            return JSON.stringify({
-                    payout: {
-                        'abc.testnet': (balance / BigInt(2)).toString(),
-                        'def.testnet': (balance / BigInt(2)).toString()
-                    }
-                }
-            );
-        }
+            
+            export function nft_mint() {
+                print ('calling mint');
+                return JSON.stringify({
+                    title: 'test_title',
+                    description: 'test_description'
+                });
+            }
+            export function nft_payout() {
+                const args = JSON.parse(env.input());
+                const balance = BigInt(args.balance);
+                const payout = {};  
+                payout[JSON.parse(env.nft_token(args.token_id)).owner_id] = (balance * BigInt(80) / BigInt(100)).toString();
+                payout[env.contract_owner()] = (balance * BigInt(20) / BigInt(100)).toString();
+                return JSON.stringify({payout});
+            }
 
         "
             .to_string(),
         );
 
-        set_input("{\"token_id\": \"1\", \"balance\": \"1000000000000000000000000\",\"max_len_payout\": \"3\"}".try_into().unwrap());
+        set_attached_deposit(2000000000000000000000);
+        
+        let token_id = "5544332".to_string();
+        contract.nft_mint(token_id.to_owned(), alice());
+
+        set_input("{\"token_id\": \"5544332\", \"balance\": \"1000000000000000000000000\",\"max_len_payout\": \"3\"}".try_into().unwrap());
         let ret = contract.nft_payout("1".to_string(), U128(10000_0000000000_0000000000), Some(3));
         assert_eq!(
-            U128(5000_0000000000_0000000000).0,
+            U128(2000_0000000000_0000000000).0,
             ret.payout
-                .get(&AccountId::new_unchecked("abc.testnet".to_string()))
+                .get(&contract.tokens.owner_id)
                 .unwrap()
                 .0
         );
         assert_eq!(
-            U128(5000_0000000000_0000000000).0,
+            U128(8000_0000000000_0000000000).0,
             ret.payout
-                .get(&AccountId::new_unchecked("def.testnet".to_string()))
+                .get(&contract.nft_token("5544332".to_string()).unwrap().owner_id)
                 .unwrap()
                 .0
         );
@@ -582,5 +605,47 @@ mod tests {
         contract.post_content("/files/testfile.js".to_string(), base64::encode(CONTRACT_JS));
         contract.call_js_func("get_content_base64".to_string());
         assert_latest_return_value_string_eq(base64::encode(CONTRACT_JS));
+    }
+
+    #[test]
+    fn test_contract_owner() {
+        setup_test_env();
+
+        set_current_account_id(bob());
+
+        let mut contract = Contract::new();
+        contract.post_javascript("
+        export function get_contract_owner() {
+            env.value_return(env.contract_owner());
+        }
+        "
+            .to_string(),
+        );
+        
+        contract.call_js_func("get_contract_owner".to_string());
+        assert_latest_return_value_string_eq(contract.tokens.owner_id.to_string());
+    }
+
+    #[test]
+    fn test_nft_token() {
+        setup_test_env();
+
+        set_current_account_id(bob());
+
+        let mut contract = Contract::new();
+        contract.post_javascript("
+        export function get_nft_token() {
+            env.value_return(env.nft_token('1'));
+        }
+        "
+            .to_string(),
+        );
+        
+        contract.call_js_func("get_nft_token".to_string());
+
+        let token = contract.nft_token("1".to_string()).unwrap();
+        assert_latest_return_value_string_eq(
+            serde_json::to_string(&token).unwrap()
+        );
     }
 }

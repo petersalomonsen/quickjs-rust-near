@@ -11,9 +11,6 @@ export default {
       const js = readFileSync('dist/main.js').toString();
       const html = readFileSync('dist/index.html').toString()
         .replace(`<script type="module" src="./main.js"></script>`, `<script type="module">${js}</script>`);
-      const serviceworker = readFileSync('serviceworker.js');
-      const musicwasmsdir = 'musicwasms';
-      const musicwasms = readdirSync(musicwasmsdir);
       writeFileSync('dist/index.html', html);
       unlinkSync(`dist/main.js`);
     }
