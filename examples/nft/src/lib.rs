@@ -557,12 +557,21 @@ mod tests {
             export function nft_payout() {
                 const args = JSON.parse(env.input());
                 const balance = BigInt(args.balance);
-                const payout = {};  
-                payout[JSON.parse(env.nft_token(args.token_id)).owner_id] = (balance * BigInt(80) / BigInt(100)).toString();
-                payout[env.contract_owner()] = (balance * BigInt(20) / BigInt(100)).toString();
-                return JSON.stringify({payout});
-            }
-
+                const payout = {};
+                const token_owner_id = JSON.parse(env.nft_token(args.token_id)).owner_id;
+                const contract_owner = env.contract_owner();
+              
+                const addPayout = (account, amount) => {
+                  if (!payout[account]) {
+                    payout[account] = 0n;
+                  }
+                  payout[account] += amount;
+                };
+                addPayout(token_owner_id, balance * BigInt(80_00) / BigInt(100_00));
+                addPayout(contract_owner, balance * BigInt(20_00) / BigInt(100_00));
+                Object.keys(payout).forEach(k => payout[k] = payout[k].toString());
+                return JSON.stringify({ payout });
+            }              
         "
             .to_string(),
         );

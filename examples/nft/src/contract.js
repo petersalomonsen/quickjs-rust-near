@@ -39,16 +39,16 @@ export function web4_get() {
         body: env.base64_encode("NOT OWNER"),
       };
     }
-  } else if (request.path=='/icon.svg') {
+  } else if (request.path == '/icon.svg') {
     response = {
       contentType: "image/svg+xml",
       body: icon_svg_base64
     };
   } else if (request.path == '/nftowners.json') {
-    const tokens = JSON.parse(env.nft_tokens(0,100));
+    const tokens = JSON.parse(env.nft_tokens(0, 100));
     response = {
       contentType: "application/json; charset=UTF-8",
-      body: env.base64_encode(JSON.stringify(tokens.map(t => ({token_id: t.token_id, owner_id: t.owner_id}))))
+      body: env.base64_encode(JSON.stringify(tokens.map(t => ({ token_id: t.token_id, owner_id: t.owner_id }))))
     };
   } else {
     response = {
@@ -77,7 +77,7 @@ export function nft_metadata() {
 }
 
 export function nft_mint() {
-  if(env.signer_account_id() != env.current_account_id()) {
+  if (env.signer_account_id() != env.current_account_id()) {
     env.panic('only contract account can mint');
   }
   const args = JSON.parse(env.input());
@@ -94,10 +94,10 @@ export function nft_mint() {
 </svg>`;
 
   return JSON.stringify({
-      title: `WebAssembly Music token number #${args.token_id}`,
-      description: `An album by Peter Salomonsen with the first generation of tunes made in the browser using the "WebAssembly Music" web application. webassemblymusic.near.page`,
-      media: `data:image/svg+xml;base64,${env.base64_encode(svgstring)}`,
-      media_hash: env.sha256_utf8_to_base64(svgstring)
+    title: `WebAssembly Music token number #${args.token_id}`,
+    description: `An album by Peter Salomonsen with the first generation of tunes made in the browser using the "WebAssembly Music" web application. webassemblymusic.near.page`,
+    media: `data:image/svg+xml;base64,${env.base64_encode(svgstring)}`,
+    media_hash: env.sha256_utf8_to_base64(svgstring)
   });
 }
 
@@ -107,8 +107,18 @@ export function nft_mint() {
 export function nft_payout() {
   const args = JSON.parse(env.input());
   const balance = BigInt(args.balance);
-  const payout = {};  
-  payout[JSON.parse(env.nft_token(args.token_id)).owner_id] = (balance * BigInt(80) / BigInt(100)).toString();
-  payout[env.contract_owner()] = (balance * BigInt(20) / BigInt(100)).toString();
-  return JSON.stringify({payout});
+  const payout = {};
+  const token_owner_id = JSON.parse(env.nft_token(args.token_id)).owner_id;
+  const contract_owner = env.contract_owner();
+
+  const addPayout = (account, amount) => {
+    if (!payout[account]) {
+      payout[account] = 0n;
+    }
+    payout[account] += amount;
+  };
+  addPayout(token_owner_id, balance * BigInt(80_00) / BigInt(100_00));
+  addPayout(contract_owner, balance * BigInt(20_00) / BigInt(100_00));
+  Object.keys(payout).forEach(k => payout[k] = payout[k].toString());
+  return JSON.stringify({ payout });
 }

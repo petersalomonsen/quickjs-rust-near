@@ -28,9 +28,9 @@ test('should run custom javascript (quickjs bytecode ) in contract', async () =>
         contractId: accountId,
         methodName: 'post_content',
         args: {
-        key: '/index.html',
-        valuebase64: await (await readFile('web4/dist/index.html')).toString('base64')
-       }
+            key: '/index.html',
+            valuebase64: await (await readFile('web4/dist/index.html')).toString('base64')
+        }
     });
     const result = await account.viewFunction({ contractId: accountId, methodName: 'web4_get', args: { request: { path: '/index.html' } } });
     expect(result.contentType).toBe('text/html; charset=UTF-8');
@@ -40,9 +40,9 @@ test('should run custom javascript (quickjs bytecode ) in contract', async () =>
         contractId: accountId,
         methodName: 'post_content',
         args: {
-        key: '/musicwasms/fall.wasm',
-        valuebase64: await (await readFile('web4/musicwasms/fall.wasm')).toString('base64')
-       }
+            key: '/musicwasms/fall.wasm',
+            valuebase64: await (await readFile('web4/musicwasms/fall.wasm')).toString('base64')
+        }
     });
     const wasmresult = await account.viewFunction({ contractId: accountId, methodName: 'web4_get', args: { request: { path: '/musicwasms/fall.wasm' } } });
     expect(wasmresult.contentType).toBe('application/wasm');
@@ -364,4 +364,47 @@ test('should forbid mint', async () => {
     } catch (e) {
         expect(e.kind.ExecutionError).toBe('Smart contract panicked: mint is forbidden');
     }
+}, 20000);
+
+test('15 TGas should be sufficient for nft_transfer_payout', async () => {
+    const nearConnection = await connect(connectionConfig);
+    const accountId = await (await readFile('neardev/dev-account')).toString();
+
+    const account = await nearConnection.account(accountId);
+    await account.functionCall({
+        contractId: accountId,
+        methodName: 'post_quickjs_bytecode',
+        gas: '300000000000000',
+        args: {
+            bytecodebase64: await (await readFile('e2e/quickjsbytecode.bin')).toString('base64')
+        }
+    });
+
+    const token_id = `${new Date().getTime()}`;
+    await account.functionCall({
+        contractId: accountId,
+        methodName: 'nft_mint',
+        attachedDeposit: '16250000000000000000000',
+        gas: '300000000000000',
+        args: {
+            token_id,
+            token_owner_id: accountId
+        }
+    });
+
+    const payout = await account.functionCall({
+        contractId: accountId,
+        methodName: 'nft_transfer_payout',
+        gas: '15000000000000',
+        attachedDeposit: '1',
+        args: {
+            token_id,
+            receiver_id: 'acl.testnet',
+            balance: BigInt(10_0000_00000_00000_00000_00000n).toString()
+        }
+    });
+
+    expect(JSON.parse(Buffer.from(payout.status.SuccessValue, 'base64').toString()).payout[accountId]).toBe(BigInt(10_0000_00000_00000_00000_00000n).toString());
+    const tokenAfterTransfer = await account.viewFunction({ contractId: accountId, methodName: 'nft_token', args: { token_id } });
+    expect(tokenAfterTransfer.owner_id).toBe('acl.testnet');
 }, 20000);
