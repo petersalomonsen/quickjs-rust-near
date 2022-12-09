@@ -50,6 +50,11 @@ export function web4_get() {
       contentType: "application/json; charset=UTF-8",
       body: env.base64_encode(JSON.stringify(tokens.map(t => ({ token_id: t.token_id, owner_id: t.owner_id }))))
     };
+  } else if (request.path.endsWith('.html')) {
+    response = {
+      contentType: "text/html; charset=UTF-8",
+      body: env.get_content_base64(request.path)
+    };
   } else {
     response = {
       contentType: "text/html; charset=UTF-8",

@@ -20,18 +20,79 @@
         #loginbutton {
             display: none;
         }
+
+        #download_sources_button {
+            display: none;
+        }
     </style>
 </head>
 
 <body>
     <h1>Owners page</h1>
     
+    <p>If you own an NFT from this contract you may log in and a new button will appear that lets you download the source code files for the music.
+    These source code files can be pasted into the WebAssembly Music app at <a href="https://petersalomonsen.com">petersalomonsen.com</a></p>
+
     <button id="loginbutton">Login</button>
     
-    Download source code for music
+    <button id="download_sources_button">Download source code for music</button>
     
 </body>
 <script src="https://cdn.jsdelivr.net/npm/near-api-js@1.1.0/dist/near-api-js.js" integrity="sha256-P4UWOeQu3ArN0DbPCzdyfYBaeKLzKu+7V+BZcmxFigE=" crossorigin="anonymous"></script>
-<script src="ownersmain.js" type="module"></script>
+<script type="module">
+const { connect, keyStores, WalletConnection, Contract } = nearApi;
 
+const contractAccountId = 'webassemblymusic.near';
+const networkId = 'mainnet';
+
+const connectionConfig = {
+    networkId: networkId,
+    keyStore: new keyStores.BrowserLocalStorageKeyStore(),
+    nodeUrl: `https://rpc.${networkId}.near.org`,
+    walletUrl: `https://wallet.${networkId}.near.org`,
+    helperUrl: `https://helper.${networkId}.near.org`,
+    explorerUrl: `https://explorer.${networkId}.near.org`,
+};
+
+const nearConnection = await connect(connectionConfig);
+const walletConnection = new WalletConnection(nearConnection);
+
+if (!walletConnection.isSignedIn()) {
+    const loginbutton = document.getElementById('loginbutton');
+    loginbutton.style.display = 'block';
+    loginbutton.addEventListener('click', () => {
+        walletConnection.requestSignIn(
+            {contractId: contractAccountId, methodNames: ['call_js_func']}
+        );
+    });
+} else {
+    const downloadSourcesButton = document.getElementById('download_sources_button');
+    downloadSourcesButton.style.display = 'block';
+    downloadSourcesButton.addEventListener('click', async () => {
+        const account = walletConnection.account();
+        const contract = new Contract(account, contractAccountId, {
+            changeMethods: ['call_js_func']
+        });
+        const result = await contract.call_js_func({'function_name': 'store_signing_key'});
+
+        const message = 'hello'+new Date().getTime();
+
+        const keyPair = await account.connection.signer.keyStore.getKey(
+            connectionConfig.networkId,
+            account.accountId
+        );
+        const signature = await keyPair.sign(new TextEncoder().encode(message));
+        const signatureBase64 = btoa(String.fromCharCode(...signature.signature));
+
+        const requestQuery = `?message=${encodeURIComponent(message)}&account_id=${encodeURIComponent(account.accountId)}&signature=${encodeURIComponent(signatureBase64)}`;
+        const downloadUrl = `https://${contractAccountId}.page/webassemblymusicsources.zip${requestQuery}`;
+        const downloadElement = document.createElement('a');
+        downloadElement.href = downloadUrl;
+        downloadElement.download = 'webassemblymusicsources.zip';
+        document.documentElement.appendChild(downloadElement);
+        downloadElement.click();
+        document.documentElement.removeChild(downloadElement);        
+    });
+}
+</script>
 </html>
