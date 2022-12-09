@@ -53,7 +53,7 @@ export function web4_get() {
   } else {
     response = {
       contentType: "text/html; charset=UTF-8",
-      body: env.get_content_base64(request.path)
+      body: env.get_content_base64('/index.html')
     };
   }
   env.value_return(JSON.stringify(response));

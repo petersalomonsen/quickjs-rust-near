@@ -10,11 +10,11 @@ const musicwasms = [
     { name: 'Web chip-music', path: 'webchipmusic.wasm', durationSeconds: 133 },
     { name: 'Wasm song', path: 'wasmsong.wasm', durationSeconds: 232 },
     { name: 'Good times', path: 'goodtimes.wasm', durationSeconds: 176 },
-    { name: 'WebAssembly summit 1', path: 'wasmsummit1.wasm', durationSeconds: 154 },
+    { name: 'WebAssembly summit 2020', path: 'wasmsummit2020.wasm', durationSeconds: 154 },
     { name: 'First attempt', path: 'firstattempt.wasm', durationSeconds: 217 },
     { name: 'Shuffle chill', path: 'shufflechill.wasm', durationSeconds: 151 },
     { name: 'Fall', path: 'fall.wasm', durationSeconds: 174 },
-    { name: 'WebAssembly summit 2', path: 'wasmsummit2.wasm', durationSeconds: 191 }
+    { name: 'WebAssembly summit 2021', path: 'wasmsummit2021.wasm', durationSeconds: 191 }
 ];
 
 self.addEventListener('install', (event) => {
