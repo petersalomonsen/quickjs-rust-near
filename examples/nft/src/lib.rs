@@ -162,8 +162,13 @@ impl Contract {
         }
     }
 
-    #[init(ignore_state)]
+    #[init]
     pub fn new() -> Self {
+        assert_eq!(
+            env::predecessor_account_id(),
+            env::current_account_id(),
+            "Unauthorized"
+        );
         Self {
             tokens: NonFungibleToken::new(
                 StorageKey::NonFungibleToken,
