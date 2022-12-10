@@ -88,7 +88,7 @@
         const nftowners = await (await fetch(new URL('nftowners.json?t=' + new Date().getTime(), import.meta.url))).json();
         const nftownerstablebody = document.getElementById('nftownerstablebody');
 
-        nftownerstablebody.innerHTML = nftowners.map(o => `<tr>
+        nftownerstablebody.innerHTML = nftowners.sort((a,b)=> parseInt(a.token_id) - parseInt(b.token_id)).map(o => `<tr>
             <td>${o.token_id}</td>
             <td><a href="https://near.social/#/mob.near/widget/ProfilePage?accountId=${o.owner_id}" target="_blank">${o.owner_id}</a></td>
         </tr>`).join('');
