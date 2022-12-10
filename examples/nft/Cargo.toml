@@ -1,0 +1,26 @@
+[package]
+name = "quickjs-rust-near-nft"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+crate-type = ["cdylib"]
+
+[profile.release]
+codegen-units = 1
+lto = true
+debug = false
+opt-level = "z"
+
+[dependencies]
+near-sdk = "4.0.0"
+lazy_static = "1.4.0"
+ed25519-dalek = "1.0.1"
+quickjs-rust-near = { path = "../../", features=["library"] }
+quickjs-rust-near-testenv = { path = "../../testenv" }
+near-contract-standards = "4.1.1"
+
+[build-dependencies]
+bindgen = "0.60.1"

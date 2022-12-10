@@ -1,0 +1,16 @@
+[package]
+name = "quickjs-rust-near-testenv"
+version = "0.1.0"
+edition = "2021"
+
+[profile.test]
+panic="unwind"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+near-sdk = "4.0.0"
+lazy_static = "1.4.0"
+ed25519-dalek = "1.0.1"
+sha2 = "0.10.6"

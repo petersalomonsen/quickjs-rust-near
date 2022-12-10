@@ -1,5 +1,7 @@
 /target
 /wasi-sdk*
+binaryen-*
 node_modules
 neardev*
 out
+.DS_Store

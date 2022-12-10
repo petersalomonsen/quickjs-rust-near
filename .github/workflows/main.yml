@@ -13,8 +13,12 @@ jobs:
       - name: Unit tests
         run: |
           curl https://wasmtime.dev/install.sh -sSf | bash
+          export PATH="$HOME/.wasmtime/bin:$PATH"
           rustup target add wasm32-wasi
+          cargo install cargo-wasi
           ./test.sh
+          (cd testenv && ./test.sh)
+          (cd examples/nft && ./test.sh)
   e2etests:
     name: End to end tests
     runs-on: ubuntu-latest
@@ -31,6 +35,25 @@ jobs:
           ./buildanddeploy.sh
           yarn install
           yarn test-e2e
+  e2e-test-example-nft:
+    name: NFT example End to End tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: NFT example End to End tests
+        run: |
+          set -e
+          curl -L https://github.com/WebAssembly/binaryen/releases/download/version_110/binaryen-version_110-x86_64-linux.tar.gz | tar xzf -
+          export PATH="`pwd`/binaryen-version_110/bin:$PATH"
+          npm install -g near-cli
+          mkdir $HOME/.near-config
+          echo "{\"trackingEnabled\": true, \"trackingAccountID\": false}" > $HOME/.near-config/settings.json
+          rustup target add wasm32-unknown-unknown
+          yarn install
+          cd examples/nft
+          mkdir out
+          ./buildanddeploy.sh          
+          yarn test-examples-nft-e2e
   webapptests:
     name: Web app tests
     runs-on: ubuntu-latest

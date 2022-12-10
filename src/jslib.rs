@@ -1,12 +1,17 @@
-use std::ffi::CString;
+use crate::viewaccesscontrol::{store_signing_key_for_account, verify_message_signed_by_account};
+use near_sdk::{env, base64};
+use std::ffi::{CString, CStr};
 use std::slice;
-use crate::viewaccesscontrol::{verify_message_signed_by_account};
 
 extern "C" {
     fn create_runtime();
     fn js_eval(filename: i32, script: i32, is_module: i32) -> i32;
-    fn js_eval_bytecode(buf: *const u8, buf_len: usize) -> i32;
+    fn js_eval_bytecode(buf: *const u8, buf_len: usize) -> i64;
     fn js_compile_to_bytecode(filename: i32, source: i32, out_buf_len: i32, module: i32) -> i32;
+    pub fn js_load_bytecode(buf: *const u8, buf_len: usize) -> i64;
+    pub fn js_call_function(mod_obj: i64, function_name: i32) -> i64;
+    pub fn js_get_property(val: i64, propertyname: i32) -> i64;
+    pub fn js_get_string(val: i64) -> i32;
     fn createNearEnv();
     fn js_add_near_host_function(name: i32, func: i32, length: i32);
     fn JS_ToCStringLen2(ctx: i32, value_len_ptr: i32, val: i64, b: i32) -> i32;
@@ -17,8 +22,8 @@ pub const JS_UNDEFINED: i64 = 0x0000000300000000;
 pub const JS_FALSE: i64 = 0x0000000100000000;
 pub const JS_TRUE: i64 = 0x0000000100000001;
 
-fn arg_to_str(ctx: i32, arg_no: i32, argv: i32) -> String {
-    let mut value_len: usize= 0;
+pub fn arg_to_str(ctx: i32, arg_no: i32, argv: i32) -> String {
+    let mut value_len: usize = 0;
     let value_len_ptr: *mut usize = &mut value_len as *mut usize;
     let argv_ptr = (argv + (arg_no * 8)) as *const i64;
 
@@ -30,6 +35,13 @@ fn arg_to_str(ctx: i32, arg_no: i32, argv: i32) -> String {
     }
     value_string = String::from_utf8(value_bytes).unwrap();
     return value_string;
+}
+
+pub fn arg_to_number(_ctx: i32, arg_no: i32, argv: i32) -> i64 {
+    let argv_ptr = (argv + (arg_no * 8)) as *const i64;
+    unsafe {
+        return *argv_ptr;
+    }
 }
 
 /**
@@ -89,30 +101,70 @@ fn verify_signed_message_func(ctx: i32, _this_val: i64, _argc: i32, argv: i32) -
     }
 }
 
+fn store_signing_key_func(_ctx: i32, _this_val: i64, _argc: i32, argv: i32) -> i64 {
+    let expires_timestamp_ms = unsafe { *(argv as *const u64) };
+    store_signing_key_for_account(expires_timestamp_ms);
+    return JS_UNDEFINED;
+}
+
+pub unsafe fn add_function_to_js(
+    function_name: &str,
+    function_impl: fn(i32, i64, i32, i32) -> i64,
+    num_params: i32,
+) {
+    let function_name_cstr = CString::new(function_name).unwrap();
+    js_add_near_host_function(
+        function_name_cstr.as_ptr() as i32,
+        function_impl as i32,
+        num_params,
+    );
+}
+
+pub fn to_js_string(ctx: i32, str: String) -> i64 {
+    let str_ptr = str.as_ptr();
+
+    unsafe {
+        return JS_NewStringLen(ctx, str_ptr as i32, str.len());
+    }
+}
+
 unsafe fn setup_quickjs() {
     create_runtime();
     createNearEnv();
 
-    let value_return_name = CString::new("value_return").unwrap();
-    js_add_near_host_function(
-        value_return_name.as_ptr() as i32,
-        value_return_func as i32,
+    add_function_to_js("panic", |ctx: i32, _this_val: i64, _argc: i32, argv: i32| -> i64 {
+        let mut value_len = 0;
+        let value_len_ptr: *mut usize = &mut value_len;
+        let argv_ptr = argv as *const i64;
+
+        let ptr = JS_ToCStringLen2(ctx, value_len_ptr as i32, *argv_ptr, 0) as *const i8;
+        let str = CStr::from_ptr(ptr).to_str().unwrap();
+        near_sdk::env::panic_str(str);        
+    }, 1);
+    add_function_to_js("value_return", value_return_func, 1);
+    add_function_to_js("input", input_func, 1);
+    add_function_to_js(
+        "block_timestamp_ms",
+        |_ctx: i32, _this_val: i64, _argc: i32, _argv: i32| -> i64 {
+            env::block_timestamp_ms() as i64
+        },
         1,
     );
-
-    let input_name = CString::new("input").unwrap();
-    js_add_near_host_function(input_name.as_ptr() as i32, input_func as i32, 1);
-
-    let signer_account_id_name = CString::new("signer_account_id").unwrap();
-    js_add_near_host_function(
-        signer_account_id_name.as_ptr() as i32,
-        signer_account_id_func as i32,
-        1,
-    );
-
-    let verify_signed_message_name = CString::new("verify_signed_message").unwrap();
-    js_add_near_host_function(verify_signed_message_name.as_ptr() as i32,
-            verify_signed_message_func as i32, 2);
+    add_function_to_js("current_account_id", 
+        |ctx: i32, _this_val: i64, _argc: i32, _argv: i32| -> i64 {
+        let current_account_id = env::current_account_id().to_string();
+        let current_account_id_ptr = current_account_id.as_ptr();
+        return JS_NewStringLen(ctx, current_account_id_ptr as i32, current_account_id.len());
+    }, 0);
+    add_function_to_js("signer_account_id", signer_account_id_func, 1);
+    add_function_to_js("verify_signed_message", verify_signed_message_func, 2);
+    add_function_to_js("store_signing_key", store_signing_key_func, 1);
+    add_function_to_js("base64_encode", |ctx: i32, _this_val: i64, _argc: i32, argv: i32| -> i64 {
+        return to_js_string(ctx, base64::encode(arg_to_str(ctx, 0, argv)));
+    }, 1);
+    add_function_to_js("sha256_utf8_to_base64", |ctx: i32, _this_val: i64, _argc: i32, argv: i32| -> i64 {
+        return to_js_string(ctx, base64::encode(near_sdk::env::sha256(arg_to_str(ctx, 0, argv).as_bytes())));
+    }, 1);
 }
 
 pub fn run_js(script: String) -> i32 {
@@ -127,8 +179,8 @@ pub fn run_js(script: String) -> i32 {
     return result;
 }
 
-pub fn run_js_bytecode(bytecode: Vec<u8>) -> i32 {
-    let result: i32;
+pub fn run_js_bytecode(bytecode: Vec<u8>) -> i64 {
+    let result: i64;
 
     unsafe {
         setup_quickjs();
@@ -137,19 +189,34 @@ pub fn run_js_bytecode(bytecode: Vec<u8>) -> i32 {
     return result;
 }
 
-pub fn compile_js(script: String) -> Vec<u8> {
+pub fn load_js_bytecode(bytecode: *const u8, len: usize) -> i64 {
+    let result: i64;
+
+    unsafe {
+        setup_quickjs();
+        result = js_load_bytecode(bytecode, len);
+    }
+    return result;
+}
+
+pub fn compile_js(script: String, modulename: Option<String>) -> Vec<u8> {
     let result: Vec<u8>;
     unsafe {
         create_runtime();
         let mut out_buf_len: usize = 0;
         let out_buf_len_ptr: *mut usize = &mut out_buf_len;
-        let filename = CString::new("main.js").unwrap();
+        let is_module = if modulename.is_some() { 1 } else { 0 };
+        let filename = if is_module == 1 {
+            CString::new(modulename.unwrap()).unwrap()
+        } else {
+            CString::new("main.js").unwrap()
+        };
         let scriptstring = CString::new(script).unwrap();
         let result_ptr = js_compile_to_bytecode(
             filename.as_ptr() as i32,
             scriptstring.as_ptr() as i32,
             out_buf_len_ptr as i32,
-            0,
+            is_module,
         );
         result = slice::from_raw_parts(result_ptr as *mut u8, out_buf_len).to_vec();
     }
@@ -158,12 +225,14 @@ pub fn compile_js(script: String) -> Vec<u8> {
 
 #[cfg(test)]
 mod tests {
-    use super::run_js;
-    use crate::tests::testenv::{
+    use super::{compile_js, js_get_property, js_get_string, run_js, run_js_bytecode};
+    use crate::viewaccesscontrol::store_signing_key_for_account;
+    use near_sdk::base64;
+    use quickjs_rust_near_testenv::testenv::{
         alice, assert_latest_return_value_string_eq, set_input, set_signer_account_id,
-        setup_test_env
+        setup_test_env,
     };
-    use crate::viewaccesscontrol::{store_signing_key_for_account};
+    use std::ffi::CStr;
 
     #[test]
     fn test_value_return_should_return_undefined() {
@@ -194,8 +263,57 @@ mod tests {
     fn test_verify_signed_message_func() {
         setup_test_env();
         set_signer_account_id(alice());
-        store_signing_key_for_account();
+        store_signing_key_for_account(24 * 60 * 60 * 1000);
         run_js("env.value_return(env.verify_signed_message('invitation1','LtXiPcOxOC8n5/qiICscp3P5Ku8ymC3gj1eYJuq8GFR9co2pZYwbWLBiu5CrtVFtvmeWwMzOIkp4tJaosJ40Dg==', 'alice.near') ? 'valid' : 'invalid')".to_string());
         assert_latest_return_value_string_eq("valid".to_string());
+    }
+
+    #[test]
+    fn test_parse_object() {
+        let bytecode = compile_js(
+            "(function () { return {'hello': 'world', 'thenumberis': 42}; })()".to_string(),
+            None,
+        );
+        let result = run_js_bytecode(bytecode);
+        unsafe {
+            assert_eq!(42, js_get_property(result, "thenumberis".as_ptr() as i32));
+            let stringjsval = js_get_property(result, "hello".as_ptr() as i32);
+            let str = CStr::from_ptr(js_get_string(stringjsval) as *const i8)
+                .to_str()
+                .unwrap();
+            assert_eq!("world", str);
+        }
+    }
+
+    #[test]
+    fn test_base64_encode() {
+        let bytecode = compile_js(
+            "(function () { return { val: env.base64_encode('hello')}; })()".to_string(),
+            None,
+        );
+        let result = run_js_bytecode(bytecode);
+        unsafe {
+            let stringjsval = js_get_property(result, "val".as_ptr() as i32);
+            let str = CStr::from_ptr(js_get_string(stringjsval) as *const i8)
+                .to_str()
+                .unwrap();
+            assert_eq!("aGVsbG8=", str);
+        }
+    }
+
+    #[test]
+    fn test_sha256_utf8_to_base64() {
+        let bytecode = compile_js(
+            "(function () { return { val: env.sha256_utf8_to_base64('hello\\n')}; })()".to_string(),
+            None,
+        );
+        let result = run_js_bytecode(bytecode);
+        unsafe {
+            let stringjsval = js_get_property(result, "val".as_ptr() as i32);
+            let str = CStr::from_ptr(js_get_string(stringjsval) as *const i8)
+                .to_str()
+                .unwrap();
+            assert_eq!(base64::encode(hex::decode("5891b5b522d5df086d0ff0b110fbd9d21bb4fc7163af34d08286a2e846f6be03").unwrap()), str);
+        }
     }
 }

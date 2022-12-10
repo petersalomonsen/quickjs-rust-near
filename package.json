@@ -1,12 +1,16 @@
 {
     "name": "quickjs-rust-near",
     "type": "module",
+    "license": "MIT",
     "scripts": {
         "serve": "http-server -p 8085 web4",
         "serve-dist": "http-server -p 8085 web4/dist",
         "web4bundle": "cd web4 && rollup -c rollup.config.js",
-        "test-e2e": "NODE_OPTIONS=--experimental-vm-modules jest e2e",
-        "test-web": "NODE_OPTIONS=--experimental-vm-modules jest web4"
+        "test-e2e": "NODE_OPTIONS=--experimental-vm-modules jest --testPathPattern=./e2e --testPathIgnorePatterns=./examples",
+        "test-web": "NODE_OPTIONS=--experimental-vm-modules jest web4",
+        "test-examples-nft-e2e": "yarn examples-nft-web4bundle && cd examples/nft && NODE_OPTIONS=--experimental-vm-modules jest examples/nft/e2e",
+        "examples-nft-web4bundle": "cd examples/nft/web4 && rollup -c rollup.config.js",
+        "serve-examples-nft": "http-server -p 8085 examples/nft/web4"
     },
     "jest": {
         "transform": {}
@@ -15,10 +19,9 @@
         "@web/rollup-plugin-html": "^1.11.0",
         "http-server": "^14.1.1",
         "jest": "^28.1.3",
+        "near-api-js": "^1.1.0",
         "rollup": "^2.79.0",
         "rollup-plugin-terser": "^7.0.2"
     },
-    "dependencies": {
-        "near-api-js": "^0.45.1"
-    }
+    "dependencies": {}
 }

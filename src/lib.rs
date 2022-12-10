@@ -1,14 +1,17 @@
+#[cfg(not(feature = "library"))]
+use web4::types::{Web4Request, Web4Response};
+#[cfg(not(feature = "library"))]
+use web4::webappbundle::WEB_APP_BUNDLE;
+#[cfg(not(feature = "library"))]
+use viewaccesscontrol::{store_signing_key_for_account};
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::{base64, env, near_bindgen};
-use web4::types::{Web4Request, Web4Response};
-use web4::webappbundle::WEB_APP_BUNDLE;
 use std::collections::HashMap;
-use viewaccesscontrol::{store_signing_key_for_account};
-mod jslib;
+pub mod jslib;
+pub mod web4;
+pub mod viewaccesscontrol;
+    
 mod wasimock;
-mod web4;
-mod viewaccesscontrol;
-
 #[near_bindgen]
 #[derive(Default, BorshDeserialize, BorshSerialize)]
 pub struct Scripts {
@@ -17,8 +20,9 @@ pub struct Scripts {
 
 #[near_bindgen]
 impl Scripts {
+    #[cfg(not(feature = "library"))]
     pub fn store_signing_key() {
-        store_signing_key_for_account();
+        store_signing_key_for_account(env::block_timestamp_ms() + 24 * 60 * 60 * 1000);
     }
 
     pub fn run_script(&self, script: String) -> String {
@@ -31,7 +35,7 @@ impl Scripts {
     }
 
     pub fn submit_script(&mut self, script: String) {
-        let compiled = jslib::compile_js(script);
+        let compiled = jslib::compile_js(script, None);
         env::log_str(&(compiled.len().to_string()));
         let account_id = env::signer_account_id();
         self.scripts.insert(account_id.to_string(), compiled);
@@ -47,6 +51,7 @@ impl Scripts {
         jslib::run_js_bytecode(bytecode);
     }
 
+    #[cfg(not(feature = "library"))]
     pub fn web4_get(&self, #[allow(unused_variables)] request: Web4Request) -> Web4Response {
         Web4Response::Body {
             content_type: "text/html; charset=UTF-8".to_owned(),
@@ -55,14 +60,13 @@ impl Scripts {
     }
 }
 
+
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use super::*;
 
-    pub mod testenv;
-    pub mod musicscript;
-    use testenv::{alice, set_signer_account_id, setup_test_env, assert_latest_return_value_string_eq};
-    use musicscript::MUSIC_SCRIPT;
+    use quickjs_rust_near_testenv::testenv::{alice, set_signer_account_id, setup_test_env, assert_latest_return_value_string_eq};
+    use quickjs_rust_near_testenv::musicscript::MUSIC_SCRIPT;
 
     #[test]
     fn test_run_script() {

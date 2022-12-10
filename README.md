@@ -34,13 +34,11 @@ near call dev-1650299983789-21350249865305 --accountId=psalomo.testnet run_bytec
 ```
 # Testing
 
-Trying to run tests with `wasm32` targets will not work out of the box. As you will see from running the command below, it will fail when trying to run the compiled test file.
+Since we are linking with C libraries it is more practical to have Wasm pre-builds and run tests in a Wasm target rather than having builds for native platforms. Run the test using wasi like this:
 
-`cargo test --target=wasm32-wasi`
+`RUSTFLAGS='-C link-args=--initial-memory=67108864' cargo wasi test -- --show-output --nocapture`
 
-but you can run the wasm file it produces with a WebAssembly runtime like [wasmtime](http://wasmtime.dev), [wasmer](https://wasmer.io/) or [wasm3](https://github.com/wasm3/wasm3/).
-
-Have a look at [test.sh](./test.sh) and try running it and you'll see that it outputs results just like when running normal tests in Rust.
+Unfortunately testing with wasi has some limitations today. Especially panic does not support unwinding in Wasm, and so tests that should panic needs to be performed in e2e test scenarios. Read more here: https://bytecodealliance.github.io/cargo-wasi/testing.html
 
 # Web4 and a WebAssembly Music showcase
 
@@ -64,6 +62,6 @@ The web application is packaged into a single HTML file using rollup, where the 
   - **DONE** `env.input` (no need to load into register first)
   - **DONE** `env.signer_account_id` (no need to load into register first)
 - **DONE** Web4 hosting showcase
-- NFT implementation configurable with JavaScript
+- **DONE** NFT implementation configurable with JavaScript
 - Implement Web interface for copying base64 encoded bytecode to clipboard (in https://github.com/petersalomonsen/quickjs-wasm-near)
 
