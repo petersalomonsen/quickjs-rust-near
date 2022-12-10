@@ -24,6 +24,10 @@
         #download_sources_button {
             display: none;
         }
+
+        #authorizingdownloadspan {
+            display: none;
+        }
     </style>
 </head>
 
@@ -37,6 +41,7 @@
     
     <button id="download_sources_button">Download source code for music</button>
     
+    <p id="authorizingdownloadspan">Please wait while authorizing download</p>
 </body>
 <script src="https://cdn.jsdelivr.net/npm/near-api-js@1.1.0/dist/near-api-js.js" integrity="sha256-P4UWOeQu3ArN0DbPCzdyfYBaeKLzKu+7V+BZcmxFigE=" crossorigin="anonymous"></script>
 <script type="module">
@@ -69,6 +74,8 @@ if (!walletConnection.isSignedIn()) {
     const downloadSourcesButton = document.getElementById('download_sources_button');
     downloadSourcesButton.style.display = 'block';
     downloadSourcesButton.addEventListener('click', async () => {
+        downloadSourcesButton.style.display = 'none';
+        document.getElementById('authorizingdownloadspan').style.display = 'block';
         const account = walletConnection.account();
         const contract = new Contract(account, contractAccountId, {
             changeMethods: ['call_js_func']
