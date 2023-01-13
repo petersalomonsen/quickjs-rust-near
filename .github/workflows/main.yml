@@ -27,8 +27,8 @@ jobs:
       - name: End to end tests
         run: |
           set -e
-          curl -L https://github.com/WebAssembly/binaryen/releases/download/version_110/binaryen-version_110-x86_64-linux.tar.gz | tar xzf -
-          export PATH="`pwd`/binaryen-version_110/bin:$PATH"
+          curl -L https://github.com/WebAssembly/binaryen/releases/download/version_111/binaryen-version_111-x86_64-linux.tar.gz | tar xzf -
+          export PATH="`pwd`/binaryen-version_111/bin:$PATH"
           npm install -g near-cli
           rustup target add wasm32-unknown-unknown
           mkdir out
@@ -43,8 +43,8 @@ jobs:
       - name: NFT example End to End tests
         run: |
           set -e
-          curl -L https://github.com/WebAssembly/binaryen/releases/download/version_110/binaryen-version_110-x86_64-linux.tar.gz | tar xzf -
-          export PATH="`pwd`/binaryen-version_110/bin:$PATH"
+          curl -L https://github.com/WebAssembly/binaryen/releases/download/version_111/binaryen-version_111-x86_64-linux.tar.gz | tar xzf -
+          export PATH="`pwd`/binaryen-version_111/bin:$PATH"
           npm install -g near-cli
           mkdir $HOME/.near-config
           echo "{\"trackingEnabled\": true, \"trackingAccountID\": false}" > $HOME/.near-config/settings.json
