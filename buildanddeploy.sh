@@ -5,7 +5,7 @@ RUSTFLAGS='-C link-arg=-s' cargo build --target=wasm32-unknown-unknown --release
 # Remove unneeded WebAssembly exports
 wasm-metadce -f meta-dce.json target/wasm32-unknown-unknown/release/quickjs_rust_near.wasm -o out/main.wasm
 # Optimize the Wasm binary
-wasm-opt -Oz out/main.wasm -o out/main.wasm
+wasm-opt -Oz --signext-lowering out/main.wasm -o out/main.wasm
 if [ -z "$1" ]
 then
     # Deploy to DEV account

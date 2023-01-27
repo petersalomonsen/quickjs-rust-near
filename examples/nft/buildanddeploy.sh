@@ -5,7 +5,7 @@ RUSTFLAGS='-C link-arg=-s' cargo build --target=wasm32-unknown-unknown --release
 # Remove unneeded WebAssembly exports
 wasm-metadce -f meta-dce.json ../../target/wasm32-unknown-unknown/release/quickjs_rust_near_nft.wasm -o out/nft.wasm
 # Optimize the Wasm binary
-wasm-opt -Oz out/nft.wasm -o out/nft.wasm
+wasm-opt -Oz --signext-lowering out/nft.wasm -o out/nft.wasm
 if [ -z "$1" ]
 then
     echo "Deploying to DEV account"

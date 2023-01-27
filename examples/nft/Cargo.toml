@@ -8,12 +8,6 @@ edition = "2021"
 [lib]
 crate-type = ["cdylib"]
 
-[profile.release]
-codegen-units = 1
-lto = true
-debug = false
-opt-level = "z"
-
 [dependencies]
 near-sdk = "4.0.0"
 lazy_static = "1.4.0"

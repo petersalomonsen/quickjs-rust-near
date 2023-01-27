@@ -39,7 +39,7 @@ export function web4_get() {
         body: env.base64_encode("NOT OWNER"),
       };
     }
-  } else if (request.path == '/icon.svg') {
+  } else if (request.path == '/icon.svg' || request.path == '/assets/icon.svg') {
     response = {
       contentType: "image/svg+xml",
       body: icon_svg_base64
