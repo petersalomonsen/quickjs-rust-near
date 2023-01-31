@@ -19,6 +19,7 @@ jobs:
           ./test.sh
           (cd testenv && ./test.sh)
           (cd examples/nft && ./test.sh)
+          (cd examples/minimumweb4 && ./test.sh)
   e2etests:
     name: End to end tests
     runs-on: ubuntu-latest
