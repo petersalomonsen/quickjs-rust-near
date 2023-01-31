@@ -1,0 +1,27 @@
+[
+    {
+        "name": "call_js_func",
+        "export": "call_js_func",
+        "root": true
+    },
+    {
+        "name": "post_javascript",
+        "export": "post_javascript",
+        "root": true
+    },
+    {
+        "name": "post_quickjs_bytecode",
+        "export": "post_quickjs_bytecode",
+        "root": true
+    },
+    {
+        "name": "post_content",
+        "export": "post_content",
+        "root": true
+    },
+    {
+        "name": "web4_get",
+        "export": "web4_get",
+        "root": true
+    }
+]
