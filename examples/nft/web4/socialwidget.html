@@ -1,0 +1,252 @@
+<html>
+    <body>
+        <button id="playbutton">play</button>
+    </body>
+</html>
+<script type="module">
+
+const audioWorkletProcessorSource = `
+  class RenderWorkerAudioWorkletProcessor extends AudioWorkletProcessor {
+    constructor() {
+      super();
+      this.processorActive = true;
+      this.playSong = true;
+      this.bufferNo = 0;
+      this.port.onmessage = async (msg) => {
+        if (msg.data.messageChannelPort) {
+          msg.data.messageChannelPort.onmessage = (msg) => {
+            if (msg.data.endBufferNo) {
+              this.endBufferNo = msg.data.endBufferNo;
+              this.buffers = new Array(this.endBufferNo);
+            } else {
+              this.buffers[msg.data.bufferNo] = {
+                left: new Float32Array(msg.data.left),
+                right: new Float32Array(msg.data.right),
+              };
+            }
+          };
+        }
+
+        if (msg.data.getCurrentBufferNo) {
+          this.port.postMessage({
+            currentBufferNo: this.bufferNo,
+          });
+        }
+
+        if (msg.data.toggleSongPlay !== undefined) {
+          if (msg.data.toggleSongPlay === false) {
+            this.playSong = false;
+          } else {
+            this.playSong = true;
+          }
+        }
+
+        if (msg.data.seek !== undefined) {
+          this.bufferNo = msg.data.seek;
+        }
+
+        if (msg.data.terminate) {
+          this.processorActive = false;
+          this.port.close();
+        }
+      };
+    }
+
+    process(inputs, outputs, parameters) {
+      const output = outputs[0];
+
+      if (
+        this.playSong &&
+        this.buffers &&
+        this.buffers[this.bufferNo] &&
+        this.bufferNo < this.endBufferNo
+      ) {
+        output[0].set(this.buffers[this.bufferNo].left);
+        output[1].set(this.buffers[this.bufferNo].right);
+        this.bufferNo++;
+      }
+
+      return this.processorActive;
+    }
+  }
+
+  registerProcessor(
+    "render-worker-audio-worklet-processor",
+    RenderWorkerAudioWorkletProcessor
+  );
+`;
+
+function getAudioWorkletProcessorUrl() {
+  return URL.createObjectURL(
+    new Blob([audioWorkletProcessorSource], { type: "text/javascript" })
+  );
+}
+
+const renderWorkerSource = `
+  const SAMPLE_FRAMES = 128;
+
+  let messageChannelPort;
+  let sampleRate;
+  let wasmNo = 0;
+
+  self.onmessage = async (msg) => {
+    if (msg.data.messageChannelPort) {
+      messageChannelPort = msg.data.messageChannelPort;
+    }
+    if (msg.data.sampleRate) {
+      sampleRate = msg.data.sampleRate;
+    }
+    if (msg.data.wasm) {
+      wasmNo++;
+      const currentWasmNo = wasmNo;
+      const wasmInstance = (
+        await WebAssembly.instantiate(msg.data.wasm, {
+          environment: {
+            SAMPLERATE: sampleRate,
+          },
+        })
+      ).instance.exports;
+
+      const endBufferNo = msg.data.endBufferNo;
+
+      let lastProgressReportTime = Date.now();
+
+      messageChannelPort.postMessage({
+        endBufferNo: endBufferNo,
+      });
+      for (
+        let bufferNo = 0;
+        bufferNo < endBufferNo && currentWasmNo === wasmNo;
+        bufferNo++
+      ) {
+        wasmInstance.playEventsAndFillSampleBuffer();
+
+        const leftbuffer = new Float32Array(
+            wasmInstance.memory.buffer,
+            wasmInstance.samplebuffer,
+            SAMPLE_FRAMES
+          );
+        const rightbuffer = new Float32Array(
+            wasmInstance.memory.buffer,
+            wasmInstance.samplebuffer + SAMPLE_FRAMES * 4,
+            SAMPLE_FRAMES
+        );
+        const transferLeft = new Float32Array(leftbuffer.length);
+        const transferRight = new Float32Array(rightbuffer.length);
+    
+        transferLeft.set(leftbuffer);
+        transferRight.set(rightbuffer);
+
+        messageChannelPort.postMessage({
+          bufferNo: bufferNo,
+          left: transferLeft.buffer,
+          right: transferRight.buffer,
+        });
+
+        if (Date.now() - lastProgressReportTime > 100) {
+          lastProgressReportTime = Date.now();
+          self.postMessage({
+            buffersRendered: bufferNo,
+          });
+          await new Promise((r) => setTimeout(r, 0));
+        }
+      }
+      if (currentWasmNo === wasmNo) {
+        self.postMessage({
+          buffersRendered: endBufferNo,
+        });
+      }
+    }
+  };
+`;
+
+function getRenderWorkerUrl() {
+  return URL.createObjectURL(
+    new Blob([renderWorkerSource], { type: "text/javascript" })
+  );
+}
+
+async function view_contract(account_id, methodname, args) {
+    const response = await fetch('https://rpc.mainnet.near.org', {
+        method: 'POST',
+        headers: {
+            'content-type': 'application/json'
+        },
+        body: JSON.stringify({
+            'jsonrpc': '2.0',
+            'id': 'dontcare',
+            'method': 'query',
+            'params': {
+                request_type: 'call_function',
+                finality: 'final',
+                
+                account_id: account_id,
+                method_name: methodname,
+                args_base64: btoa(JSON.stringify(args))
+            }
+        })
+    });
+    const resultobj = await response.json();
+    const data = resultobj.result.result;
+    return data;
+}
+
+async function web4_get(account_id, path) {
+    const bytes = await view_contract(account_id, 'web4_get', {request: {path}});
+    const json = bytes.map(c => String.fromCharCode(c)).join('');
+    const base64string = JSON.parse(json).body;
+    const response = await fetch(`data:application/wasm;base64,${base64string}`);
+    const data = await response.arrayBuffer();
+    return data;
+}
+
+function play() {
+    const audioContext = new AudioContext({ latencyHint: "playback" });
+    const messageChannel = new MessageChannel();
+    audioContext.audioWorklet
+    .addModule(getAudioWorkletProcessorUrl(), {
+        credentials: "omit",
+    })
+    .then(async () => {
+        const audioWorkletNode = new AudioWorkletNode(
+        audioContext,
+        "render-worker-audio-worklet-processor",
+        {
+            outputChannelCount: [2],
+        }
+        );
+        audioWorkletNode.port.start();
+        audioWorkletNode.port.postMessage(
+        {
+            messageChannelPort: messageChannel.port2,
+        },
+        [messageChannel.port2]
+        );
+        audioWorkletNode.connect(audioContext.destination);
+
+        const renderWorker = new Worker(getRenderWorkerUrl(), { credentials: "omit" });
+        renderWorker.postMessage(
+        {
+            sampleRate: audioContext.sampleRate,
+            messageChannelPort: messageChannel.port1,
+        },
+        [messageChannel.port1]
+        );
+
+        console.log("fetcing music");
+
+        const endBufferNo = Math.round(
+        (audioContext.sampleRate * ((2*60)+54)*1000) / (1000 * 128)
+        );
+
+
+        const r = await web4_get('webassemblymusic.near','/musicwasms/noiseandmadness.wasm');
+        renderWorker.postMessage({
+        wasm: r,
+        endBufferNo: endBufferNo,
+        });
+        console.log("music posted no");
+    });
+}
+document.getElementById('playbutton').addEventListener('click', () => play());
+</script>
