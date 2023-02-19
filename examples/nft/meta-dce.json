@@ -25,6 +25,11 @@
     "root": true
   },
   {
+    "name": "nft_burn",
+    "export": "nft_burn",
+    "root": true
+  },
+  {
     "name": "nft_metadata",
     "export": "nft_metadata",
     "root": true

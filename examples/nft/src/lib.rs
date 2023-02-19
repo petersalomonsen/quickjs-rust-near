@@ -163,6 +163,7 @@ impl Contract {
         }
     }
 
+    #[payable]
     pub fn nft_burn(&mut self, token_id: TokenId) {
         let token = self.nft_token(token_id).unwrap();
         NftBurn { owner_id: &token.owner_id, token_ids: &[&token.token_id], authorized_id: None, memo: None }.emit();
