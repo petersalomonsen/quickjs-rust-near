@@ -1,4 +1,4 @@
-use near_sdk::{env};
+use near_sdk::env;
 
 #[no_mangle]
 //pub extern "C" fn _tzset_js(_timezone: *const libc::c_long, _daylight: *const libc::c_int, _tzname: *const libc::c_char) {
@@ -15,8 +15,11 @@ pub extern "C" fn _localtime_js(_t: i32, _tm: i32) {
 #[no_mangle]
 pub extern "C" fn _emscripten_date_now() -> f64 {
     //env::log_str("_emscripten_date_now");
-    return 0.0;   
+    return 0.0;
 }
+
+#[no_mangle]
+pub extern "C" fn _emscripten_get_progname(_p1: i32, _p2: i32) {}
 
 #[no_mangle]
 //pub extern "C" fn __wasi_fd_write(_fd: i32, _iovs: i32, _iovs_len: usize, _result: *const libc::size_t) -> libc::size_t {
@@ -29,21 +32,28 @@ pub extern "C" fn __wasi_fd_write(_fd: i32, _iovs: i32, _iovs_len: usize, _resul
 
             let bufptr: *const u8 = usize::from_le(*bufptrptr) as *const u8;
             let buflen = usize::from_le(*buflenptr);
-            env::log_str(std::str::from_utf8_unchecked(std::slice::from_raw_parts(bufptr, buflen)));
-            
+            env::log_str(std::str::from_utf8_unchecked(std::slice::from_raw_parts(
+                bufptr, buflen,
+            )));
+
             written += buflen;
-        }    
+        }
     }
     unsafe {
-      let written_ptr: *mut usize = _result as *mut usize;
-      *written_ptr = written;
+        let written_ptr: *mut usize = _result as *mut usize;
+        *written_ptr = written;
     }
     return 0;
 }
 
 #[no_mangle]
 //pub extern "C" fn __wasi_fd_write(_fd: i32, _iovs: i32, _iovs_len: usize, _result: *const libc::size_t) -> libc::size_t {
-pub extern "C" fn imported__wasi_fd_write(_fd: i32, _iovs: i32, _iovs_len: usize, _result: i32) -> i32 {
+pub extern "C" fn imported__wasi_fd_write(
+    _fd: i32,
+    _iovs: i32,
+    _iovs_len: usize,
+    _result: i32,
+) -> i32 {
     env::log_str("imported__wasi_fd_write");
     return __wasi_fd_write(_fd, _iovs, _iovs_len, _result);
 }
@@ -95,20 +105,19 @@ pub extern "C" fn __wasi_random_get(_buf: i32, _size: i32) -> i32 {
 }
 
 #[no_mangle]
-pub extern "C" fn _timegm_js(_p1 :i32) -> i32 {
+pub extern "C" fn _timegm_js(_p1: i32) -> i32 {
     env::log_str("_timegm_js");
     return 0;
 }
 
 #[no_mangle]
-pub extern "C" fn _mktime_js(_p1 :i32) -> i32 {
+pub extern "C" fn _mktime_js(_p1: i32) -> i32 {
     env::log_str("_mktime_js");
     return 0;
 }
 
 #[no_mangle]
-pub extern "C" fn _gmtime_js(_p1 :i32, _p2 :i32) {
-}
+pub extern "C" fn _gmtime_js(_p1: i32, _p2: i32) {}
 
 #[no_mangle]
 pub extern "C" fn _emscripten_get_now_is_monotonic() -> i32 {
@@ -127,9 +136,7 @@ pub extern "C" fn __wasi_fd_fdstat_get(_p1: i32, _p2: i32) -> i32 {
 }
 
 #[no_mangle]
-pub extern "C" fn emscripten_asm_const_async_on_main_thread(_p1: i32, _p2: i32, _p3: i32) {
-
-}
+pub extern "C" fn emscripten_asm_const_async_on_main_thread(_p1: i32, _p2: i32, _p3: i32) {}
 
 #[no_mangle]
 pub extern "C" fn __wasi_clock_res_get(_p1: i32, _p2: i32) -> i32 {
@@ -139,7 +146,7 @@ pub extern "C" fn __wasi_clock_res_get(_p1: i32, _p2: i32) -> i32 {
 
 #[no_mangle]
 pub extern "C" fn __wasilibc_find_relpath(_p1: i32, _p2: i32, _p3: i32, _p4: i32) -> i32 {
-  return -1;
+    return -1;
 }
 
 #[no_mangle]
