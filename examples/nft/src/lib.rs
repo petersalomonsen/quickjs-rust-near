@@ -1,4 +1,5 @@
 mod payouts;
+use near_contract_standards::non_fungible_token::events::NftBurn;
 use near_contract_standards::non_fungible_token::metadata::{
     NFTContractMetadata, NonFungibleTokenMetadataProvider, TokenMetadata, NFT_METADATA_SPEC,
 };
@@ -160,6 +161,11 @@ impl Contract {
             self.tokens
                 .internal_mint(token_id, token_owner_id, Some(token_metadata))
         }
+    }
+
+    pub fn nft_burn(&mut self, token_id: TokenId) {
+        let token = self.nft_token(token_id).unwrap();
+        NftBurn { owner_id: &token.owner_id, token_ids: &[&token.token_id], authorized_id: None, memo: None }.emit();
     }
 
     #[init]
@@ -661,5 +667,37 @@ mod tests {
         assert_latest_return_value_string_eq(
             serde_json::to_string(&token).unwrap()
         );
+    }
+
+    #[test]
+    fn test_nft_burn() {
+        setup_test_env();
+
+        set_predecessor_account_id(bob());
+        set_current_account_id(bob());
+        let mut contract = Contract::new();
+        contract.post_javascript(
+            "
+            
+            export function nft_mint() {
+                print ('calling mint');
+                return JSON.stringify({
+                    title: 'test_title',
+                    description: 'test_description'
+                });
+            }
+        "
+            .to_string(),
+        );
+
+        set_attached_deposit(2080000000000000000000);
+        
+        let token_id = "burn_me_now".to_string();
+        contract.nft_mint(token_id.to_owned(), alice());
+
+        set_attached_deposit(2000000000000000000000);
+        set_input("{\"token_id\": \"burn_me_now\"}".try_into().unwrap());
+        contract.nft_burn(token_id);
+
     }
 }
