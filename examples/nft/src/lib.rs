@@ -174,7 +174,11 @@ impl Contract {
         self.tokens.nft_revoke_all(token_id.to_owned());
         self.tokens.owner_by_id.remove(&token_id);
         self.tokens.token_metadata_by_id.as_mut().unwrap().remove(&token_id);
-        self.tokens.tokens_per_owner.as_mut().unwrap().get(&token.owner_id).as_mut().unwrap().remove(&token_id);
+        let tokens_per_owner = self.tokens.tokens_per_owner.as_mut().unwrap();
+        let tokens_for_owner_opt = tokens_per_owner.get(&token.owner_id);
+        let mut tokens_for_owner = tokens_for_owner_opt.unwrap();
+        tokens_for_owner.remove(&token_id);
+        tokens_per_owner.insert(&token.owner_id, &tokens_for_owner);
 
         NftBurn { owner_id: &token.owner_id, token_ids: &[&token.token_id], authorized_id: None, memo: None }.emit();
     }
@@ -297,6 +301,8 @@ impl NonFungibleTokenMetadataProvider for Contract {
 
 #[cfg(test)]
 mod tests {
+    use std::str::FromStr;
+
     use super::*;
 
     use quickjs_rust_near::jslib::compile_js;
@@ -684,8 +690,10 @@ mod tests {
     fn test_nft_burn() {
         setup_test_env();
 
-        set_predecessor_account_id(bob());
-        set_current_account_id(bob());
+        let burn_account = AccountId::from_str("mrburn").unwrap();
+
+        set_predecessor_account_id(burn_account.to_owned());
+        set_current_account_id(burn_account.to_owned());
         let mut contract = Contract::new();
         contract.post_javascript(
             "
@@ -704,7 +712,11 @@ mod tests {
         set_attached_deposit(2080000000000000000000);
         
         let token_id = "burn_me_now".to_string();
-        contract.nft_mint(token_id.to_owned(), bob());
+        contract.nft_mint(token_id.to_owned(), burn_account.to_owned());
+
+
+        assert_eq!(contract.nft_supply_for_owner(burn_account.to_owned()), U128::from(1));
+        assert_eq!(contract.nft_total_supply(), U128::from(1));
 
         assert_eq!(contract.nft_token("burn_me_now".to_string()).unwrap().token_id, "burn_me_now");
 
@@ -712,5 +724,8 @@ mod tests {
 
         contract.nft_burn(token_id);
         assert_eq!(contract.nft_token("burn_me_now".to_string()), None);
+
+        assert_eq!(contract.nft_supply_for_owner(burn_account.to_owned()), U128::from(0));
+        assert_eq!(contract.nft_total_supply(), U128::from(0));
     }
 }
