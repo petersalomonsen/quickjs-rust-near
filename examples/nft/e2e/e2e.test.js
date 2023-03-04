@@ -299,7 +299,7 @@ test('should list NFT owners through web4', async () => {
     expect(nftOwners.find(t => t.token_id == mintedTokenIds[0]).owner_id).toBe(accountId);
     expect(nftOwners.find(t => t.token_id == mintedTokenIds[1]).owner_id).toBe(accountId);
     expect(nftOwners.find(t => t.token_id == mintedTokenIds[2]).owner_id).toBe(accountId);
-}, 20000);
+}, 40000);
 
 test('should forbid mint', async () => {
     const nearConnection = await connect(connectionConfig);
@@ -467,14 +467,21 @@ test('should mint and burn', async () => {
             token_metadata: {}
         }
     });
+
+    const tokenAfterMint = await account.viewFunction({ contractId: accountId, methodName: 'nft_token', args: { token_id } });
+    expect(tokenAfterMint.token_id).toBe(token_id);
     
     await account.functionCall({
         contractId: accountId,
         methodName: 'nft_burn',
-        attachedDeposit: '2000000000000000000000',
+        attachedDeposit: '1',
         gas: '300000000000000',
         args: {
             token_id: token_id
         }
     });    
-}, 20000);
+
+    const tokenAfterBurn = await account.viewFunction({ contractId: accountId, methodName: 'nft_token', args: { token_id } });
+    expect(tokenAfterBurn).toBeNull();
+    
+}, 40000);

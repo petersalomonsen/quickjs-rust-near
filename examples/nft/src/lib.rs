@@ -165,7 +165,17 @@ impl Contract {
 
     #[payable]
     pub fn nft_burn(&mut self, token_id: TokenId) {
-        let token = self.nft_token(token_id).unwrap();
+        let token = self.nft_token(token_id.to_owned()).unwrap();
+        assert_eq!(
+            env::predecessor_account_id(),
+            token.owner_id,
+            "Unauthorized"
+        );
+        self.tokens.nft_revoke_all(token_id.to_owned());
+        self.tokens.owner_by_id.remove(&token_id);
+        self.tokens.token_metadata_by_id.as_mut().unwrap().remove(&token_id);
+        self.tokens.tokens_per_owner.as_mut().unwrap().get(&token.owner_id).as_mut().unwrap().remove(&token_id);
+
         NftBurn { owner_id: &token.owner_id, token_ids: &[&token.token_id], authorized_id: None, memo: None }.emit();
     }
 
@@ -694,11 +704,13 @@ mod tests {
         set_attached_deposit(2080000000000000000000);
         
         let token_id = "burn_me_now".to_string();
-        contract.nft_mint(token_id.to_owned(), alice());
+        contract.nft_mint(token_id.to_owned(), bob());
 
-        set_attached_deposit(2000000000000000000000);
-        set_input("{\"token_id\": \"burn_me_now\"}".try_into().unwrap());
+        assert_eq!(contract.nft_token("burn_me_now".to_string()).unwrap().token_id, "burn_me_now");
+
+        set_attached_deposit(1);
+
         contract.nft_burn(token_id);
-
+        assert_eq!(contract.nft_token("burn_me_now".to_string()), None);
     }
 }
