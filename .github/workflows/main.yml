@@ -55,6 +55,21 @@ jobs:
           mkdir out
           ./buildanddeploy.sh          
           yarn test-examples-nft-e2e
+  localjs-test-example-nft:
+    name: NFT example local JS test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: NFT example End to End tests
+        run: |
+          set -e
+          curl -L https://github.com/WebAssembly/binaryen/releases/download/version_111/binaryen-version_111-x86_64-linux.tar.gz | tar xzf -
+          export PATH="`pwd`/binaryen-version_111/bin:$PATH"
+          rustup target add wasm32-unknown-unknown
+          yarn install
+          cd examples/nft
+          mkdir out
+          yarn test-examples-nft-localjs
   webapptests:
     name: Web app tests
     runs-on: ubuntu-latest

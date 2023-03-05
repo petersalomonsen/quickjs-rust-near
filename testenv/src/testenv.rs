@@ -483,4 +483,10 @@ mod tests {
             ret_value
         );
     }
+
+    #[test]
+    #[should_panic(expected="hfei")]
+    fn test_panic() {
+        near_sdk::env::panic_str("hei");
+    }
 }
