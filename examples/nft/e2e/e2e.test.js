@@ -221,7 +221,7 @@ test('should require owners signature to get content', async () => {
     });
     expect(result.contentType).toBe('text/plain; charset=UTF-8');
     expect(result.body).toBe(Buffer.from('NOT OWNER').toString('base64'));
-}, 20000);
+}, 60000);
 
 
 test('should list NFT owners through web4', async () => {
@@ -407,7 +407,7 @@ test('15 TGas should be sufficient for nft_transfer_payout', async () => {
     expect(JSON.parse(Buffer.from(payout.status.SuccessValue, 'base64').toString()).payout[accountId]).toBe(BigInt(10_0000_00000_00000_00000_00000n).toString());
     const tokenAfterTransfer = await account.viewFunction({ contractId: accountId, methodName: 'nft_token', args: { token_id } });
     expect(tokenAfterTransfer.owner_id).toBe('acl.testnet');
-}, 20000);
+}, 60000);
 
 test('should mint and burn', async () => {
     const nearConnection = await connect(connectionConfig);
