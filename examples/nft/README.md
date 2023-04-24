@@ -76,6 +76,10 @@ export function nft_mint() {
 }
 ```
 
+## NFT burn
+
+NFT burning is useful for tickets. The `nft_burn` event is according to standard ( https://nomicon.io/Standards/Tokens/NonFungibleToken/Event#interface ), but not as a method, so market places might not support this from their UI. A simple UI for burning can be found at https://jsinrustnft.near.page/
+
 ## Self-contained web-hosting
 
 This NFT contract can also host its own web pages for serving the content using [web4](https://web4.near.page). To do so the `web4_get` method needs to be implemented where you simply write Javascript code to inspect `request.path` in order to determine what web content to render. You can respond with html, js, WebAssembly binaries, images or whatever you want to serve in the web app.

@@ -17,6 +17,7 @@ The contract has two functions:
 - `run_script_for_account_no_return` run script stored by account, does not return anything unless the script calls `env.value_return`.
 
 For building and deploying the contract have a look at [buildanddeploy.sh](./buildanddeploy.sh).
+
 # Calling the deployed contract
 
 Test running javascript as text:
@@ -63,5 +64,6 @@ The web application is packaged into a single HTML file using rollup, where the 
   - **DONE** `env.signer_account_id` (no need to load into register first)
 - **DONE** Web4 hosting showcase
 - **DONE** NFT implementation configurable with JavaScript
-- Implement Web interface for copying base64 encoded bytecode to clipboard (in https://github.com/petersalomonsen/quickjs-wasm-near)
+- Fungible Token example
+
 
