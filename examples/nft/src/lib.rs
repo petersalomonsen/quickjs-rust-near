@@ -1,4 +1,5 @@
 mod payouts;
+use near_contract_standards::non_fungible_token::events::NftBurn;
 use near_contract_standards::non_fungible_token::metadata::{
     NFTContractMetadata, NonFungibleTokenMetadataProvider, TokenMetadata, NFT_METADATA_SPEC,
 };
@@ -32,7 +33,7 @@ enum StorageKey {
 #[near_bindgen]
 #[derive(BorshDeserialize, BorshSerialize, PanicOnDefault)]
 pub struct Contract {
-    tokens: NonFungibleToken
+    tokens: NonFungibleToken,
 }
 
 static mut CONTRACT_REF: *const Contract = 0 as *const Contract;
@@ -41,22 +42,34 @@ static mut CONTRACT_REF: *const Contract = 0 as *const Contract;
 impl Contract {
     unsafe fn add_js_functions(&self) {
         CONTRACT_REF = self as *const Contract;
-        add_function_to_js("get_content_base64", |ctx: i32, _this_val: i64, _argc: i32, argv: i32| -> i64 {
-            let mut prefixed_key = JS_CONTENT_RESOURCE_PREFIX.to_owned();        
-            prefixed_key.push_str(arg_to_str(ctx, 0, argv).as_str());
-            let data = env::storage_read(&prefixed_key.as_bytes()).unwrap();
-            return to_js_string(ctx, base64::encode(data));
-        }, 1);
-        add_function_to_js("contract_owner",
+        add_function_to_js(
+            "get_content_base64",
+            |ctx: i32, _this_val: i64, _argc: i32, argv: i32| -> i64 {
+                let mut prefixed_key = JS_CONTENT_RESOURCE_PREFIX.to_owned();
+                prefixed_key.push_str(arg_to_str(ctx, 0, argv).as_str());
+                let data = env::storage_read(&prefixed_key.as_bytes()).unwrap();
+                return to_js_string(ctx, base64::encode(data));
+            },
+            1,
+        );
+        add_function_to_js(
+            "contract_owner",
             |ctx: i32, _this_val: i64, _argc: i32, _argv: i32| -> i64 {
                 return to_js_string(ctx, (*CONTRACT_REF).tokens.owner_id.to_string());
-            }, 0
+            },
+            0,
         );
-        add_function_to_js("nft_token",
+        add_function_to_js(
+            "nft_token",
             |ctx: i32, _this_val: i64, _argc: i32, argv: i32| -> i64 {
                 let token_id = arg_to_str(ctx, 0, argv).to_string();
-                return to_js_string(ctx, serde_json::to_string(&(*CONTRACT_REF).tokens.nft_token(token_id).unwrap()).unwrap());
-            }, 1
+                return to_js_string(
+                    ctx,
+                    serde_json::to_string(&(*CONTRACT_REF).tokens.nft_token(token_id).unwrap())
+                        .unwrap(),
+                );
+            },
+            1,
         );
         add_function_to_js(
             "nft_supply_for_owner",
@@ -84,7 +97,7 @@ impl Contract {
 
     fn load_js_bytecode(&self) -> i64 {
         let bytecode = env::storage_read(JS_BYTECODE_STORAGE_KEY).unwrap();
-        return load_js_bytecode(bytecode.as_ptr(), bytecode.len());   
+        return load_js_bytecode(bytecode.as_ptr(), bytecode.len());
     }
 
     fn store_js_bytecode(&self, bytecode: Vec<u8>) {
@@ -111,32 +124,26 @@ impl Contract {
     }
 
     pub fn post_quickjs_bytecode(&mut self, bytecodebase64: String) {
-        assert_eq!(
-            env::predecessor_account_id(),
-            self.tokens.owner_id,
-            "Unauthorized"
-        );
+        if env::predecessor_account_id() != self.tokens.owner_id {
+            env::panic_str("Unauthorized");
+        }
         let bytecode: Result<Vec<u8>, base64::DecodeError> = base64::decode(&bytecodebase64);
         self.store_js_bytecode(bytecode.unwrap());
     }
 
     pub fn post_javascript(&mut self, javascript: String) {
-        assert_eq!(
-            env::predecessor_account_id(),
-            self.tokens.owner_id,
-            "Unauthorized"
-        );
+        if env::predecessor_account_id() != self.tokens.owner_id {
+            env::panic_str("Unauthorized");
+        }
         self.store_js_bytecode(compile_js(javascript, Some("main.js".to_string())));
     }
 
     pub fn post_content(&mut self, key: String, valuebase64: String) {
-        assert_eq!(
-            env::predecessor_account_id(),
-            self.tokens.owner_id,
-            "Unauthorized"
-        );
+        if env::predecessor_account_id() != self.tokens.owner_id {
+            env::panic_str("Unauthorized");
+        }
         let value = base64::decode(&valuebase64).unwrap();
-        let mut prefixed_key = JS_CONTENT_RESOURCE_PREFIX.to_owned();        
+        let mut prefixed_key = JS_CONTENT_RESOURCE_PREFIX.to_owned();
         prefixed_key.push_str(key.as_str());
         env::storage_write(&prefixed_key.as_bytes(), &value);
     }
@@ -162,13 +169,39 @@ impl Contract {
         }
     }
 
+    #[payable]
+    pub fn nft_burn(&mut self, token_id: TokenId) {
+        let token = self.nft_token(token_id.to_owned()).unwrap();
+        if env::predecessor_account_id() != token.owner_id {
+            env::panic_str("ERR_NOT_OWNER");
+        }
+        self.tokens.nft_revoke_all(token_id.to_owned());
+        self.tokens.owner_by_id.remove(&token_id);
+        self.tokens
+            .token_metadata_by_id
+            .as_mut()
+            .unwrap()
+            .remove(&token_id);
+        let tokens_per_owner = self.tokens.tokens_per_owner.as_mut().unwrap();
+        let tokens_for_owner_opt = tokens_per_owner.get(&token.owner_id);
+        let mut tokens_for_owner = tokens_for_owner_opt.unwrap();
+        tokens_for_owner.remove(&token_id);
+        tokens_per_owner.insert(&token.owner_id, &tokens_for_owner);
+
+        NftBurn {
+            owner_id: &token.owner_id,
+            token_ids: &[&token.token_id],
+            authorized_id: None,
+            memo: None,
+        }
+        .emit();
+    }
+
     #[init]
     pub fn new() -> Self {
-        assert_eq!(
-            env::predecessor_account_id(),
-            env::current_account_id(),
-            "Unauthorized"
-        );
+        if env::predecessor_account_id() != env::current_account_id() {
+            env::panic_str("Unauthorized");
+        }
         Self {
             tokens: NonFungibleToken::new(
                 StorageKey::NonFungibleToken,
@@ -176,7 +209,7 @@ impl Contract {
                 Some(StorageKey::TokenMetadata),
                 Some(StorageKey::Enumeration),
                 Some(StorageKey::Approval),
-            )
+            ),
         }
     }
 }
@@ -187,14 +220,7 @@ impl Payouts for Contract {
     /// struct for the given token. Panic if the length of the payout exceeds
     /// `max_len_payout.
     #[allow(unused_variables)]
-    fn nft_payout(
-        &self,
-        token_id: String,
-        balance: U128,
-        max_len_payout: Option<u32>,
-    ) -> Payout {
-
-        
+    fn nft_payout(&self, token_id: String, balance: U128, max_len_payout: Option<u32>) -> Payout {
         let jsmod = self.load_js_bytecode();
         let nft_payout_str = CString::new("nft_payout").unwrap();
         unsafe {
@@ -280,6 +306,8 @@ impl NonFungibleTokenMetadataProvider for Contract {
 
 #[cfg(test)]
 mod tests {
+    use std::str::FromStr;
+
     use super::*;
 
     use quickjs_rust_near::jslib::compile_js;
@@ -365,7 +393,10 @@ mod tests {
         let bytecodebase64 = base64::encode(bytecode);
 
         contract.post_quickjs_bytecode(bytecodebase64);
-        contract.post_content("/serviceworker.js".to_string(), base64::encode("print('serviceworker');".to_string()));
+        contract.post_content(
+            "/serviceworker.js".to_string(),
+            base64::encode("print('serviceworker');".to_string()),
+        );
         contract.web4_get();
         assert_latest_return_value_string_eq(
             r#"{"contentType":"application/javascript; charset=UTF-8","body":"cHJpbnQoJ3NlcnZpY2V3b3JrZXInKTs="}"#
@@ -409,7 +440,10 @@ mod tests {
             .try_into()
             .unwrap(),
         );
-        contract.post_content("/webassemblymusicsources.zip".to_string(), base64::encode(vec![1,2,3,4]));
+        contract.post_content(
+            "/webassemblymusicsources.zip".to_string(),
+            base64::encode(vec![1, 2, 3, 4]),
+        );
         contract.web4_get();
         assert_latest_return_value_contains("{\"contentType\":\"application/zip".to_owned());
 
@@ -534,7 +568,7 @@ mod tests {
         );
 
         set_attached_deposit(1900000000000000000000);
-        
+
         let token_id = "554433".to_string();
         contract.nft_mint(token_id.to_owned(), bob());
 
@@ -582,7 +616,7 @@ mod tests {
         );
 
         set_attached_deposit(2000000000000000000000);
-        
+
         let token_id = "5544332".to_string();
         contract.nft_mint(token_id.to_owned(), alice());
 
@@ -590,10 +624,7 @@ mod tests {
         let ret = contract.nft_payout("1".to_string(), U128(10000_0000000000_0000000000), Some(3));
         assert_eq!(
             U128(2000_0000000000_0000000000).0,
-            ret.payout
-                .get(&contract.tokens.owner_id)
-                .unwrap()
-                .0
+            ret.payout.get(&contract.tokens.owner_id).unwrap().0
         );
         assert_eq!(
             U128(8000_0000000000_0000000000).0,
@@ -609,14 +640,18 @@ mod tests {
         setup_test_env();
 
         let mut contract = Contract::new();
-        contract.post_javascript("
+        contract.post_javascript(
+            "
         export function get_content_base64() {
             env.value_return(env.get_content_base64('/files/testfile.js'));
         }
         "
             .to_string(),
         );
-        contract.post_content("/files/testfile.js".to_string(), base64::encode(CONTRACT_JS));
+        contract.post_content(
+            "/files/testfile.js".to_string(),
+            base64::encode(CONTRACT_JS),
+        );
         contract.call_js_func("get_content_base64".to_string());
         assert_latest_return_value_string_eq(base64::encode(CONTRACT_JS));
     }
@@ -628,14 +663,15 @@ mod tests {
         set_current_account_id(bob());
 
         let mut contract = Contract::new();
-        contract.post_javascript("
+        contract.post_javascript(
+            "
         export function get_contract_owner() {
             env.value_return(env.contract_owner());
         }
         "
             .to_string(),
         );
-        
+
         contract.call_js_func("get_contract_owner".to_string());
         assert_latest_return_value_string_eq(contract.tokens.owner_id.to_string());
     }
@@ -647,19 +683,72 @@ mod tests {
         set_current_account_id(bob());
 
         let mut contract = Contract::new();
-        contract.post_javascript("
+        contract.post_javascript(
+            "
         export function get_nft_token() {
             env.value_return(env.nft_token('1'));
         }
         "
             .to_string(),
         );
-        
+
         contract.call_js_func("get_nft_token".to_string());
 
         let token = contract.nft_token("1".to_string()).unwrap();
-        assert_latest_return_value_string_eq(
-            serde_json::to_string(&token).unwrap()
+        assert_latest_return_value_string_eq(serde_json::to_string(&token).unwrap());
+    }
+
+    #[test]
+    fn test_nft_burn() {
+        setup_test_env();
+
+        let burn_account = AccountId::from_str("mrburn").unwrap();
+
+        set_predecessor_account_id(burn_account.to_owned());
+        set_current_account_id(burn_account.to_owned());
+        let mut contract = Contract::new();
+        contract.post_javascript(
+            "
+            
+            export function nft_mint() {
+                print ('calling mint');
+                return JSON.stringify({
+                    title: 'test_title',
+                    description: 'test_description'
+                });
+            }
+        "
+            .to_string(),
         );
+
+        set_attached_deposit(2080000000000000000000);
+
+        let token_id = "burn_me_now".to_string();
+        contract.nft_mint(token_id.to_owned(), burn_account.to_owned());
+
+        assert_eq!(
+            contract.nft_supply_for_owner(burn_account.to_owned()),
+            U128::from(1)
+        );
+        assert_eq!(contract.nft_total_supply(), U128::from(1));
+
+        assert_eq!(
+            contract
+                .nft_token("burn_me_now".to_string())
+                .unwrap()
+                .token_id,
+            "burn_me_now"
+        );
+
+        set_attached_deposit(1);
+
+        contract.nft_burn(token_id);
+        assert_eq!(contract.nft_token("burn_me_now".to_string()), None);
+
+        assert_eq!(
+            contract.nft_supply_for_owner(burn_account.to_owned()),
+            U128::from(0)
+        );
+        assert_eq!(contract.nft_total_supply(), U128::from(0));
     }
 }
