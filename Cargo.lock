@@ -1147,6 +1147,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "quickjs-rust-near-fungible-token"
+version = "0.1.0"
+dependencies = [
+ "bindgen",
+ "ed25519-dalek",
+ "lazy_static",
+ "near-contract-standards",
+ "near-sdk",
+ "quickjs-rust-near",
+ "quickjs-rust-near-testenv",
+]
+
+[[package]]
 name = "quickjs-rust-near-minimum-web4"
 version = "0.1.0"
 dependencies = [
