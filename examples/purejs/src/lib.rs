@@ -1,7 +1,7 @@
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::{base64, env, near_bindgen};
+use near_sdk::{near_bindgen};
 use quickjs_rust_near::jslib::{
-    add_function_to_js, arg_to_str, compile_js, js_call_function, load_js_bytecode, to_js_string,
+    js_call_function, load_js_bytecode
 };
 use std::ffi::CString;
 
