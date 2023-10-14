@@ -30,63 +30,23 @@ impl Contract {
 mod tests {
     use super::*;
 
-    use quickjs_rust_near::jslib::compile_js;
     use quickjs_rust_near_testenv::testenv::{
-        alice, assert_latest_return_value_string_eq, bob,
-        set_current_account_id, set_input,
-        set_predecessor_account_id, setup_test_env,
+        set_input, assert_latest_return_value_string_eq, setup_test_env
     };
-    static CONTRACT_JS: &'static [u8] = include_bytes!("contract.js");
 
     #[test]
-    fn test_web4_get() {
+    fn test_hello() {
         setup_test_env();
-        set_current_account_id(alice());
-        set_predecessor_account_id(alice());
+        let contract = Contract::default();
+
         set_input(
-            "{\"request\": {\"path\": \"/index.html\"}}"
+            "{\"name\": \"peter\"}"
                 .try_into()
                 .unwrap(),
         );
-        let mut contract = Contract::default();
-        let bytecode = compile_js(
-            String::from_utf8(CONTRACT_JS.to_vec()).unwrap(),
-            Some("main.js".to_string()),
-        );
-        let bytecodebase64 = base64::encode(bytecode);
-
-        contract.post_quickjs_bytecode(bytecodebase64);
-        contract.post_content(
-            "/index.html".to_string(),
-            base64::encode("<html><body>hello</body></html>".to_string()),
-        );
-        contract.web4_get();
+        contract.hello();
         assert_latest_return_value_string_eq(
-            r#"{"contentType":"text/html; charset=UTF-8","body":"PGh0bWw+PGJvZHk+aGVsbG88L2JvZHk+PC9odG1sPg=="}"#
-                .to_owned(),
+            r#"hello peter"#.to_owned(),
         );
-    }
-
-    #[test]
-    fn test_store_content() {
-        setup_test_env();
-        set_predecessor_account_id(bob());
-        set_current_account_id(bob());
-
-        let mut contract = Contract::default();
-        contract.post_javascript(
-            "
-        export function get_content_base64() {
-            env.value_return(env.get_content_base64('/files/testfile.js'));
-        }
-        "
-            .to_string(),
-        );
-        contract.post_content(
-            "/files/testfile.js".to_string(),
-            base64::encode(CONTRACT_JS),
-        );
-        contract.call_js_func("get_content_base64".to_string());
-        assert_latest_return_value_string_eq(base64::encode(CONTRACT_JS));
     }
 }
