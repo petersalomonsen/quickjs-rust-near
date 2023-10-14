@@ -1170,6 +1170,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "quickjs-rust-near-purejs"
+version = "0.1.0"
+dependencies = [
+ "bindgen",
+ "near-sdk",
+ "quickjs-rust-near",
+ "quickjs-rust-near-testenv",
+]
+
+[[package]]
 name = "quickjs-rust-near-testenv"
 version = "0.1.0"
 dependencies = [

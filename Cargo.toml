@@ -33,6 +33,7 @@ library = []
 members = [
   "examples/nft",
   "examples/minimumweb4",
+  "examples/purejs",
   "testenv",
   "."
 ]
