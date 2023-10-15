@@ -8,10 +8,6 @@ edition = "2021"
 [lib]
 crate-type = ["cdylib"]
 
-[profile.dev]
-opt-level = 0     # No optimization
-debug = true      # Include debug information
-
 [dependencies]
 near-sdk = "4.1.1"
 quickjs-rust-near = { path = "../../", features=["library"] }

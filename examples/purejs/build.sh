@@ -1,4 +1,10 @@
 #!/bin/bash
 set -e
 # Build for WebAssembly target
-RUSTFLAGS='-C link-arg=-s' cargo build --target=wasm32-unknown-unknown
+cargo build --target=wasm32-unknown-unknown --release
+
+WASM_FILENAME=../../target/wasm32-unknown-unknown/release/quickjs_rust_near_purejs.wasm
+wasm2wat $WASM_FILENAME > purejs.wat
+OBJDUMP_DATA_SECTION=`wasm-objdump -h $WASM_FILENAME | grep "Data start"`
+node ./manipulatepurejswat.js "$OBJDUMP_DATA_SECTION"
+wat2wasm purejs.wat
