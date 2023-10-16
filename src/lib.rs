@@ -4,8 +4,11 @@ use web4::types::{Web4Request, Web4Response};
 use web4::webappbundle::WEB_APP_BUNDLE;
 #[cfg(not(feature = "library"))]
 use viewaccesscontrol::{store_signing_key_for_account};
+#[cfg(not(feature = "library"))]
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
+#[cfg(not(feature = "library"))]
 use near_sdk::{base64, env, near_bindgen};
+#[cfg(not(feature = "library"))]
 use std::collections::HashMap;
 pub mod jslib;
 pub mod web4;
