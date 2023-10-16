@@ -1,0 +1,12 @@
+[
+    {
+        "name": "hello",
+        "export": "hello",
+        "root": true
+    },
+    {
+        "name": "add",
+        "export": "add",
+        "root": true
+    }
+]
