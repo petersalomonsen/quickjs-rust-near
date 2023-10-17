@@ -4,8 +4,11 @@ use web4::types::{Web4Request, Web4Response};
 use web4::webappbundle::WEB_APP_BUNDLE;
 #[cfg(not(feature = "library"))]
 use viewaccesscontrol::{store_signing_key_for_account};
+#[cfg(not(feature = "library"))]
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
+#[cfg(not(feature = "library"))]
 use near_sdk::{base64, env, near_bindgen};
+#[cfg(not(feature = "library"))]
 use std::collections::HashMap;
 pub mod jslib;
 pub mod web4;
@@ -14,13 +17,14 @@ pub mod viewaccesscontrol;
 mod wasimock;
 #[near_bindgen]
 #[derive(Default, BorshDeserialize, BorshSerialize)]
+#[cfg(not(feature = "library"))]
 pub struct Scripts {
     scripts: HashMap<String, Vec<u8>>,
 }
 
 #[near_bindgen]
+#[cfg(not(feature = "library"))]
 impl Scripts {
-    #[cfg(not(feature = "library"))]
     pub fn store_signing_key() {
         store_signing_key_for_account(env::block_timestamp_ms() + 24 * 60 * 60 * 1000);
     }
@@ -51,7 +55,6 @@ impl Scripts {
         jslib::run_js_bytecode(bytecode);
     }
 
-    #[cfg(not(feature = "library"))]
     pub fn web4_get(&self, #[allow(unused_variables)] request: Web4Request) -> Web4Response {
         Web4Response::Body {
             content_type: "text/html; charset=UTF-8".to_owned(),

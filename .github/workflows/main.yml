@@ -60,7 +60,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - name: NFT example End to End tests
+      - name: NFT example local JS test
         run: |
           set -e
           curl -L https://github.com/WebAssembly/binaryen/releases/download/version_111/binaryen-version_111-x86_64-linux.tar.gz | tar xzf -
@@ -70,6 +70,21 @@ jobs:
           cd examples/nft
           mkdir out
           yarn test-examples-nft-localjs
+  localjs-test-example-purejs:
+    name: PureJS example local JS test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: PureJS example local JS test
+        run: |
+          set -e
+          curl -L https://github.com/WebAssembly/binaryen/releases/download/version_111/binaryen-version_111-x86_64-linux.tar.gz | tar xzf -
+          export PATH="`pwd`/binaryen-version_111/bin:$PATH"
+          curl -L https://github.com/WebAssembly/wabt/releases/download/1.0.33/wabt-1.0.33-ubuntu.tar.gz | tar xzf -
+          export PATH="`pwd`/wabt-1.0.33/bin:$PATH"
+          rustup target add wasm32-unknown-unknown
+          yarn install
+          yarn test-purejs
   webapptests:
     name: Web app tests
     runs-on: ubuntu-latest
