@@ -308,6 +308,11 @@ pub extern "C" fn storage_remove(key_len: i64, key_ptr: i64, register_id: i64) -
     }
 }
 
+pub fn storage_clear() {
+    let mut storage = STORAGE.lock().unwrap();
+    storage.clear();
+}
+
 pub fn assert_latest_return_value_contains(value_to_be_contained: String) {
     let latest_return_value = std::str::from_utf8(TESTENV.lock().unwrap().returned_value.as_ref())
         .unwrap()
