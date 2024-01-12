@@ -1,11 +1,11 @@
 #!/bin/bash
 set -e
 # Build for WebAssembly target
-RUSTFLAGS='-C link-arg=-s' cargo build --target=wasm32-unknown-unknown --release
+cargo build --target=wasm32-unknown-unknown --release
 # Remove unneeded WebAssembly exports
 wasm-metadce -f meta-dce.json ../../target/wasm32-unknown-unknown/release/quickjs_rust_near_nft.wasm -o out/nft.wasm
 # Optimize the Wasm binary
-wasm-opt -Oz --signext-lowering out/nft.wasm -o out/nft.wasm
+wasm-opt --converge -Oz --signext-lowering out/nft.wasm -o out/nft.wasm
 
 if [ -z "$1" ]
 then
