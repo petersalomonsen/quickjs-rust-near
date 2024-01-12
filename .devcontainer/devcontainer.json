@@ -1,0 +1,8 @@
+{
+    "postCreateCommand": "./.devcontainer/post-create.sh",
+    "customizations": {
+        "vscode": {
+            "extensions": ["dtsvet.vscode-wasm", "rust-lang.rust-analyzer"]
+        }
+    }
+}
