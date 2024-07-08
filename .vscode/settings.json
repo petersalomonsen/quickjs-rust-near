@@ -1,0 +1,9 @@
+{
+   
+    "rust-analyzer.linkedProjects": [
+        "examples/nft/Cargo.toml",
+        "examples/minimumweb4/Cargo.toml",
+        "examples/purejs/Cargo.toml"
+    ]
+    
+}
