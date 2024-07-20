@@ -33,7 +33,7 @@ jobs:
           npm install -g near-cli
           rustup target add wasm32-unknown-unknown
           mkdir out
-          ./buildanddeploy.sh
+          ./build.sh
           yarn install
           yarn test-e2e
   e2e-test-example-nft:
