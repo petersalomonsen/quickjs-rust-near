@@ -302,17 +302,17 @@ mod tests {
     #[test]
     fn test_parse_object() {
         let bytecode = compile_js(
-            "(function () { return {'hello': 'world', 'thenumberis': 42}; })()".to_string(),
+            "(function () { return {hello: 'world', thenumberis: 42}; })()".to_string(),
             None,
         );
         let result = run_js_bytecode(bytecode);
         unsafe {
+            assert_eq!(42, js_get_property(result, "thenumberis".as_ptr() as i32));
             let stringjsval = js_get_property(result, "hello".as_ptr() as i32);
             let str = CStr::from_ptr(js_get_string(stringjsval) as *const i8)
                 .to_str()
                 .unwrap();
             assert_eq!("world", str);
-            assert_eq!(42, js_get_property(result, "thenumberis".as_ptr() as i32));
         }
     }
 
