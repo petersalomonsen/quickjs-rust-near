@@ -13,7 +13,6 @@ codegen-units = 1
 lto = true
 debug = false
 opt-level = "z"
-strip="symbols"
 
 [dependencies]
 near-sdk = "4.0.0"
