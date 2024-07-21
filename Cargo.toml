@@ -35,6 +35,7 @@ library = []
 [workspace]
 # remember to include a member for each contract
 members = [
+  "examples/fungibletoken",
   "examples/nft",
   "examples/minimumweb4",
   "examples/purejs",
