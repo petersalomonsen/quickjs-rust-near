@@ -7,7 +7,7 @@
         "serve-dist": "http-server -p 8085 web4/dist",
         "web4bundle": "cd web4 && rollup -c rollup.config.js",
         "test-e2e": "node --test ./e2e",
-        "test-web": "NODE_OPTIONS=--experimental-vm-modules jest web4",
+        "test-web": "node --test web4",
         "test-examples-nft-e2e": "yarn examples-nft-web4bundle && cd examples/nft && node --test e2e",
         "test-examples-nft-localjs": "cd examples/nft && ./build.sh --only-build && node --test localjstest",
         "test-purejs": "cd examples/purejs && ./build.sh && node --test localjstest",
