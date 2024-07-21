@@ -13,6 +13,10 @@ codegen-units = 1
 lto = true
 debug = false
 opt-level = "z"
+strip="symbols"
+
+[profile.release.package."quickjs-rust-near-purejs"]
+strip = false
 
 [dependencies]
 near-sdk = "4.0.0"
