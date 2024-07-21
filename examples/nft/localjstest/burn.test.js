@@ -1,10 +1,12 @@
 import { readFile } from "fs/promises";
 import { getContractInstanceExports } from "../../../localjstestenv/contract-runner.js";
+import { test } from 'node:test';
+import { expect } from 'chai';
 
 test('only token owner should be able to burn', async () => {
     const { exports, nearenv } = await getContractInstanceExports(await readFile(new URL('../out/nft.wasm', import.meta.url)));
     exports.new();
-    expect(nearenv.storage['STATE']).toBeDefined();
+    expect(nearenv.storage['STATE']).to.be.an('Uint8Array');
     nearenv.set_args({ javascript: (await readFile(new URL('../src/contract.js', import.meta.url))).toString() });
     exports.post_javascript();
 
@@ -17,19 +19,19 @@ test('only token owner should be able to burn', async () => {
 
     nearenv.set_args({token_id});
     exports.nft_token();
-    expect(JSON.parse(nearenv.latest_return_value).owner_id).toBe(token_owner_id);
+    expect(JSON.parse(nearenv.latest_return_value).owner_id).to.equal(token_owner_id);
 
     nearenv.set_attached_deposit(1n);    
     expect(() => {
         exports.nft_burn();
-    }).toThrow('ERR_NOT_OWNER');
+    }).to.throw('ERR_NOT_OWNER');
     
     exports.nft_token();
-    expect(JSON.parse(nearenv.latest_return_value).owner_id).toBe(token_owner_id);
+    expect(JSON.parse(nearenv.latest_return_value).owner_id).to.equal(token_owner_id);
 
     nearenv.set_predecessor_account_id(token_owner_id);
     exports.nft_burn();
 
     exports.nft_token();
-    expect(JSON.parse(nearenv.latest_return_value)).toBeNull();
+    expect(JSON.parse(nearenv.latest_return_value)).to.be.null;
 });

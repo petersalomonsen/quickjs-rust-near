@@ -5,3 +5,4 @@ node_modules
 neardev*
 out
 .DS_Store
+wabt-*
