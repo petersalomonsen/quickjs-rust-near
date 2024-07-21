@@ -1,85 +1,118 @@
 import { connect, keyStores } from 'near-api-js';
 import { homedir } from 'os';
 import { readFile } from 'fs/promises';
+import { KeyPair, Worker } from 'near-workspaces';
+import { before, after, test, describe } from 'node:test';
+import { expect } from 'chai';
 
 const connectionConfig = {
-    networkId: "testnet",
-    keyStore: new keyStores.UnencryptedFileSystemKeyStore(`${homedir()}/.near-credentials`),
-    nodeUrl: "https://rpc.testnet.near.org",
-    walletUrl: "https://wallet.testnet.near.org",
-    helperUrl: "https://helper.testnet.near.org",
-    explorerUrl: "https://explorer.testnet.near.org",
+    networkId: "sandbox",
+    keyStore: new keyStores.InMemoryKeyStore(),
+    nodeUrl: "https://rpc.testnet.near.org"
 };
 
-test('should run custom javascript (quickjs bytecode ) in contract', async () => {
-    const nearConnection = await connect(connectionConfig);
-    const accountId = await (await readFile('neardev/dev-account')).toString();
+describe('NFT contract', () => {
+    /**
+     * @type {Worker}
+     */
+    let worker;
 
-    const account = await nearConnection.account(accountId);
-    await account.functionCall({
-        contractId: accountId,
-        methodName: 'post_quickjs_bytecode',
-        gas: '300000000000000',
-        args: {
-            bytecodebase64: await (await readFile('e2e/quickjsbytecode.bin')).toString('base64')
-        }
+    /**
+     * @type {Account}
+     */
+    let root;
+
+    /**
+     * @type {import('near-workspaces').NearAccount}
+     */
+    let contract;
+
+    /**
+     * @type {import('near-workspaces').KeyPair}
+     */
+    let contractAccountKeyPair;
+
+    before(async () => {
+        worker = await Worker.init();
+        connectionConfig.nodeUrl = worker.provider.connection.url;
+        root = worker.rootAccount;
+        contract = await root.devDeploy('out/nft.wasm');
+        await contract.call(contract.accountId, 'new', {});
+        contractAccountKeyPair = await contract.getKey();
+        connectionConfig.keyStore.setKey("sandbox", contract.accountId, contractAccountKeyPair)
     });
-    await account.functionCall({
-        contractId: accountId,
-        methodName: 'post_content',
-        args: {
-            key: '/index.html',
-            valuebase64: await (await readFile('web4/dist/index.html')).toString('base64')
-        }
+    after(async () => {
+        await worker.tearDown();
     });
-    const result = await account.viewFunction({ contractId: accountId, methodName: 'web4_get', args: { request: { path: '/index.html' } } });
-    expect(result.contentType).toBe('text/html; charset=UTF-8');
-    expect(result.body).toBeDefined();
+    test('should run custom javascript (quickjs bytecode ) in contract', async () => {
+        const nearConnection = await connect(connectionConfig);
+        const accountId = contract.accountId;
 
-    await account.functionCall({
-        contractId: accountId,
-        methodName: 'post_content',
-        args: {
-            key: '/musicwasms/fall.wasm',
-            valuebase64: await (await readFile('web4/musicwasms/fall.wasm')).toString('base64')
-        }
+        const account = await nearConnection.account(accountId);
+        await account.functionCall({
+            contractId: accountId,
+            methodName: 'post_quickjs_bytecode',
+            gas: '300000000000000',
+            args: {
+                bytecodebase64: await (await readFile('e2e/quickjsbytecode.bin')).toString('base64')
+            }
+        });
+        await account.functionCall({
+            contractId: accountId,
+            methodName: 'post_content',
+            args: {
+                key: '/index.html',
+                valuebase64: await (await readFile('web4/dist/index.html')).toString('base64')
+            }
+        });
+        const result = await account.viewFunction({ contractId: accountId, methodName: 'web4_get', args: { request: { path: '/index.html' } } });
+        expect(result.contentType).to.equal('text/html; charset=UTF-8');
+        expect(result.body).to.be.a('string');
+
+        await account.functionCall({
+            contractId: accountId,
+            methodName: 'post_content',
+            args: {
+                key: '/musicwasms/fall.wasm',
+                valuebase64: await (await readFile('web4/musicwasms/fall.wasm')).toString('base64')
+            }
+        });
+        const wasmresult = await account.viewFunction({ contractId: accountId, methodName: 'web4_get', args: { request: { path: '/musicwasms/fall.wasm' } } });
+        expect(wasmresult.contentType).to.equal('application/wasm');
+        expect(wasmresult.body).to.be.a('string');
     });
-    const wasmresult = await account.viewFunction({ contractId: accountId, methodName: 'web4_get', args: { request: { path: '/musicwasms/fall.wasm' } } });
-    expect(wasmresult.contentType).toBe('application/wasm');
-    expect(wasmresult.body).toBeDefined();
-}, 20000);
 
 
-test('should run custom javascript in contract', async () => {
-    const nearConnection = await connect(connectionConfig);
-    const accountId = await (await readFile('neardev/dev-account')).toString();
+    test('should run custom javascript in contract', async () => {
+        const nearConnection = await connect(connectionConfig);
+        const accountId = contract.accountId;
 
-    const account = await nearConnection.account(accountId);
-    await account.functionCall({
-        contractId: accountId,
-        methodName: 'post_javascript',
-        gas: '300000000000000',
-        args: {
-            javascript: await (await readFile('src/contract.js')).toString()
-        }
+        const account = await nearConnection.account(accountId);
+        await account.functionCall({
+            contractId: accountId,
+            methodName: 'post_javascript',
+            gas: '300000000000000',
+            args: {
+                javascript: await (await readFile('src/contract.js')).toString()
+            }
+        });
+        const result = await account.viewFunction({ contractId: accountId, methodName: 'web4_get', args: { request: { path: '/index.html' } } });
+        expect(result.contentType).to.equal('text/html; charset=UTF-8');
+        expect(result.body).to.be.a('string');
     });
-    const result = await account.viewFunction({ contractId: accountId, methodName: 'web4_get', args: { request: { path: '/index.html' } } });
-    expect(result.contentType).toBe('text/html; charset=UTF-8');
-    expect(result.body).toBeDefined();
-}, 20000);
 
-test('should require owners signature to get content', async () => {
-    const nearConnection = await connect(connectionConfig);
-    const accountId = await (await readFile('neardev/dev-account')).toString();
+    test('should require owners signature to get content', async () => {
+        const nearConnection = await connect(connectionConfig);
+        const accountId = contract.accountId;
 
-    const account = await nearConnection.account(accountId);
+        const account = await nearConnection.account(accountId);
 
-    await account.functionCall({
-        contractId: accountId,
-        methodName: 'post_javascript',
-        gas: '300000000000000',
-        args: {
-            javascript: `
+        await account.functionCall({
+            contractId: accountId,
+            methodName: 'post_javascript',
+            gas: '300000000000000',
+            args: {
+                javascript: `
             export function store_signing_key() {
                 if (env.nft_supply_for_owner(env.signer_account_id()) > 0) {
                     env.store_signing_key(env.block_timestamp_ms() + 60 * 1000);
@@ -147,94 +180,94 @@ test('should require owners signature to get content', async () => {
                 });
             }
         `
-        }
-    });
-    await account.functionCall({
-        contractId: accountId,
-        methodName: 'nft_mint',
-        attachedDeposit: '16250000000000000000000',
-        gas: '300000000000000',
-        args: {
-            token_id: `${new Date().getTime()}`,
-            token_owner_id: accountId,
-            token_metadata: {}
-        }
-    });
-    let result = await account.viewFunction({ contractId: accountId, methodName: 'web4_get', args: { request: { path: '/' } } });
-    expect(result.contentType).toBe('text/plain; charset=UTF-8');
-    expect(result.body).toBe(Buffer.from('DEFAULT RESPONSE').toString('base64'));
+            }
+        });
+        await account.functionCall({
+            contractId: accountId,
+            methodName: 'nft_mint',
+            attachedDeposit: '16250000000000000000000',
+            gas: '300000000000000',
+            args: {
+                token_id: `${new Date().getTime()}`,
+                token_owner_id: accountId,
+                token_metadata: {}
+            }
+        });
+        let result = await account.viewFunction({ contractId: accountId, methodName: 'web4_get', args: { request: { path: '/' } } });
+        expect(result.contentType).to.equal('text/plain; charset=UTF-8');
+        expect(result.body).to.equal(Buffer.from('DEFAULT RESPONSE').toString('base64'));
 
-    await account.functionCall({
-        contractId: accountId,
-        methodName: 'call_js_func',
-        args: {
-            'function_name': 'store_signing_key'
-        }
-    });
+        await account.functionCall({
+            contractId: accountId,
+            methodName: 'call_js_func',
+            args: {
+                'function_name': 'store_signing_key'
+            }
+        });
 
-    const messageToBeSigned = 'some message to be signed';
-    const keyPair = await account.connection.signer.keyStore.getKey(connectionConfig.networkId, accountId);
-    const signature = await keyPair.sign(new TextEncoder().encode(messageToBeSigned));
-    const signatureBase64 = btoa(String.fromCharCode(...signature.signature));
+        const messageToBeSigned = 'some message to be signed';
+        const keyPair = await account.connection.signer.keyStore.getKey(connectionConfig.networkId, accountId);
+        const signature = await keyPair.sign(new TextEncoder().encode(messageToBeSigned));
+        const signatureBase64 = btoa(String.fromCharCode(...signature.signature));
 
-    result = await account.viewFunction({
-        contractId: accountId, methodName: 'web4_get', args: {
-            request: {
-                path: `/content`,
-                query: {
-                    message: [messageToBeSigned],
-                    signature: [signatureBase64],
-                    account: [accountId]
+        result = await account.viewFunction({
+            contractId: accountId, methodName: 'web4_get', args: {
+                request: {
+                    path: `/content`,
+                    query: {
+                        message: [messageToBeSigned],
+                        signature: [signatureBase64],
+                        account: [accountId]
+                    }
                 }
             }
-        }
-    });
-    expect(result.contentType).toBe('text/plain; charset=UTF-8');
-    expect(result.body).toBe(Buffer.from('VALID SIGNATURE').toString('base64'));
+        });
+        expect(result.contentType).to.equal('text/plain; charset=UTF-8');
+        expect(result.body).to.equal(Buffer.from('VALID SIGNATURE').toString('base64'));
 
-    result = await account.viewFunction({
-        contractId: accountId, methodName: 'web4_get', args: {
-            request: {
-                path: `/content`,
-                query: {
-                    message: ['blabla'],
-                    signature: [signatureBase64],
-                    account: [accountId]
+        result = await account.viewFunction({
+            contractId: accountId, methodName: 'web4_get', args: {
+                request: {
+                    path: `/content`,
+                    query: {
+                        message: ['blabla'],
+                        signature: [signatureBase64],
+                        account: [accountId]
+                    }
                 }
             }
-        }
-    });
-    expect(result.contentType).toBe('text/plain; charset=UTF-8');
-    expect(result.body).toBe(Buffer.from('INVALID SIGNATURE').toString('base64'));
+        });
+        expect(result.contentType).to.equal('text/plain; charset=UTF-8');
+        expect(result.body).to.equal(Buffer.from('INVALID SIGNATURE').toString('base64'));
 
-    result = await account.viewFunction({
-        contractId: accountId, methodName: 'web4_get', args: {
-            request: {
-                path: `/content`,
-                query: {
-                    message: ['blabla'],
-                    signature: [signatureBase64],
-                    account: ['blabla']
+        result = await account.viewFunction({
+            contractId: accountId, methodName: 'web4_get', args: {
+                request: {
+                    path: `/content`,
+                    query: {
+                        message: ['blabla'],
+                        signature: [signatureBase64],
+                        account: ['blabla']
+                    }
                 }
             }
-        }
+        });
+        expect(result.contentType).to.equal('text/plain; charset=UTF-8');
+        expect(result.body).to.equal(Buffer.from('NOT OWNER').toString('base64'));
     });
-    expect(result.contentType).toBe('text/plain; charset=UTF-8');
-    expect(result.body).toBe(Buffer.from('NOT OWNER').toString('base64'));
-}, 60000);
 
 
-test('should list NFT owners through web4', async () => {
-    const nearConnection = await connect(connectionConfig);
-    const accountId = await (await readFile('neardev/dev-account')).toString();
+    test('should list NFT owners through web4', async () => {
+        const nearConnection = await connect(connectionConfig);
+        const accountId = contract.accountId;
 
-    const account = await nearConnection.account(accountId);
-    await account.functionCall({
-        contractId: accountId,
-        methodName: 'post_javascript',
-        gas: '300000000000000',
-        args: {
-            javascript: `
+        const account = await nearConnection.account(accountId);
+        await account.functionCall({
+            contractId: accountId,
+            methodName: 'post_javascript',
+            gas: '300000000000000',
+            args: {
+                javascript: `
               
             export function web4_get() {
                 const request = JSON.parse(env.input()).request;
@@ -272,46 +305,46 @@ test('should list NFT owners through web4', async () => {
                 });
             }
         `
-        }
-    });
-    const mintedTokenIds = [];
-    for (let n = 0; n < 3; n++) {
-        const token_id = `NFT${new Date().getTime()}`;
-        mintedTokenIds.push(token_id);
-        await account.functionCall({
-            contractId: accountId,
-            methodName: 'nft_mint',
-            attachedDeposit: '16250000000000000000000',
-            gas: '300000000000000',
-            args: {
-                token_id: token_id,
-                token_owner_id: accountId,
-                token_metadata: {}
             }
         });
-    }
+        const mintedTokenIds = [];
+        for (let n = 0; n < 3; n++) {
+            const token_id = `NFT${new Date().getTime()}`;
+            mintedTokenIds.push(token_id);
+            await account.functionCall({
+                contractId: accountId,
+                methodName: 'nft_mint',
+                attachedDeposit: '16250000000000000000000',
+                gas: '300000000000000',
+                args: {
+                    token_id: token_id,
+                    token_owner_id: accountId,
+                    token_metadata: {}
+                }
+            });
+        }
 
-    let result = await account.viewFunction({ contractId: accountId, methodName: 'web4_get', args: { request: { path: '/nftowners.json' } } });
-    expect(result.contentType).toBe('application/json; charset=UTF-8');
+        let result = await account.viewFunction({ contractId: accountId, methodName: 'web4_get', args: { request: { path: '/nftowners.json' } } });
+        expect(result.contentType).to.equal('application/json; charset=UTF-8');
 
-    const nftOwners = JSON.parse(Buffer.from(result.body, 'base64').toString());
+        const nftOwners = JSON.parse(Buffer.from(result.body, 'base64').toString());
 
-    expect(nftOwners.find(t => t.token_id == mintedTokenIds[0]).owner_id).toBe(accountId);
-    expect(nftOwners.find(t => t.token_id == mintedTokenIds[1]).owner_id).toBe(accountId);
-    expect(nftOwners.find(t => t.token_id == mintedTokenIds[2]).owner_id).toBe(accountId);
-}, 40000);
+        expect(nftOwners.find(t => t.token_id == mintedTokenIds[0]).owner_id).to.equal(accountId);
+        expect(nftOwners.find(t => t.token_id == mintedTokenIds[1]).owner_id).to.equal(accountId);
+        expect(nftOwners.find(t => t.token_id == mintedTokenIds[2]).owner_id).to.equal(accountId);
+    });
 
-test('should forbid mint', async () => {
-    const nearConnection = await connect(connectionConfig);
-    const accountId = await (await readFile('neardev/dev-account')).toString();
+    test('should forbid mint', async () => {
+        const nearConnection = await connect(connectionConfig);
+        const accountId = contract.accountId;
 
-    const account = await nearConnection.account(accountId);
-    await account.functionCall({
-        contractId: accountId,
-        methodName: 'post_javascript',
-        gas: '300000000000000',
-        args: {
-            javascript: `              
+        const account = await nearConnection.account(accountId);
+        await account.functionCall({
+            contractId: accountId,
+            methodName: 'post_javascript',
+            gas: '300000000000000',
+            args: {
+                javascript: `              
                 export function web4_get() {
                     const request = JSON.parse(env.input()).request;
                     let response;
@@ -346,80 +379,80 @@ test('should forbid mint', async () => {
                     });
                 }
         `
+            }
+        });
+        try {
+            await account.functionCall({
+                contractId: accountId,
+                methodName: 'nft_mint',
+                attachedDeposit: '16250000000000000000000',
+                gas: '300000000000000',
+                args: {
+                    token_id: 'aaa' + new Date().getTime(),
+                    token_owner_id: accountId,
+                    token_metadata: {}
+                }
+            });
+            throw new Error('should not succeed minting');
+        } catch (e) {
+            expect(e.kind.ExecutionError).to.equal('Smart contract panicked: mint is forbidden');
         }
     });
-    try {
+
+    test('15 TGas should be sufficient for nft_transfer_payout', async () => {
+        const nearConnection = await connect(connectionConfig);
+        const accountId = contract.accountId;
+
+        const account = await nearConnection.account(accountId);
+        await account.functionCall({
+            contractId: accountId,
+            methodName: 'post_quickjs_bytecode',
+            gas: '300000000000000',
+            args: {
+                bytecodebase64: await (await readFile('e2e/quickjsbytecode.bin')).toString('base64')
+            }
+        });
+
+        const token_id = `${new Date().getTime()}`;
         await account.functionCall({
             contractId: accountId,
             methodName: 'nft_mint',
             attachedDeposit: '16250000000000000000000',
             gas: '300000000000000',
             args: {
-                token_id: 'aaa' + new Date().getTime(),
-                token_owner_id: accountId,
-                token_metadata: {}
+                token_id,
+                token_owner_id: accountId
             }
         });
-        throw new Error('should not succeed minting');
-    } catch (e) {
-        expect(e.kind.ExecutionError).toBe('Smart contract panicked: mint is forbidden');
-    }
-}, 20000);
 
-test('15 TGas should be sufficient for nft_transfer_payout', async () => {
-    const nearConnection = await connect(connectionConfig);
-    const accountId = await (await readFile('neardev/dev-account')).toString();
+        const payout = await account.functionCall({
+            contractId: accountId,
+            methodName: 'nft_transfer_payout',
+            gas: '15000000000000',
+            attachedDeposit: '1',
+            args: {
+                token_id,
+                receiver_id: 'acl.testnet',
+                balance: BigInt(10_0000_00000_00000_00000_00000n).toString()
+            }
+        });
 
-    const account = await nearConnection.account(accountId);
-    await account.functionCall({
-        contractId: accountId,
-        methodName: 'post_quickjs_bytecode',
-        gas: '300000000000000',
-        args: {
-            bytecodebase64: await (await readFile('e2e/quickjsbytecode.bin')).toString('base64')
-        }
+        expect(JSON.parse(Buffer.from(payout.status.SuccessValue, 'base64').toString()).payout[accountId]).to.equal(BigInt(10_0000_00000_00000_00000_00000n).toString());
+        const tokenAfterTransfer = await account.viewFunction({ contractId: accountId, methodName: 'nft_token', args: { token_id } });
+        expect(tokenAfterTransfer.owner_id).to.equal('acl.testnet');
     });
 
-    const token_id = `${new Date().getTime()}`;
-    await account.functionCall({
-        contractId: accountId,
-        methodName: 'nft_mint',
-        attachedDeposit: '16250000000000000000000',
-        gas: '300000000000000',
-        args: {
-            token_id,
-            token_owner_id: accountId
-        }
-    });
+    test('should mint and burn', async () => {
+        const nearConnection = await connect(connectionConfig);
+        const accountId = contract.accountId;
 
-    const payout = await account.functionCall({
-        contractId: accountId,
-        methodName: 'nft_transfer_payout',
-        gas: '15000000000000',
-        attachedDeposit: '1',
-        args: {
-            token_id,
-            receiver_id: 'acl.testnet',
-            balance: BigInt(10_0000_00000_00000_00000_00000n).toString()
-        }
-    });
-
-    expect(JSON.parse(Buffer.from(payout.status.SuccessValue, 'base64').toString()).payout[accountId]).toBe(BigInt(10_0000_00000_00000_00000_00000n).toString());
-    const tokenAfterTransfer = await account.viewFunction({ contractId: accountId, methodName: 'nft_token', args: { token_id } });
-    expect(tokenAfterTransfer.owner_id).toBe('acl.testnet');
-}, 60000);
-
-test('should mint and burn', async () => {
-    const nearConnection = await connect(connectionConfig);
-    const accountId = await (await readFile('neardev/dev-account')).toString();
-
-    const account = await nearConnection.account(accountId);
-    await account.functionCall({
-        contractId: accountId,
-        methodName: 'post_javascript',
-        gas: '300000000000000',
-        args: {
-            javascript: `              
+        const account = await nearConnection.account(accountId);
+        await account.functionCall({
+            contractId: accountId,
+            methodName: 'post_javascript',
+            gas: '300000000000000',
+            args: {
+                javascript: `              
                 export function web4_get() {
                     const request = JSON.parse(env.input()).request;
                     let response;
@@ -452,36 +485,37 @@ test('should mint and burn', async () => {
                     });
                 }
         `
-        }
+            }
+        });
+        const token_id = 'burn_me' + new Date().getTime();
+
+        await account.functionCall({
+            contractId: accountId,
+            methodName: 'nft_mint',
+            attachedDeposit: '16250000000000000000000',
+            gas: '300000000000000',
+            args: {
+                token_id: token_id,
+                token_owner_id: accountId,
+                token_metadata: {}
+            }
+        });
+
+        const tokenAfterMint = await account.viewFunction({ contractId: accountId, methodName: 'nft_token', args: { token_id } });
+        expect(tokenAfterMint.token_id).to.equal(token_id);
+
+        await account.functionCall({
+            contractId: accountId,
+            methodName: 'nft_burn',
+            attachedDeposit: '1',
+            gas: '300000000000000',
+            args: {
+                token_id: token_id
+            }
+        });
+
+        const tokenAfterBurn = await account.viewFunction({ contractId: accountId, methodName: 'nft_token', args: { token_id } });
+        expect(tokenAfterBurn).to.be.null;
+
     });
-    const token_id = 'burn_me' + new Date().getTime();
-
-    await account.functionCall({
-        contractId: accountId,
-        methodName: 'nft_mint',
-        attachedDeposit: '16250000000000000000000',
-        gas: '300000000000000',
-        args: {
-            token_id: token_id,
-            token_owner_id: accountId,
-            token_metadata: {}
-        }
-    });
-
-    const tokenAfterMint = await account.viewFunction({ contractId: accountId, methodName: 'nft_token', args: { token_id } });
-    expect(tokenAfterMint.token_id).toBe(token_id);
-    
-    await account.functionCall({
-        contractId: accountId,
-        methodName: 'nft_burn',
-        attachedDeposit: '1',
-        gas: '300000000000000',
-        args: {
-            token_id: token_id
-        }
-    });    
-
-    const tokenAfterBurn = await account.viewFunction({ contractId: accountId, methodName: 'nft_token', args: { token_id } });
-    expect(tokenAfterBurn).toBeNull();
-    
-}, 40000);
+});

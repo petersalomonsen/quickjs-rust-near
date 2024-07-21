@@ -49,14 +49,11 @@ jobs:
           set -e
           curl -L https://github.com/WebAssembly/binaryen/releases/download/version_111/binaryen-version_111-x86_64-linux.tar.gz | tar xzf -
           export PATH="`pwd`/binaryen-version_111/bin:$PATH"
-          npm install -g near-cli
-          mkdir $HOME/.near-config
-          echo "{\"trackingEnabled\": true, \"trackingAccountID\": false}" > $HOME/.near-config/settings.json
           rustup target add wasm32-unknown-unknown
           yarn install
           cd examples/nft
           mkdir out
-          ./buildanddeploy.sh          
+          ./build.sh          
           yarn test-examples-nft-e2e
   localjs-test-example-nft:
     name: NFT example local JS test
