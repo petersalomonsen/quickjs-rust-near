@@ -5,6 +5,8 @@ on:
   push:
     tags:
       - 'v*.*.*'  # Triggers the workflow on version tags, e.g., v1.0.0
+    branches:
+      - release-example-contracts
 
 jobs:
   buildexamplecontracts:
