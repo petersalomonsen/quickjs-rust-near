@@ -1,0 +1,81 @@
+name: Release example contracts
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  buildexamplecontracts:
+    name: Build example contracts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install Wasmtime and Rust dependencies
+        run: |
+          curl https://wasmtime.dev/install.sh -sSf | bash
+          export PATH="$HOME/.wasmtime/bin:$PATH"
+          rustup target add wasm32-unknown-unknown
+          cargo install cargo-wasi
+
+          wget https://github.com/WebAssembly/binaryen/releases/download/version_116/binaryen-version_116-x86_64-linux.tar.gz
+          tar -xvzf binaryen-version_116-x86_64-linux.tar.gz 
+          sudo cp -r binaryen-version_116/* /usr/
+          rm -Rf binaryen-version_116*
+
+          wget https://github.com/WebAssembly/wabt/releases/download/1.0.35/wabt-1.0.35.tar.xz
+          tar -xvf wabt-1.0.35.tar.xz
+          cd wabt-1.0.35
+          mkdir build
+          cd build
+          cmake ..
+          sudo cmake --build . --target install
+
+      - name: Build example contracts
+        run: |
+          (cd examples/nft && ./build.sh)
+          (cd examples/minimumweb4 && ./build.sh)
+
+      - name: Package WASM files into a ZIP
+        run: |
+          mkdir -p release
+          zip -j release/example_contracts.zip examples/nft/out/nft.wasm examples/minimumweb4/out/minimum_web4.wasm
+
+      - name: Upload WASM ZIP artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: wasm-zip
+          path: release/example_contracts.zip
+
+  release:
+    name: Create Release
+    needs: buildexamplecontracts
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - name: Download WASM ZIP artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: wasm-zip
+
+      - name: Create GitHub Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          draft: false
+          prerelease: false
+
+      - name: Upload ZIP file to Release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./example_contracts.zip
+          asset_name: example_contracts.zip
+          asset_content_type: application/zip
