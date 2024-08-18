@@ -1,0 +1,66 @@
+name: Release example contracts
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'  # Triggers the workflow on version tags, e.g., v1.0.0
+
+jobs:
+  buildexamplecontracts:
+    name: Build example contracts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Install Wasmtime and Rust dependencies
+        run: |
+          curl https://wasmtime.dev/install.sh -sSf | bash
+          export PATH="$HOME/.wasmtime/bin:$PATH"
+          rustup target add wasm32-wasi
+          cargo install cargo-wasi
+
+      - name: Build example contracts
+        run: |
+          (cd examples/nft && ./build.sh)
+          (cd examples/minimumweb4 && ./build.sh)
+
+      - name: Upload WASM artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: wasm-artifacts
+          path: |
+            examples/nft/out/*.wasm
+            examples/minimumweb4/out/*.wasm
+
+  release:
+    name: Create Release
+    needs: buildexamplecontracts
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download WASM artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: wasm-artifacts
+
+      - name: Create GitHub Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          draft: false
+          prerelease: false
+
+      - name: Upload WASM files to Release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: |
+            examples/nft/out/*.wasm
+            examples/minimumweb4/out/*.wasm
+          asset_name: ${{ basename }}
+          asset_content_type: application/wasm
