@@ -1,12 +1,9 @@
 name: Release example contracts
 
 on:
-  workflow_dispatch:
   push:
     tags:
       - 'v*.*.*'
-    branches:
-      - release-example-contracts
 
 jobs:
   buildexamplecontracts:
@@ -62,10 +59,10 @@ jobs:
         with:
           name: wasm-zip
 
-      - name: List files in wasm-zip directory
-        run: ls -R wasm-zip
+      - name: List files in root directory
+        run: ls -R .
 
-      # Adjust this path based on the output of the above command
+      # This step will be modified after identifying the correct path
       - name: Move ZIP file to correct path
         run: mv wasm-zip/example_contracts.zip ./release/example_contracts.zip
 
