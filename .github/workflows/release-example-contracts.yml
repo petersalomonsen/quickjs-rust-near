@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     tags:
-      - 'v*.*.*'  # Triggers the workflow on version tags, e.g., v1.0.0
+      - 'v*.*.*'
     branches:
       - release-example-contracts
 
@@ -62,6 +62,10 @@ jobs:
         with:
           name: wasm-zip
 
+      - name: List files in wasm-zip directory
+        run: ls -R wasm-zip
+
+      # Adjust this path based on the output of the above command
       - name: Move ZIP file to correct path
         run: mv wasm-zip/example_contracts.zip ./release/example_contracts.zip
 
