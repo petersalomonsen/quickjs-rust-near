@@ -1140,7 +1140,6 @@ dependencies = [
  "bindgen",
  "ed25519-dalek",
  "hex",
- "lazy_static",
  "near-sdk",
  "quickjs-rust-near-testenv",
  "sha2 0.10.6",
@@ -1197,7 +1196,6 @@ name = "quickjs-rust-near-testenv"
 version = "0.1.0"
 dependencies = [
  "ed25519-dalek",
- "lazy_static",
  "near-sdk",
  "sha2 0.10.6",
 ]
