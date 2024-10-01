@@ -86,14 +86,14 @@ pub extern "C" fn __syscall_getcwd(_buf: i32, _size: i32) -> i32 {
 #[no_mangle]
 //pub extern "C" fn __wasi_environ_sizes_get(_environ_count: libc::size_t, _environ_buf_size: libc::size_t) -> i32 {
 pub extern "C" fn __wasi_environ_sizes_get(_environ_count: i32, _environ_buf_size: i32) -> i32 {
-    env::log_str("__wasi_environ_sizes_get");
+    //env::log_str("__wasi_environ_sizes_get");
     return 0;
 }
 
 #[no_mangle]
 //pub extern "C" fn __wasi_environ_get(_environ: *const libc::c_char, _environ_buf: *const libc::c_char) -> i32 {
 pub extern "C" fn __wasi_environ_get(_environ: i32, _environ_buf: i32) -> i32 {
-    env::log_str("__wasi_environ_get");
+    //env::log_str("__wasi_environ_get");
     return 0;
 }
 
