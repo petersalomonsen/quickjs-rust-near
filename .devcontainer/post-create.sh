@@ -11,6 +11,10 @@ rm -Rf binaryen-version_116*
 cargo install cargo-wasi
 curl https://wasmtime.dev/install.sh -sSf | bash
 
+wget https://bellard.org/quickjs/quickjs-2024-01-13.tar.xz
+tar -xf quickjs-2024-01-13.tar.xz
+rm quickjs-2024-01-13.tar.xz
+
 wget https://github.com/WebAssembly/wabt/releases/download/1.0.35/wabt-1.0.35.tar.xz
 tar -xvf wabt-1.0.35.tar.xz
 cd wabt-1.0.35

@@ -13,6 +13,10 @@ jobs:
       - name: Unit tests
         run: |
           curl https://wasmtime.dev/install.sh -sSf | bash
+          wget https://bellard.org/quickjs/quickjs-2024-01-13.tar.xz
+          tar -xf quickjs-2024-01-13.tar.xz
+          rm quickjs-2024-01-13.tar.xz
+
           export PATH="$HOME/.wasmtime/bin:$PATH"
           rustup target add wasm32-wasi
           rustup target add wasm32-wasip1

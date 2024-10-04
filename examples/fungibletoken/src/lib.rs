@@ -106,7 +106,7 @@ mod tests {
     use quickjs_rust_near::jslib::compile_js;
 
     use quickjs_rust_near_testenv::testenv::{
-        alice, bob, set_attached_deposit, set_predecessor_account_id,setup_test_env, storage_clear,
+        alice, bob, set_attached_deposit, set_predecessor_account_id,setup_test_env, storage_clear
     };
 
     const TOTAL_SUPPLY: Balance = 1_000_000_000_000_000;

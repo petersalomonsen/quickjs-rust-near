@@ -68,8 +68,10 @@ impl Scripts {
 pub mod tests {
     use super::*;
 
+    use near_sdk::base64;
     use quickjs_rust_near_testenv::testenv::{alice, set_signer_account_id, setup_test_env, assert_latest_return_value_string_eq};
     use quickjs_rust_near_testenv::musicscript::MUSIC_SCRIPT;
+    use jslib::compile_js;
 
     #[test]
     fn test_run_script() {
@@ -97,7 +99,8 @@ pub mod tests {
 
         let contract = Scripts::default();
 
-        let result = contract.run_bytecode("AgQKcGFyc2UUeyJhIjogMjIyfQJhGDxldmFsc291cmNlPg4ABgCgAQABAAMAABsBogEAAAA4mwAAAELeAAAABN8AAAAkAQBB4AAAALidzSjCAwEA".to_string());
+        let bytecodebase64 = base64::encode(compile_js("200+25;".to_string(), None));
+        let result = contract.run_bytecode(bytecodebase64);
         assert_eq!("225".to_string(), result);
     }
 
