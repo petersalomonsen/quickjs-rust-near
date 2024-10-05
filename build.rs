@@ -21,7 +21,7 @@ fn main() {
     println!(
         "cargo:rustc-link-search=native={}",
         Path::new(&dir)
-            .join("wabt-1.0.35/build/emsdk/upstream/emscripten/cache/sysroot/lib/wasm32-emscripten")
+            .join("emsdk/upstream/emscripten/cache/sysroot/lib/wasm32-emscripten")
             .display()
     );
     println!(
