@@ -1,6 +1,6 @@
 #!/bin/bash
 
-source ../wabt-1.0.35/build/emsdk/emsdk_env.sh
+source ../emsdk/emsdk_env.sh
 QUICKJS_ROOT=../quickjs-2024-01-13
 export CC=clang
 (cd $QUICKJS_ROOT && make CC=emcc AR=emar libquickjs.a)
