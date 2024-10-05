@@ -30,6 +30,3 @@ cd emsdk
 ./emsdk install latest
 ./emsdk activate latest
 cd ..
-
-# Explicitly source the cargo environment to propagate it for subsequent steps
-echo "source $HOME/.cargo/env" >> $GITHUB_ENV
