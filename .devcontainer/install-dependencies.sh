@@ -1,5 +1,7 @@
 #!/bin/bash
 
+yarn install
+
 # Install Rust targets
 rustup target add wasm32-unknown-unknown
 rustup target add wasm32-wasip1
