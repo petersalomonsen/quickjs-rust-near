@@ -36,18 +36,6 @@ cd emsdk
 ./emsdk activate latest
 cd ..
 
-# Ensure Rust environment is set up properly
-if [ -f "$HOME/.cargo/env" ]; then
-  # If the file exists, source it
-  echo "source $HOME/.cargo/env" >> $GITHUB_ENV
-else
-  # Fallback to manually adding cargo to PATH
-  export PATH="$HOME/.cargo/bin:$PATH"
-  echo "$HOME/.cargo/bin" >> $GITHUB_PATH
-fi
-
-# Add Wasmtime PATH
+# Append necessary paths to GITHUB_ENV for persistence across steps
+echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 echo "$HOME/.wasmtime/bin" >> $GITHUB_PATH
-
-# Add Emscripten environment setup to the GITHUB_ENV to persist across steps
-echo "source $(pwd)/emsdk/emsdk_env.sh" >> $GITHUB_ENV

@@ -24,6 +24,9 @@ jobs:
           path: |
             ~/.wasmtime
             node_modules
+            emsdk
+            wabt-1.0.35
+            quickjs-2024-01-13
           key: ${{ runner.os }}-dependencies-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-dependencies-
@@ -42,6 +45,9 @@ jobs:
           path: |
             ~/.wasmtime
             node_modules
+            emsdk
+            wabt-1.0.35
+            quickjs-2024-01-13
           key: ${{ runner.os }}-dependencies-${{ hashFiles('**/package-lock.json') }}
 
       - name: Set up Wasmtime PATH and Rust
@@ -72,6 +78,9 @@ jobs:
           path: |
             ~/.wasmtime
             node_modules
+            emsdk
+            wabt-1.0.35
+            quickjs-2024-01-13
           key: ${{ runner.os }}-dependencies-${{ hashFiles('**/package-lock.json') }}
 
       - name: Set up Rust environment
@@ -101,6 +110,9 @@ jobs:
           path: |
             ~/.wasmtime
             node_modules
+            emsdk
+            wabt-1.0.35
+            quickjs-2024-01-13
           key: ${{ runner.os }}-dependencies-${{ hashFiles('**/package-lock.json') }}
 
       - name: Set up Rust environment
@@ -129,6 +141,9 @@ jobs:
           path: |
             ~/.wasmtime
             node_modules
+            emsdk
+            wabt-1.0.35
+            quickjs-2024-01-13
           key: ${{ runner.os }}-dependencies-${{ hashFiles('**/package-lock.json') }}
 
       - name: Set up Rust environment
@@ -156,6 +171,9 @@ jobs:
           path: |
             ~/.wasmtime
             node_modules
+            emsdk
+            wabt-1.0.35
+            quickjs-2024-01-13
           key: ${{ runner.os }}-dependencies-${{ hashFiles('**/package-lock.json') }}
 
       - name: Set up Rust environment
@@ -181,6 +199,9 @@ jobs:
           path: |
             ~/.wasmtime
             node_modules
+            emsdk
+            wabt-1.0.35
+            quickjs-2024-01-13
           key: ${{ runner.os }}-dependencies-${{ hashFiles('**/package-lock.json') }}
 
       - name: Set up Rust environment
