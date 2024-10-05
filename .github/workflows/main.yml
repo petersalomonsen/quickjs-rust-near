@@ -1,96 +1,166 @@
 name: CI
+
 on:
   push:
     branches: [ master ]
   pull_request:
     branches: [ master ]
+
 jobs:
-  rununittest:
-    name: Unit tests
+  # Job to install dependencies and cache them
+  install-dependencies:
+    name: Install dependencies
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - name: Unit tests
+
+      - name: Install dependencies
         run: |
           ./.devcontainer/install-dependencies.sh
+
+      - name: Cache Wasmtime and Node modules
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.wasmtime
+            node_modules
+          key: ${{ runner.os }}-dependencies-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-dependencies-
+
+  # Job to run unit tests
+  rununittest:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    needs: install-dependencies
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Restore Cache
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.wasmtime
+            node_modules
+          key: ${{ runner.os }}-dependencies-${{ hashFiles('**/package-lock.json') }}
+
+      - name: Set up Wasmtime PATH
+        run: |
+          echo "$HOME/.wasmtime/bin" >> $GITHUB_PATH
+
+      - name: Run Unit Tests
+        run: |
           ./test.sh
           (cd testenv && ./test.sh)
           (cd examples/nft && ./test.sh)
           (cd examples/minimumweb4 && ./test.sh)
           (cd examples/fungibletoken && ./test.sh)
+
+  # Job to run end-to-end tests
   e2etests:
     name: End to end tests
     runs-on: ubuntu-latest
+    needs: install-dependencies
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+
+      - name: Restore Cache
+        uses: actions/cache@v3
         with:
-          node-version: 20
-      - name: End to end tests
+          path: |
+            ~/.wasmtime
+            node_modules
+          key: ${{ runner.os }}-dependencies-${{ hashFiles('**/package-lock.json') }}
+
+      - name: Run End to End Tests
         run: |
-          set -e
-          ./.devcontainer/install-dependencies.sh
           npm install -g near-cli
           mkdir out
           ./build.sh
           yarn install
           yarn test-e2e
+
+  # Job to run NFT example end-to-end tests
   e2e-test-example-nft:
     name: NFT example End to End tests
     runs-on: ubuntu-latest
+    needs: install-dependencies
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+
+      - name: Restore Cache
+        uses: actions/cache@v3
         with:
-          node-version: 20
-      - name: NFT example End to End tests
+          path: |
+            ~/.wasmtime
+            node_modules
+          key: ${{ runner.os }}-dependencies-${{ hashFiles('**/package-lock.json') }}
+
+      - name: Run NFT example End to End Tests
         run: |
-          set -e
-          ./.devcontainer/install-dependencies.sh
-          yarn install
           cd examples/nft
           mkdir out
           ./build.sh          
           yarn test-examples-nft-e2e
+
+  # Job to run NFT example local JS tests
   localjs-test-example-nft:
     name: NFT example local JS test
     runs-on: ubuntu-latest
+    needs: install-dependencies
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+
+      - name: Restore Cache
+        uses: actions/cache@v3
         with:
-          node-version: 20
-      - name: NFT example local JS test
+          path: |
+            ~/.wasmtime
+            node_modules
+          key: ${{ runner.os }}-dependencies-${{ hashFiles('**/package-lock.json') }}
+
+      - name: Run NFT example local JS Tests
         run: |
-          set -e
-          ./.devcontainer/install-dependencies.sh
-          yarn install
           cd examples/nft
           mkdir out
           yarn test-examples-nft-localjs
+
+  # Job to run PureJS example local JS tests
   localjs-test-example-purejs:
     name: PureJS example local JS test
     runs-on: ubuntu-latest
+    needs: install-dependencies
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+
+      - name: Restore Cache
+        uses: actions/cache@v3
         with:
-          node-version: 20
-      - name: PureJS example local JS test
+          path: |
+            ~/.wasmtime
+            node_modules
+          key: ${{ runner.os }}-dependencies-${{ hashFiles('**/package-lock.json') }}
+
+      - name: Run PureJS example local JS Tests
         run: |
-          set -e
-          ./.devcontainer/install-dependencies.sh
-          yarn install
           yarn test-purejs
+
+  # Job to run Web app tests
   webapptests:
     name: Web app tests
     runs-on: ubuntu-latest
+    needs: install-dependencies
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+
+      - name: Restore Cache
+        uses: actions/cache@v3
         with:
-          node-version: 20
-      - name: Web app tests
+          path: |
+            ~/.wasmtime
+            node_modules
+          key: ${{ runner.os }}-dependencies-${{ hashFiles('**/package-lock.json') }}
+
+      - name: Run Web App Tests
         run: |
-          yarn install
           yarn test-web
