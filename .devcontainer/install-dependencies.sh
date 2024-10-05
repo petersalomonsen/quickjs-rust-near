@@ -8,8 +8,6 @@ tar -xvzf binaryen-version_116-x86_64-linux.tar.gz
 sudo cp -r binaryen-version_116/* /usr/
 rm -Rf binaryen-version_116*
 
-cargo install cargo-wasi
-
 curl https://wasmtime.dev/install.sh -sSf | bash
 export PATH="$HOME/.wasmtime/bin:$PATH"
 

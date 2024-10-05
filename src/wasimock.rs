@@ -131,7 +131,7 @@ pub extern "C" fn emscripten_get_now_res() -> f64 {
 
 #[no_mangle]
 pub extern "C" fn __wasi_fd_fdstat_get(_p1: i32, _p2: i32) -> i32 {
-    env::log_str("__wasi_fd_fdstat_get");
+    // env::log_str("__wasi_fd_fdstat_get");
     return 0;
 }
 
