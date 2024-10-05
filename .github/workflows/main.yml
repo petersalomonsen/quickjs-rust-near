@@ -28,11 +28,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-dependencies-
 
-      # Add Rust environment to be available for later jobs
-      - name: Persist Rust environment
-        run: |
-          echo "source $HOME/.cargo/env" >> $GITHUB_ENV
-
   # Job to run unit tests
   rununittest:
     name: Unit tests
