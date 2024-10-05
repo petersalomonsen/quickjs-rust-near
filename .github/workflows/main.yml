@@ -57,8 +57,8 @@ jobs:
           echo "$HOME/.wasmtime/bin" >> $GITHUB_PATH
           echo "$(pwd)/binaryen-version_116/bin" >> $GITHUB_PATH
           echo "$(pwd)/wabt-1.0.35/bin" >> $GITHUB_PATH
-          source $HOME/.cargo/env  # Ensure rustup is sourced
-          rustup target add wasm32-wasip1  # Explicitly add the target again for safety
+          rustup target add wasm32-wasip1 
+          rustup target add wasm32-unknown-unknown
 
       - name: Test path
         run: |
@@ -100,8 +100,8 @@ jobs:
           echo "$HOME/.wasmtime/bin" >> $GITHUB_PATH
           echo "$(pwd)/binaryen-version_116/bin" >> $GITHUB_PATH
           echo "$(pwd)/wabt-1.0.35/bin" >> $GITHUB_PATH
-          source $HOME/.cargo/env  # Ensure rustup is sourced
-          rustup target add wasm32-wasip1  # Explicitly add the target again for safety
+          rustup target add wasm32-wasip1 
+          rustup target add wasm32-unknown-unknown
 
       - name: Run End to End Tests
         run: |
@@ -136,8 +136,8 @@ jobs:
           echo "$HOME/.wasmtime/bin" >> $GITHUB_PATH
           echo "$(pwd)/binaryen-version_116/bin" >> $GITHUB_PATH
           echo "$(pwd)/wabt-1.0.35/bin" >> $GITHUB_PATH
-          source $HOME/.cargo/env  # Ensure rustup is sourced
-          rustup target add wasm32-wasip1  # Explicitly add the target again for safety
+          rustup target add wasm32-wasip1 
+          rustup target add wasm32-unknown-unknown
 
       - name: Run NFT example End to End Tests
         run: |
@@ -171,8 +171,8 @@ jobs:
           echo "$HOME/.wasmtime/bin" >> $GITHUB_PATH
           echo "$(pwd)/binaryen-version_116/bin" >> $GITHUB_PATH
           echo "$(pwd)/wabt-1.0.35/bin" >> $GITHUB_PATH
-          source $HOME/.cargo/env  # Ensure rustup is sourced
-          rustup target add wasm32-wasip1  # Explicitly add the target again for safety
+          rustup target add wasm32-wasip1 
+          rustup target add wasm32-unknown-unknown
 
       - name: Run NFT example local JS Tests
         run: |
@@ -205,8 +205,8 @@ jobs:
           echo "$HOME/.wasmtime/bin" >> $GITHUB_PATH
           echo "$(pwd)/binaryen-version_116/bin" >> $GITHUB_PATH
           echo "$(pwd)/wabt-1.0.35/bin" >> $GITHUB_PATH
-          source $HOME/.cargo/env  # Ensure rustup is sourced
-          rustup target add wasm32-wasip1  # Explicitly add the target again for safety
+          rustup target add wasm32-wasip1 
+          rustup target add wasm32-unknown-unknown
 
       - name: Run PureJS example local JS Tests
         run: |
@@ -237,8 +237,8 @@ jobs:
           echo "$HOME/.wasmtime/bin" >> $GITHUB_PATH
           echo "$(pwd)/binaryen-version_116/bin" >> $GITHUB_PATH
           echo "$(pwd)/wabt-1.0.35/bin" >> $GITHUB_PATH
-          source $HOME/.cargo/env  # Ensure rustup is sourced
-          rustup target add wasm32-wasip1  # Explicitly add the target again for safety
+          rustup target add wasm32-wasip1 
+          rustup target add wasm32-unknown-unknown
 
       - name: Run Web App Tests
         run: |
