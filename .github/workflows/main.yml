@@ -58,6 +58,13 @@ jobs:
           source $HOME/.cargo/env  # Ensure rustup is sourced
           rustup target add wasm32-wasip1  # Explicitly add the target again for safety
 
+      - name: Test path
+        run: |
+          env
+          whereis wasmtime
+          whereis wasm-opt
+          whereis wasm2c
+
       - name: Run Unit Tests
         run: |
           ./test.sh
