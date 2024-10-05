@@ -16,5 +16,5 @@
             ]
         }
     },
-    "postCreateCommand": "./.devcontainer/post-create.sh"
+    "postCreateCommand": "./.devcontainer/install-dependencies.sh"
 }
