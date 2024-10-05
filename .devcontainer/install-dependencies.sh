@@ -10,6 +10,7 @@ rm -Rf binaryen-version_116*
 
 cargo install cargo-wasi
 curl https://wasmtime.dev/install.sh -sSf | bash
+export PATH="$HOME/.wasmtime/bin:$PATH"
 
 wget https://bellard.org/quickjs/quickjs-2024-01-13.tar.xz
 tar -xf quickjs-2024-01-13.tar.xz
