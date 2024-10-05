@@ -50,9 +50,11 @@ jobs:
             quickjs-2024-01-13
           key: ${{ runner.os }}-dependencies-${{ hashFiles('**/package-lock.json') }}
 
-      - name: Set up Wasmtime PATH and Rust
+      - name: Set up paths and Rust
         run: |
           echo "$HOME/.wasmtime/bin" >> $GITHUB_PATH
+          echo "$(pwd)/binaryen-version_116/bin" >> $GITHUB_PATH
+          echo "$(pwd)/wabt-1.0.35/bin" >> $GITHUB_PATH
           source $HOME/.cargo/env  # Ensure rustup is sourced
           rustup target add wasm32-wasip1  # Explicitly add the target again for safety
 
@@ -83,10 +85,13 @@ jobs:
             quickjs-2024-01-13
           key: ${{ runner.os }}-dependencies-${{ hashFiles('**/package-lock.json') }}
 
-      - name: Set up Rust environment
+      - name: Set up paths and Rust
         run: |
-          source $HOME/.cargo/env
-          rustup target add wasm32-wasip1  # Re-add the target
+          echo "$HOME/.wasmtime/bin" >> $GITHUB_PATH
+          echo "$(pwd)/binaryen-version_116/bin" >> $GITHUB_PATH
+          echo "$(pwd)/wabt-1.0.35/bin" >> $GITHUB_PATH
+          source $HOME/.cargo/env  # Ensure rustup is sourced
+          rustup target add wasm32-wasip1  # Explicitly add the target again for safety
 
       - name: Run End to End Tests
         run: |
@@ -115,10 +120,13 @@ jobs:
             quickjs-2024-01-13
           key: ${{ runner.os }}-dependencies-${{ hashFiles('**/package-lock.json') }}
 
-      - name: Set up Rust environment
+      - name: Set up paths and Rust
         run: |
-          source $HOME/.cargo/env
-          rustup target add wasm32-wasip1  # Re-add the target
+          echo "$HOME/.wasmtime/bin" >> $GITHUB_PATH
+          echo "$(pwd)/binaryen-version_116/bin" >> $GITHUB_PATH
+          echo "$(pwd)/wabt-1.0.35/bin" >> $GITHUB_PATH
+          source $HOME/.cargo/env  # Ensure rustup is sourced
+          rustup target add wasm32-wasip1  # Explicitly add the target again for safety
 
       - name: Run NFT example End to End Tests
         run: |
@@ -146,10 +154,13 @@ jobs:
             quickjs-2024-01-13
           key: ${{ runner.os }}-dependencies-${{ hashFiles('**/package-lock.json') }}
 
-      - name: Set up Rust environment
+      - name: Set up paths and Rust
         run: |
-          source $HOME/.cargo/env
-          rustup target add wasm32-wasip1  # Re-add the target
+          echo "$HOME/.wasmtime/bin" >> $GITHUB_PATH
+          echo "$(pwd)/binaryen-version_116/bin" >> $GITHUB_PATH
+          echo "$(pwd)/wabt-1.0.35/bin" >> $GITHUB_PATH
+          source $HOME/.cargo/env  # Ensure rustup is sourced
+          rustup target add wasm32-wasip1  # Explicitly add the target again for safety
 
       - name: Run NFT example local JS Tests
         run: |
@@ -176,10 +187,13 @@ jobs:
             quickjs-2024-01-13
           key: ${{ runner.os }}-dependencies-${{ hashFiles('**/package-lock.json') }}
 
-      - name: Set up Rust environment
+      - name: Set up paths and Rust
         run: |
-          source $HOME/.cargo/env
-          rustup target add wasm32-wasip1  # Re-add the target
+          echo "$HOME/.wasmtime/bin" >> $GITHUB_PATH
+          echo "$(pwd)/binaryen-version_116/bin" >> $GITHUB_PATH
+          echo "$(pwd)/wabt-1.0.35/bin" >> $GITHUB_PATH
+          source $HOME/.cargo/env  # Ensure rustup is sourced
+          rustup target add wasm32-wasip1  # Explicitly add the target again for safety
 
       - name: Run PureJS example local JS Tests
         run: |
@@ -204,10 +218,13 @@ jobs:
             quickjs-2024-01-13
           key: ${{ runner.os }}-dependencies-${{ hashFiles('**/package-lock.json') }}
 
-      - name: Set up Rust environment
+      - name: Set up paths and Rust
         run: |
-          source $HOME/.cargo/env
-          rustup target add wasm32-wasip1  # Re-add the target
+          echo "$HOME/.wasmtime/bin" >> $GITHUB_PATH
+          echo "$(pwd)/binaryen-version_116/bin" >> $GITHUB_PATH
+          echo "$(pwd)/wabt-1.0.35/bin" >> $GITHUB_PATH
+          source $HOME/.cargo/env  # Ensure rustup is sourced
+          rustup target add wasm32-wasip1  # Explicitly add the target again for safety
 
       - name: Run Web App Tests
         run: |

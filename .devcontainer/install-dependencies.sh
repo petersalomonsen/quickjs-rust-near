@@ -7,8 +7,7 @@ rustup target add wasm32-wasip1
 # Install Binaryen
 wget https://github.com/WebAssembly/binaryen/releases/download/version_116/binaryen-version_116-x86_64-linux.tar.gz
 tar -xvzf binaryen-version_116-x86_64-linux.tar.gz 
-sudo cp -r binaryen-version_116/* /usr/
-rm -Rf binaryen-version_116*
+export PATH="$(pwd)/binaryen-version_116/bin:$PATH"
 
 # Install Wasmtime
 curl https://wasmtime.dev/install.sh -sSf | bash
@@ -26,8 +25,8 @@ cd wabt-1.0.35
 mkdir build
 cd build
 cmake ..
-sudo cmake --build . --target install
 cd ../..
+export PATH="$(pwd)/wabt-1.0.35/bin:$PATH"
 
 # Install Emscripten
 git clone https://github.com/emscripten-core/emsdk.git
@@ -35,7 +34,3 @@ cd emsdk
 ./emsdk install latest
 ./emsdk activate latest
 cd ..
-
-# Append necessary paths to GITHUB_ENV for persistence across steps
-echo "$HOME/.cargo/bin" >> $GITHUB_PATH
-echo "$HOME/.wasmtime/bin" >> $GITHUB_PATH
