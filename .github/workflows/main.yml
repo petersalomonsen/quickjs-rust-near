@@ -26,6 +26,7 @@ jobs:
             node_modules
             emsdk
             wabt-1.0.35
+            binaryen-version_116
             quickjs-2024-01-13
           key: ${{ runner.os }}-dependencies-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
@@ -47,6 +48,7 @@ jobs:
             node_modules
             emsdk
             wabt-1.0.35
+            binaryen-version_116
             quickjs-2024-01-13
           key: ${{ runner.os }}-dependencies-${{ hashFiles('**/package-lock.json') }}
 
@@ -89,6 +91,7 @@ jobs:
             node_modules
             emsdk
             wabt-1.0.35
+            binaryen-version_116
             quickjs-2024-01-13
           key: ${{ runner.os }}-dependencies-${{ hashFiles('**/package-lock.json') }}
 
@@ -124,6 +127,7 @@ jobs:
             node_modules
             emsdk
             wabt-1.0.35
+            binaryen-version_116
             quickjs-2024-01-13
           key: ${{ runner.os }}-dependencies-${{ hashFiles('**/package-lock.json') }}
 
@@ -158,6 +162,7 @@ jobs:
             node_modules
             emsdk
             wabt-1.0.35
+            binaryen-version_116
             quickjs-2024-01-13
           key: ${{ runner.os }}-dependencies-${{ hashFiles('**/package-lock.json') }}
 
@@ -191,6 +196,7 @@ jobs:
             node_modules
             emsdk
             wabt-1.0.35
+            binaryen-version_116
             quickjs-2024-01-13
           key: ${{ runner.os }}-dependencies-${{ hashFiles('**/package-lock.json') }}
 
@@ -222,6 +228,7 @@ jobs:
             node_modules
             emsdk
             wabt-1.0.35
+            binaryen-version_116
             quickjs-2024-01-13
           key: ${{ runner.os }}-dependencies-${{ hashFiles('**/package-lock.json') }}
 
