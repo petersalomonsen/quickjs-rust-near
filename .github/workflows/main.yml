@@ -18,6 +18,11 @@ jobs:
         run: |
           ./.devcontainer/install-dependencies.sh
 
+      - name: Use Node.js 20.x
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+
       - name: Cache Wasmtime and Node modules
         uses: actions/cache@v3
         with:
@@ -83,6 +88,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Use Node.js 20.x
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+
       - name: Restore Cache
         uses: actions/cache@v3
         with:
@@ -119,6 +129,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Use Node.js 20.x
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+
       - name: Restore Cache
         uses: actions/cache@v3
         with:
@@ -154,6 +169,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Use Node.js 20.x
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+
       - name: Restore Cache
         uses: actions/cache@v3
         with:
@@ -187,6 +207,10 @@ jobs:
     needs: install-dependencies
     steps:
       - uses: actions/checkout@v4
+      - name: Use Node.js 20.x
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
 
       - name: Restore Cache
         uses: actions/cache@v3
@@ -219,6 +243,11 @@ jobs:
     needs: install-dependencies
     steps:
       - uses: actions/checkout@v4
+
+      - name: Use Node.js 20.x
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
 
       - name: Restore Cache
         uses: actions/cache@v3
