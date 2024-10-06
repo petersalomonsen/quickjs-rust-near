@@ -9,11 +9,11 @@ rustup target add wasm32-wasip1
 # Install Binaryen
 wget https://github.com/WebAssembly/binaryen/releases/download/version_116/binaryen-version_116-x86_64-linux.tar.gz
 tar -xvzf binaryen-version_116-x86_64-linux.tar.gz 
-export PATH="$(pwd)/binaryen-version_116/bin:$PATH"
+echo 'export PATH="$(pwd)/binaryen-version_116/bin:$PATH"' >> ~/.bashrc
 
 # Install Wasmtime
 curl https://wasmtime.dev/install.sh -sSf | bash
-export PATH="$HOME/.wasmtime/bin:$PATH"
+echo 'export PATH="$HOME/.wasmtime/bin:$PATH"' >> ~/.bashrc
 
 # Install QuickJS
 wget https://bellard.org/quickjs/quickjs-2024-01-13.tar.xz
@@ -28,7 +28,7 @@ mkdir build
 cd build
 cmake ..
 cd ../..
-export PATH="$(pwd)/wabt-1.0.35/bin:$PATH"
+echo 'export PATH="$(pwd)/wabt-1.0.35/bin:$PATH"' >> ~/.bashrc
 
 # Install Emscripten
 git clone https://github.com/emscripten-core/emsdk.git

@@ -301,6 +301,7 @@ mod tests {
 
     #[test]
     fn test_parse_object() {
+        setup_test_env();
         let bytecode = compile_js(
             "(function () { return {hello: 'world', thenumberis: 42}; })()".to_string(),
             None,
@@ -318,6 +319,7 @@ mod tests {
 
     #[test]
     fn test_base64_encode() {
+        setup_test_env();
         let bytecode = compile_js(
             "(function () { return { val: env.base64_encode('hello')}; })()".to_string(),
             None,
@@ -334,6 +336,7 @@ mod tests {
 
     #[test]
     fn test_sha256_utf8_to_base64() {
+        setup_test_env();
         let bytecode = compile_js(
             "(function () { return { val: env.sha256_utf8_to_base64('hello\\n')}; })()".to_string(),
             None,

@@ -32,11 +32,11 @@ fn main() {
         "cargo:rustc-link-search=native={}",
         Path::new(&dir).join("quickjs-2024-01-13").display()
     );
-    //println!("cargo:rustc-link-search=native={}", Path::new(&dir).join("lib").display());
     println!("cargo:rustc-link-lib=static=quickjs");
     println!("cargo:rustc-link-lib=static=jseval");
-    //println!("cargo:rustc-link-lib=static=c-optz");
+
     println!("cargo:rustc-link-lib=static=emmalloc");
     println!("cargo:rustc-link-lib=static=compiler_rt");
     println!("cargo:rustc-link-lib=static=standalonewasm");
+    println!("cargo:rustc-link-lib=static=c");
 }

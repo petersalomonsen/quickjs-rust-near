@@ -129,7 +129,6 @@ JSValue js_load_bytecode(const uint8_t *buf, size_t buf_len)
     module_name = JS_GetModuleName(ctx, JS_VALUE_GET_PTR(module_obj));
     module_name_str = JS_AtomToCString(ctx, module_name);
 
-    printf("Module name is %s. Bytecode length is %d\n", module_name_str, buf_len);
     load_module_promise = JS_LoadModule(ctx, "", module_name_str);
     js_std_loop_no_os(ctx);
     JS_FreeCString(ctx, module_name_str);

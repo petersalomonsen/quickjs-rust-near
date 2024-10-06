@@ -19,6 +19,24 @@ pub extern "C" fn _emscripten_date_now() -> f64 {
 }
 
 #[no_mangle]
+pub extern "C" fn __wasi_clock_time_get(
+    _clock_id: i32,     // Unused, but included for signature correctness
+    precision: u64,      // Precision parameter (u64), part of the spec but unused here
+    time: *mut u64       // Pointer where the time will be written
+) -> i32 {
+    // Get the block timestamp (mocking the actual time function using NEAR's block timestamp)
+    let block_timestamp = env::block_timestamp();
+
+    // Store the block timestamp in the provided memory location
+    unsafe {
+        *time = block_timestamp;
+    }
+
+    // Return 0 to indicate success
+    return 0;
+}
+
+#[no_mangle]
 pub extern "C" fn _emscripten_get_progname(_p1: i32, _p2: i32) {}
 
 #[no_mangle]

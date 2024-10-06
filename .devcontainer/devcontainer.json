@@ -12,7 +12,8 @@
                 "rust-lang.rust-analyzer",
                 "github.vscode-github-actions",
                 "vadimcn.vscode-lldb",
-                "ms-vscode.cpptools-extension-pack"
+                "ms-vscode.cpptools-extension-pack",
+                "ms-vscode.makefile-tools"
             ]
         }
     },
