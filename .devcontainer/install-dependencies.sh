@@ -27,6 +27,7 @@ cd wabt-1.0.35
 mkdir build
 cd build
 cmake ..
+cmake build --
 cd ../..
 echo 'export PATH="$(pwd)/wabt-1.0.35/bin:$PATH"' >> ~/.bashrc
 

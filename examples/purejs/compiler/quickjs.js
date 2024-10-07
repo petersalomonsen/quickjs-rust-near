@@ -1,4 +1,5 @@
 import { Wasi } from './wasi.js';
+import { readFile } from 'fs/promises';
 
 const JS_TAG_FIRST = -11; /* first negative tag */
 const JS_TAG_BIG_DECIMAL = -11;
@@ -35,7 +36,7 @@ class QuickJS {
                 this.stderrlines.push(data.join(' '));
                 console.error(...data);
             }
-            const wasm = await fetch(new URL('https://ipfs.web4.near.page/ipfs/bafkreifs67a5kuzcz4ldka23wrqjnmcb7hhnc45ktnyjiorcohrkxdxrd4?filename=jseval-287b734b.wasm')).then(r => r.arrayBuffer());
+            const wasm = await readFile(new URL('../../../quickjslib/jseval.wasm', import.meta.url));
             const mod = (await WebAssembly.instantiate(wasm, {
                 "wasi_snapshot_preview1": this.wasi
             })).instance;
