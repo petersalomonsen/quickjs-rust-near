@@ -156,9 +156,10 @@ jobs:
 
       - name: Run NFT example End to End Tests
         run: |
+          yarn install
           cd examples/nft
           mkdir out
-          ./build.sh          
+          ./build.sh
           yarn test-examples-nft-e2e
 
   # Job to run NFT example local JS tests
@@ -196,6 +197,7 @@ jobs:
 
       - name: Run NFT example local JS Tests
         run: |
+          yarn install
           cd examples/nft
           mkdir out
           yarn test-examples-nft-localjs
@@ -234,6 +236,7 @@ jobs:
 
       - name: Run PureJS example local JS Tests
         run: |
+          yarn install
           yarn test-purejs
 
 
@@ -268,6 +271,7 @@ jobs:
 
       - name: Run QuickJSLib Tests
         run: |
+          yarn install
           yarn test-quickjslib
 
   # Job to run Web app tests
@@ -305,4 +309,5 @@ jobs:
 
       - name: Run Web App Tests
         run: |
+          yarn install
           yarn test-web
