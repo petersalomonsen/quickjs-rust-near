@@ -4,7 +4,7 @@ use std::ffi::{CStr, CString};
 use std::slice;
 
 extern "C" {
-    fn create_runtime();
+    pub fn create_runtime();
     fn js_eval(filename: i32, script: i32, is_module: i32) -> i32;
     fn js_eval_bytecode(buf: *const u8, buf_len: usize) -> i64;
     fn js_compile_to_bytecode(filename: i32, source: i32, out_buf_len: i32, module: i32) -> i32;
