@@ -42,6 +42,7 @@ class QuickJS {
             })).instance;
             this.wasi.init(mod);
             this.wasmInstance = mod.exports;
+            this.wasmInstance.init();
             return mod.exports;
         })();
     }

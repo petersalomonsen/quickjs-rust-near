@@ -53,3 +53,7 @@ const char* EMSCRIPTEN_KEEPALIVE get_js_string(uint64_t val)
 {
     return js_get_string(val);
 }
+
+void EMSCRIPTEN_KEEPALIVE init() {
+    create_runtime();
+}
