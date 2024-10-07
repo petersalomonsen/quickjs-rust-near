@@ -1,5 +1,5 @@
 import { readFile, writeFile } from 'fs/promises';
-import { createQuickJS } from './compiler/quickjs.js';
+import { createQuickJS } from '../../quickjslib/js/quickjs.js';
 
 const quickjs = await createQuickJS();
 const quickjs_bytecode = quickjs.compileToByteCode(/*javascript*/`

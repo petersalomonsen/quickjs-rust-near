@@ -29,6 +29,10 @@ static JSValue js_print(JSContext *ctx, JSValueConst this_val,
 
 void create_runtime()
 {
+    if (rt != NULL)
+    {
+        return;
+    }
     rt = JS_NewRuntime();
     ctx = JS_NewContextRaw(rt);
     JS_AddIntrinsicBaseObjects(ctx);
@@ -70,8 +74,10 @@ void js_std_loop_no_os(JSContext *ctx)
 
 int js_eval(const char *filename, const char *source, int module)
 {
+    create_runtime();
     int len = strlen(source);
 
+    printf("Source for %s is %s\n", filename, source);
     JSValue val = JS_Eval(ctx,
                           source,
                           len,
@@ -88,6 +94,7 @@ int js_eval(const char *filename, const char *source, int module)
 
 uint8_t *js_compile_to_bytecode(const char *filename, const char *source, size_t *out_buf_len, int module)
 {
+    create_runtime();
     int len = strlen(source);
 
     JSValue obj = JS_Eval(ctx,
@@ -106,6 +113,7 @@ uint8_t *js_compile_to_bytecode(const char *filename, const char *source, size_t
 JSValue js_eval_bytecode(const uint8_t *buf, size_t buf_len)
 {
     JSValue obj, val;
+    create_runtime();
 
     obj = JS_ReadObject(ctx, buf, buf_len, JS_READ_OBJ_BYTECODE);
     val = JS_EvalFunction(ctx, obj);
@@ -122,8 +130,9 @@ JSValue js_load_bytecode(const uint8_t *buf, size_t buf_len)
     JSValue module_obj;
     JSAtom module_name;
     JSValue load_module_promise;
-    const char * module_name_str;
+    const char *module_name_str;
 
+    create_runtime();
     module_obj = JS_ReadObject(ctx, buf, buf_len, JS_READ_OBJ_BYTECODE);
     JS_EvalFunction(ctx, module_obj);
     module_name = JS_GetModuleName(ctx, JS_VALUE_GET_PTR(module_obj));
@@ -132,7 +141,7 @@ JSValue js_load_bytecode(const uint8_t *buf, size_t buf_len)
     load_module_promise = JS_LoadModule(ctx, "", module_name_str);
     js_std_loop_no_os(ctx);
     JS_FreeCString(ctx, module_name_str);
-    
+
     return JS_PromiseResult(ctx, load_module_promise);
 }
 
@@ -141,7 +150,7 @@ JSValue js_call_function(JSValue mod_obj, const char *function_name)
     JSValue fun_obj, val;
 
     fun_obj = JS_GetPropertyStr(ctx, mod_obj, function_name);
-    
+
     val = JS_Call(ctx, fun_obj, mod_obj, 0, NULL);
     if (JS_IsException(val))
     {

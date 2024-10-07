@@ -6,5 +6,5 @@ export CC=clang
 (cd $QUICKJS_ROOT && make CC=emcc AR=emar libquickjs.a)
 emcc -Oz -I$QUICKJS_ROOT -s USE_PTHREADS=0 libjseval.c -c
 emar rcs libjseval.a libjseval.o
-emcc -s EXPORTED_FUNCTIONS="['_malloc']" -s STACK_SIZE=131072 -s INITIAL_MEMORY=67108864 --no-entry wasmlib.c libjseval.a $QUICKJS_ROOT/libquickjs.a -Oz -o jseval.wasm
-wasm-opt -Oz jseval.wasm -o jseval.wasm
+emcc -g --no-entry -s STANDALONE_WASM=1 -s EXPORTED_FUNCTIONS="['_malloc']" wasmlib.c libjseval.a $QUICKJS_ROOT/libquickjs.a -Oz -o jseval.wasm
+

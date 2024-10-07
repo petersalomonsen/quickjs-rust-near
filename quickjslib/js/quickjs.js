@@ -36,7 +36,7 @@ class QuickJS {
                 this.stderrlines.push(data.join(' '));
                 console.error(...data);
             }
-            const wasm = await readFile(new URL('../../../quickjslib/jseval.wasm', import.meta.url));
+            const wasm = await readFile(new URL('../jseval.wasm', import.meta.url));
             const mod = (await WebAssembly.instantiate(wasm, {
                 "wasi_snapshot_preview1": this.wasi
             })).instance;
@@ -67,7 +67,6 @@ class QuickJS {
 
     evalSource(src, modulefilename = '<evalsource>') {
         const instance = this.wasmInstance;
-
         return instance.eval_js_source(this.allocateString(modulefilename), this.allocateString(src), modulefilename != '<evalsource>');
     }
 

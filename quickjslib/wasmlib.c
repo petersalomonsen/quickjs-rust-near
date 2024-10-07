@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <time.h>
 
+extern void create_runtime();
 extern uint64_t js_get_property(uint64_t obj, const char *name);
 extern const char *js_get_string(uint64_t val);
 extern int js_eval(char *filename, char *source, int module);
