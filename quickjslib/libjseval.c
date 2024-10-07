@@ -30,18 +30,7 @@ static JSValue js_print(JSContext *ctx, JSValueConst this_val,
 void create_runtime()
 {
     rt = JS_NewRuntime();
-    ctx = JS_NewContextRaw(rt);
-    JS_AddIntrinsicBaseObjects(ctx);
-    JS_AddIntrinsicDate(ctx);
-    JS_AddIntrinsicEval(ctx);
-    JS_AddIntrinsicStringNormalize(ctx);
-    JS_AddIntrinsicRegExp(ctx);
-    JS_AddIntrinsicJSON(ctx);
-    JS_AddIntrinsicProxy(ctx);
-    JS_AddIntrinsicMapSet(ctx);
-    JS_AddIntrinsicTypedArrays(ctx);
-    JS_AddIntrinsicPromise(ctx);
-    JS_AddIntrinsicBigInt(ctx);
+    ctx = JS_NewContext(rt);
 
     global_obj = JS_GetGlobalObject(ctx);
     JS_SetPropertyStr(ctx, global_obj, "print",
@@ -122,7 +111,7 @@ JSValue js_load_bytecode(const uint8_t *buf, size_t buf_len)
     JSValue module_obj;
     JSAtom module_name;
     JSValue load_module_promise;
-    const char * module_name_str;
+    const char *module_name_str;
 
     module_obj = JS_ReadObject(ctx, buf, buf_len, JS_READ_OBJ_BYTECODE);
     JS_EvalFunction(ctx, module_obj);
@@ -132,7 +121,7 @@ JSValue js_load_bytecode(const uint8_t *buf, size_t buf_len)
     load_module_promise = JS_LoadModule(ctx, "", module_name_str);
     js_std_loop_no_os(ctx);
     JS_FreeCString(ctx, module_name_str);
-    
+
     return JS_PromiseResult(ctx, load_module_promise);
 }
 
@@ -141,7 +130,7 @@ JSValue js_call_function(JSValue mod_obj, const char *function_name)
     JSValue fun_obj, val;
 
     fun_obj = JS_GetPropertyStr(ctx, mod_obj, function_name);
-    
+
     val = JS_Call(ctx, fun_obj, mod_obj, 0, NULL);
     if (JS_IsException(val))
     {
