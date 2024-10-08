@@ -26,7 +26,7 @@ use near_sdk::collections::LazyOption;
 use near_sdk::json_types::U128;
 use near_sdk::{env, log, near_bindgen, AccountId, Balance, PanicOnDefault, PromiseOrValue};
 use quickjs_rust_near::jslib::{
-    add_function_to_js, arg_to_str, compile_js, js_call_function, load_js_bytecode,
+    add_function_to_js, arg_to_str, compile_js, js_call_function, load_js_bytecode, to_js_string,
 };
 
 const JS_BYTECODE_STORAGE_KEY: &[u8] = b"JS";
@@ -98,9 +98,10 @@ impl Contract {
         add_function_to_js(
             "ft_balance_of",
             |ctx: i32, _this_val: i64, _argc: i32, argv: i32| -> i64 {
-                return (*CONTRACT_REF)
+                let balance = (*CONTRACT_REF)
                     .ft_balance_of(AccountId::new_unchecked(arg_to_str(ctx, 0, argv)))
-                    .0 as i64;
+                    .0;
+                return to_js_string(ctx, balance.to_string());
             },
             1,
         );
@@ -149,7 +150,7 @@ mod tests {
     use super::*;
     use quickjs_rust_near_testenv::testenv::{
         alice, assert_latest_return_value_string_eq, bob, set_attached_deposit,
-        set_current_account_id, set_predecessor_account_id, setup_test_env,
+        set_current_account_id, set_input, set_predecessor_account_id, setup_test_env,
     };
 
     const TOTAL_SUPPLY: Balance = 1_000_000_000_000_000;
@@ -203,5 +204,26 @@ mod tests {
         );
         contract.call_js_func("hello".to_string());
         assert_latest_return_value_string_eq("hello".to_string());
+    }
+
+    #[test]
+    fn test_js_check_balance() {
+        setup_test_env();
+
+        let mut contract = Contract::new_default_meta(bob().into(), TOTAL_SUPPLY.into());
+        set_current_account_id(bob());
+        set_predecessor_account_id(bob());
+        contract.post_javascript(
+            "
+        export function check_balance() {
+            const { account_id } = JSON.parse(env.input());
+            env.value_return(env.ft_balance_of(account_id));
+        }
+        "
+            .to_string(),
+        );
+        set_input("{\"account_id\": \"bob.near\"}".into());
+        contract.call_js_func("check_balance".to_string());
+        assert_latest_return_value_string_eq(TOTAL_SUPPLY.to_string());
     }
 }
