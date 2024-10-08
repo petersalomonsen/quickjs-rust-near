@@ -15,6 +15,8 @@ NOTES:
   - To prevent the deployed contract from being modified or deleted, it should not have any access
     keys on its account.
 */
+use std::ffi::CString;
+
 use near_contract_standards::fungible_token::metadata::{
     FungibleTokenMetadata, FungibleTokenMetadataProvider, FT_METADATA_SPEC,
 };
@@ -23,6 +25,11 @@ use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::LazyOption;
 use near_sdk::json_types::U128;
 use near_sdk::{env, log, near_bindgen, AccountId, Balance, PanicOnDefault, PromiseOrValue};
+use quickjs_rust_near::jslib::{
+    add_function_to_js, arg_to_str, compile_js, js_call_function, load_js_bytecode,
+};
+
+const JS_BYTECODE_STORAGE_KEY: &[u8] = b"JS";
 
 #[near_bindgen]
 #[derive(BorshDeserialize, BorshSerialize, PanicOnDefault)]
@@ -31,6 +38,7 @@ pub struct Contract {
     metadata: LazyOption<FungibleTokenMetadata>,
 }
 
+static mut CONTRACT_REF: *const Contract = 0 as *const Contract;
 const DATA_IMAGE_SVG_NEAR_ICON: &str = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 288 288'%3E%3Cg id='l' data-name='l'%3E%3Cpath d='M187.58,79.81l-30.1,44.69a3.2,3.2,0,0,0,4.75,4.2L191.86,103a1.2,1.2,0,0,1,2,.91v80.46a1.2,1.2,0,0,1-2.12.77L102.18,77.93A15.35,15.35,0,0,0,90.47,72.5H87.34A15.34,15.34,0,0,0,72,87.84V201.16A15.34,15.34,0,0,0,87.34,216.5h0a15.35,15.35,0,0,0,13.08-7.31l30.1-44.69a3.2,3.2,0,0,0-4.75-4.2L96.14,186a1.2,1.2,0,0,1-2-.91V104.61a1.2,1.2,0,0,1,2.12-.77l89.55,107.23a15.35,15.35,0,0,0,11.71,5.43h3.13A15.34,15.34,0,0,0,216,201.16V87.84A15.34,15.34,0,0,0,200.66,72.5h0A15.35,15.35,0,0,0,187.58,79.81Z'/%3E%3C/g%3E%3C/svg%3E";
 
 #[near_bindgen]
@@ -57,11 +65,7 @@ impl Contract {
     /// Initializes the contract with the given total supply owned by the given `owner_id` with
     /// the given fungible token metadata.
     #[init]
-    pub fn new(
-        owner_id: AccountId,
-        total_supply: U128,
-        metadata: FungibleTokenMetadata,
-    ) -> Self {
+    pub fn new(owner_id: AccountId, total_supply: U128, metadata: FungibleTokenMetadata) -> Self {
         assert!(!env::state_exists(), "Already initialized");
         metadata.assert_valid();
         let mut this = Self {
@@ -77,6 +81,46 @@ impl Contract {
         }
         .emit();
         this
+    }
+
+    fn store_js_bytecode(&self, bytecode: Vec<u8>) {
+        env::storage_write(JS_BYTECODE_STORAGE_KEY, &bytecode);
+    }
+
+    fn load_js_bytecode(&self) -> i64 {
+        let bytecode = env::storage_read(JS_BYTECODE_STORAGE_KEY).unwrap();
+        return load_js_bytecode(bytecode.as_ptr(), bytecode.len());
+    }
+
+    unsafe fn add_js_functions(&self) {
+        CONTRACT_REF = self as *const Contract;
+
+        add_function_to_js(
+            "ft_balance_of",
+            |ctx: i32, _this_val: i64, _argc: i32, argv: i32| -> i64 {
+                return (*CONTRACT_REF)
+                    .ft_balance_of(AccountId::new_unchecked(arg_to_str(ctx, 0, argv)))
+                    .0 as i64;
+            },
+            1,
+        );
+    }
+
+    pub fn call_js_func(&self, function_name: String) {
+        let jsmod = self.load_js_bytecode();
+
+        unsafe {
+            self.add_js_functions();
+            let function_name_cstr = CString::new(function_name).unwrap();
+            js_call_function(jsmod, function_name_cstr.as_ptr() as i32);
+        }
+    }
+
+    pub fn post_javascript(&mut self, javascript: String) {
+        if env::signer_account_id() != env::current_account_id() {
+            env::panic_str("Unauthorized");
+        }
+        self.store_js_bytecode(compile_js(javascript, Some("main.js".to_string())));
     }
 
     fn on_account_closed(&mut self, account_id: AccountId, balance: Balance) {
@@ -100,13 +144,12 @@ impl FungibleTokenMetadataProvider for Contract {
 
 #[cfg(test)]
 mod tests {
-    use near_sdk::{Balance};
+    use near_sdk::Balance;
 
     use super::*;
-    use quickjs_rust_near::jslib::compile_js;
-
     use quickjs_rust_near_testenv::testenv::{
-        alice, bob, set_attached_deposit, set_predecessor_account_id,setup_test_env, storage_clear
+        alice, assert_latest_return_value_string_eq, bob, set_attached_deposit,
+        set_current_account_id, set_predecessor_account_id, setup_test_env,
     };
 
     const TOTAL_SUPPLY: Balance = 1_000_000_000_000_000;
@@ -114,7 +157,7 @@ mod tests {
     #[test]
     fn test_new() {
         setup_test_env();
-        
+
         let contract = Contract::new_default_meta(bob().into(), TOTAL_SUPPLY.into());
         assert_eq!(contract.ft_total_supply().0, TOTAL_SUPPLY);
         assert_eq!(contract.ft_balance_of(bob()).0, TOTAL_SUPPLY);
@@ -123,21 +166,42 @@ mod tests {
     #[test]
     fn test_transfer() {
         setup_test_env();
-        storage_clear();
 
         let mut contract = Contract::new_default_meta(bob().into(), TOTAL_SUPPLY.into());
         set_predecessor_account_id(alice());
         set_attached_deposit(contract.storage_balance_bounds().min.into());
 
         // Paying for account registration, aka storage deposit
-        contract.storage_deposit(Some(alice()),Some(true));
+        contract.storage_deposit(Some(alice()), Some(true));
 
         set_predecessor_account_id(bob());
         set_attached_deposit(1);
-        let transfer_amount = TOTAL_SUPPLY / 3;        
+        let transfer_amount = TOTAL_SUPPLY / 3;
         contract.ft_transfer(alice(), transfer_amount.into(), None);
 
-        assert_eq!(contract.ft_balance_of(bob()).0, (TOTAL_SUPPLY - transfer_amount));
+        assert_eq!(
+            contract.ft_balance_of(bob()).0,
+            (TOTAL_SUPPLY - transfer_amount)
+        );
         assert_eq!(contract.ft_balance_of(alice()).0, transfer_amount);
+    }
+
+    #[test]
+    fn test_javascript() {
+        setup_test_env();
+
+        let mut contract = Contract::new_default_meta(bob().into(), TOTAL_SUPPLY.into());
+        set_current_account_id(bob());
+        set_predecessor_account_id(bob());
+        contract.post_javascript(
+            "
+        export function hello() {
+            env.value_return(\"hello\");
+        }
+        "
+            .to_string(),
+        );
+        contract.call_js_func("hello".to_string());
+        assert_latest_return_value_string_eq("hello".to_string());
     }
 }

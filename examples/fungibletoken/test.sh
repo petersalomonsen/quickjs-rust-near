@@ -3,7 +3,7 @@
 rm ../../target/wasm32-wasip1/debug/deps/quickjs_rust_near_fungible_token-*.wasm
 # Compile the test without running it
 echo "Compiling tests for wasm32-wasip1 target..."
-cargo test --target=wasm32-wasip1 --no-run
+RUSTFLAGS='-C link-args=--initial-memory=67108864' cargo test --target=wasm32-wasip1 --no-run
 
 # Check if the compilation was successful
 if [ $? -ne 0 ]; then
