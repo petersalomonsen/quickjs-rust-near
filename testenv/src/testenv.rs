@@ -58,15 +58,13 @@ static mut TESTENV: Option<TestEnv> = None;
 
 pub fn setup_test_env() {
     unsafe {
-        if TESTENV.is_none() {
-            TESTENV = Some(TestEnv::new());
-            REGISTERS = Some(HashMap::new());
-            STORAGE = Some(HashMap::new());
+        TESTENV = Some(TestEnv::new());
+        REGISTERS = Some(HashMap::new());
+        STORAGE = Some(HashMap::new());
 
-            std::panic::set_hook(Box::new(|panic_info| {
-                let _ = writeln!(io::stderr(), "{}", panic_info);
-            }));
-        }
+        std::panic::set_hook(Box::new(|panic_info| {
+            let _ = writeln!(io::stderr(), "{}", panic_info);
+        }));
     }
 }
 
@@ -309,12 +307,6 @@ pub extern "C" fn storage_remove(key_len: i64, key_ptr: i64, register_id: i64) -
             return 1;
         }
         return 0;
-    }
-}
-
-pub fn storage_clear() {
-    unsafe {
-        STORAGE.as_mut().unwrap().clear();
     }
 }
 
