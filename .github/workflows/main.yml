@@ -233,9 +233,11 @@ jobs:
           echo "$(pwd)/wabt-1.0.35/bin" >> $GITHUB_PATH
           rustup target add wasm32-wasip1 
           rustup target add wasm32-unknown-unknown
+          whereis wasm2wat
 
       - name: Run PureJS example local JS Tests
         run: |
+          whereis wasm2wat
           yarn install
           yarn test-purejs
 
