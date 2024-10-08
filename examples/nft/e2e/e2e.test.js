@@ -4,6 +4,7 @@ import { readFile } from 'fs/promises';
 import { KeyPair, Worker } from 'near-workspaces';
 import { before, after, test, describe } from 'node:test';
 import { expect } from 'chai';
+import { createQuickJS } from '../../../quickjslib/js/quickjs.js';
 
 const connectionConfig = {
     networkId: "sandbox",
@@ -48,13 +49,18 @@ describe('NFT contract', () => {
         const nearConnection = await connect(connectionConfig);
         const accountId = contract.accountId;
 
+        const quickjs = await createQuickJS();
+        const jsContractSrc = (await readFile(new URL('../src/contract.js', import.meta.url))).toString();
+
+        const bytecode = quickjs.compileToByteCode(jsContractSrc, 'contract');
+
         const account = await nearConnection.account(accountId);
         await account.functionCall({
             contractId: accountId,
             methodName: 'post_quickjs_bytecode',
             gas: '300000000000000',
             args: {
-                bytecodebase64: await (await readFile('e2e/quickjsbytecode.bin')).toString('base64')
+                bytecodebase64: Buffer.from(bytecode).toString('base64')
             }
         });
         await account.functionCall({
@@ -403,13 +409,18 @@ describe('NFT contract', () => {
         const nearConnection = await connect(connectionConfig);
         const accountId = contract.accountId;
 
+        const quickjs = await createQuickJS();
+        const jsContractSrc = (await readFile(new URL('../src/contract.js', import.meta.url))).toString();
+
+        const bytecode = quickjs.compileToByteCode(jsContractSrc, 'contract');
+
         const account = await nearConnection.account(accountId);
         await account.functionCall({
             contractId: accountId,
             methodName: 'post_quickjs_bytecode',
             gas: '300000000000000',
             args: {
-                bytecodebase64: await (await readFile('e2e/quickjsbytecode.bin')).toString('base64')
+                bytecodebase64: Buffer.from(bytecode).toString('base64')
             }
         });
 
