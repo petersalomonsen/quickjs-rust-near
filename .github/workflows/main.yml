@@ -17,7 +17,6 @@ jobs:
       - name: Install dependencies
         run: |
           ./.devcontainer/install-dependencies.sh
-          ls $(pwd)/wabt-1.0.35/bin
 
       - name: Use Node.js 20.x
         uses: actions/setup-node@v3
@@ -65,13 +64,6 @@ jobs:
           echo "$(pwd)/wabt-1.0.35/bin" >> $GITHUB_PATH
           rustup target add wasm32-wasip1 
           rustup target add wasm32-unknown-unknown
-
-      - name: Test path
-        run: |
-          env
-          whereis wasmtime
-          whereis wasm-opt
-          whereis wasm2c
 
       - name: Run Unit Tests
         run: |
@@ -232,8 +224,6 @@ jobs:
           echo "$HOME/.wasmtime/bin" >> $GITHUB_PATH
           echo "$(pwd)/binaryen-version_116/bin" >> $GITHUB_PATH
           echo "$(pwd)/wabt-1.0.35/bin" >> $GITHUB_PATH
-          ls $(pwd)/wabt-1.0.35/bin
-          whereis wasm2wat
           rustup target add wasm32-wasip1 
           rustup target add wasm32-unknown-unknown
 
