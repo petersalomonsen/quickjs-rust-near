@@ -38,7 +38,7 @@ pub struct Contract {
     metadata: LazyOption<FungibleTokenMetadata>,
 }
 
-static mut CONTRACT_REF: *const Contract = 0 as *const Contract;
+static mut CONTRACT_REF: *mut Contract = 0 as *mut Contract;
 const DATA_IMAGE_SVG_NEAR_ICON: &str = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 288 288'%3E%3Cg id='l' data-name='l'%3E%3Cpath d='M187.58,79.81l-30.1,44.69a3.2,3.2,0,0,0,4.75,4.2L191.86,103a1.2,1.2,0,0,1,2,.91v80.46a1.2,1.2,0,0,1-2.12.77L102.18,77.93A15.35,15.35,0,0,0,90.47,72.5H87.34A15.34,15.34,0,0,0,72,87.84V201.16A15.34,15.34,0,0,0,87.34,216.5h0a15.35,15.35,0,0,0,13.08-7.31l30.1-44.69a3.2,3.2,0,0,0-4.75-4.2L96.14,186a1.2,1.2,0,0,1-2-.91V104.61a1.2,1.2,0,0,1,2.12-.77l89.55,107.23a15.35,15.35,0,0,0,11.71,5.43h3.13A15.34,15.34,0,0,0,216,201.16V87.84A15.34,15.34,0,0,0,200.66,72.5h0A15.35,15.35,0,0,0,187.58,79.81Z'/%3E%3C/g%3E%3C/svg%3E";
 
 #[near_bindgen]
@@ -92,12 +92,11 @@ impl Contract {
         return load_js_bytecode(bytecode.as_ptr(), bytecode.len());
     }
 
-    unsafe fn add_js_functions(&self) {
-        CONTRACT_REF = self as *const Contract;
-
+    unsafe fn add_js_functions(&mut self) {
+        CONTRACT_REF = self as *mut Contract;
         add_function_to_js(
             "ft_balance_of",
-            |ctx: i32, _this_val: i64, _argc: i32, argv: i32| -> i64 {
+            move |ctx: i32, _this_val: i64, _argc: i32, argv: i32| -> i64 {
                 let balance = (*CONTRACT_REF)
                     .ft_balance_of(AccountId::new_unchecked(arg_to_str(ctx, 0, argv)))
                     .0;
@@ -105,9 +104,20 @@ impl Contract {
             },
             1,
         );
+
+        add_function_to_js(
+            "ft_transfer",
+            |ctx: i32, _this_val: i64, _argc: i32, argv: i32| -> i64 {
+                let receiver_id = AccountId::new_unchecked(arg_to_str(ctx, 0, argv));
+                let amount: U128 = U128(arg_to_str(ctx, 1, argv).parse::<u128>().unwrap());
+                (*CONTRACT_REF).ft_transfer(receiver_id, amount, None);
+                return 0;
+            },
+            2,
+        );
     }
 
-    pub fn call_js_func(&self, function_name: String) {
+    pub fn call_js_func(&mut self, function_name: String) {
         let jsmod = self.load_js_bytecode();
 
         unsafe {
@@ -225,5 +235,37 @@ mod tests {
         set_input("{\"account_id\": \"bob.near\"}".into());
         contract.call_js_func("check_balance".to_string());
         assert_latest_return_value_string_eq(TOTAL_SUPPLY.to_string());
+    }
+
+    #[test]
+    fn test_js_transfer() {
+        setup_test_env();
+
+        let mut contract = Contract::new_default_meta(bob().into(), TOTAL_SUPPLY.into());
+        set_current_account_id(bob());
+        set_predecessor_account_id(bob());
+        contract.post_javascript(
+            "
+        export function transfer() {
+            const { receiver_id, amount } = JSON.parse(env.input());
+            env.ft_transfer(receiver_id, amount);
+        }
+        "
+            .to_string(),
+        );
+
+        set_predecessor_account_id(alice());
+        set_attached_deposit(contract.storage_balance_bounds().min.into());
+
+        // Paying for account registration, aka storage deposit
+        contract.storage_deposit(Some(alice()), Some(true));
+
+        set_predecessor_account_id(bob());
+        set_input("{\"receiver_id\": \"alice.near\", \"amount\": \"333333333333333\"}".into());
+        set_attached_deposit(1);
+
+        contract.call_js_func("transfer".to_string());
+        assert_eq!(contract.ft_balance_of(bob()).0, TOTAL_SUPPLY - 333_333_333_333_333);
+        assert_eq!(contract.ft_balance_of(alice()).0, 333_333_333_333_333);
     }
 }
