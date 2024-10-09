@@ -8,6 +8,7 @@
         "web4bundle": "cd web4 && rollup -c rollup.config.js",
         "test-e2e": "node --test ./e2e",
         "test-web": "node --test web4",
+        "test-examples-fungibletoken-e2e": "cd examples/fungibletoken && ./build.sh && node --test e2e",
         "test-examples-nft-e2e": "yarn examples-nft-web4bundle && cd examples/nft && ./build.sh && node --test e2e",
         "test-examples-nft-localjs": "cd examples/nft && ./build.sh && node --test localjstest",
         "test-purejs": "cd examples/purejs && ./build.sh && node --test localjstest",

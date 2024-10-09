@@ -154,6 +154,7 @@ impl Contract {
         );
     }
 
+    #[payable]
     pub fn call_js_func(&mut self, function_name: String) {
         let jsmod = self.load_js_bytecode();
 
