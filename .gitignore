@@ -6,3 +6,6 @@ neardev*
 out
 .DS_Store
 wabt-*
+emsdk
+quickjs-*
+emsdk

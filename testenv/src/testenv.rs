@@ -1,9 +1,7 @@
-use lazy_static::lazy_static;
 use near_sdk::{AccountId, Balance, PublicKey};
 use sha2::Digest;
+use std::collections::HashMap;
 use std::io::{self, Write};
-use std::sync::Once;
-use std::{collections::HashMap, sync::Mutex};
 
 const EVICTED_REGISTER: i64 = (u64::MAX - 1) as i64;
 
@@ -53,170 +51,180 @@ impl TestEnv {
     }
 }
 
-lazy_static! {
-    static ref REGISTERS: Mutex<HashMap<i64, Vec<u8>>> = Mutex::new(HashMap::new());
-    static ref STORAGE: Mutex<HashMap<Vec<u8>, Vec<u8>>> = Mutex::new(HashMap::new());
-    static ref INIT: Once = Once::new();
-    static ref TESTENV: Mutex<TestEnv> = Mutex::new(TestEnv::new());
-}
+// Define static mutable variables for registers, storage, and test environment
+static mut REGISTERS: Option<HashMap<i64, Vec<u8>>> = None;
+static mut STORAGE: Option<HashMap<Vec<u8>, Vec<u8>>> = None;
+static mut TESTENV: Option<TestEnv> = None;
 
 pub fn setup_test_env() {
-    INIT.call_once(|| {
+    unsafe {
+        TESTENV = Some(TestEnv::new());
+        REGISTERS = Some(HashMap::new());
+        STORAGE = Some(HashMap::new());
+
         std::panic::set_hook(Box::new(|panic_info| {
             let _ = writeln!(io::stderr(), "{}", panic_info);
         }));
-    });
+    }
 }
 
 #[allow(dead_code)]
 pub fn set_signer_account_id(account_id: AccountId) {
-    TESTENV.lock().unwrap().signer_account_id = account_id;
+    unsafe {
+        if let Some(test_env) = TESTENV.as_mut() {
+            test_env.signer_account_id = account_id;
+        }
+    }
 }
 
 #[allow(dead_code)]
 pub fn set_signer_account_pk(pk: PublicKey) {
-    TESTENV.lock().unwrap().signer_account_pk = pk;
+    unsafe {
+        if let Some(test_env) = TESTENV.as_mut() {
+            test_env.signer_account_pk = pk;
+        }
+    }
 }
 
 #[allow(dead_code)]
 pub fn set_current_account_id(account_id: AccountId) {
-    TESTENV.lock().unwrap().current_account_id = account_id;
+    unsafe {
+        if let Some(test_env) = TESTENV.as_mut() {
+            test_env.current_account_id = account_id;
+        }
+    }
 }
 
 #[allow(dead_code)]
 pub fn set_predecessor_account_id(account_id: AccountId) {
-    TESTENV.lock().unwrap().predecessor_account_id = account_id;
+    unsafe {
+        if let Some(test_env) = TESTENV.as_mut() {
+            test_env.predecessor_account_id = account_id;
+        }
+    }
 }
 
 #[allow(dead_code)]
 pub fn set_input(input: Vec<u8>) {
-    TESTENV.lock().unwrap().input = input;
+    unsafe {
+        if let Some(test_env) = TESTENV.as_mut() {
+            test_env.input = input;
+        }
+    }
 }
 
 pub fn set_attached_deposit(deposit: Balance) {
-    TESTENV.lock().unwrap().attached_deposit = deposit;
+    unsafe {
+        if let Some(test_env) = TESTENV.as_mut() {
+            test_env.attached_deposit = deposit;
+        }
+    }
 }
 
 pub fn set_block_timestamp(timestamp_nanos: u64) {
-    TESTENV.lock().unwrap().block_timestamp = timestamp_nanos;
+    unsafe {
+        if let Some(test_env) = TESTENV.as_mut() {
+            test_env.block_timestamp = timestamp_nanos;
+        }
+    }
 }
 
 #[no_mangle]
 pub extern "C" fn read_register(register_id: i64, data_ptr: i64) {
-    let registers = REGISTERS.lock().unwrap();
-    let val = registers.get(&register_id);
-
-    if val.is_some() {
-        let src = val.unwrap().to_vec();
-
-        unsafe {
-            std::ptr::copy(src.as_ptr(), data_ptr as *mut u8, src.len());
+    unsafe {
+        let registers = REGISTERS.as_ref().unwrap();
+        if let Some(val) = registers.get(&register_id) {
+            std::ptr::copy(val.as_ptr(), data_ptr as *mut u8, val.len());
         }
     }
 }
 
 #[no_mangle]
 pub extern "C" fn register_len(register_id: i64) -> i64 {
-    let registers = REGISTERS.lock().unwrap();
-    let val = registers.get(&register_id);
-
-    if val.is_some() {
-        return (val.unwrap().to_vec()).len() as i64;
-    } else {
+    unsafe {
+        let registers = REGISTERS.as_ref().unwrap();
+        if let Some(val) = registers.get(&register_id) {
+            return val.len() as i64;
+        }
         return u64::MAX as i64;
     }
 }
 
 #[no_mangle]
 pub extern "C" fn signer_account_id(register: i64) {
-    let mut registers = REGISTERS.lock().unwrap();
-    registers.insert(
-        register,
-        TESTENV
-            .lock()
-            .unwrap()
-            .signer_account_id
-            .to_string()
-            .into_bytes(),
-    );
+    unsafe {
+        let registers = REGISTERS.as_mut().unwrap();
+        let testenv = TESTENV.as_ref().unwrap();
+        registers.insert(register, testenv.signer_account_id.to_string().into_bytes());
+    }
 }
 
 #[no_mangle]
 pub extern "C" fn signer_account_pk(register: i64) {
-    let mut registers = REGISTERS.lock().unwrap();
-    registers.insert(
-        register,
-        TESTENV
-            .lock()
-            .unwrap()
-            .signer_account_pk
-            .as_bytes()
-            .to_vec(),
-    );
+    unsafe {
+        let registers = REGISTERS.as_mut().unwrap();
+        let testenv = TESTENV.as_ref().unwrap();
+        registers.insert(register, testenv.signer_account_pk.as_bytes().to_vec());
+    }
 }
 
 #[no_mangle]
 pub extern "C" fn current_account_id(register: i64) {
-    let mut registers = REGISTERS.lock().unwrap();
-    registers.insert(
-        register,
-        TESTENV
-            .lock()
-            .unwrap()
-            .current_account_id
-            .to_string()
-            .into_bytes(),
-    );
+    unsafe {
+        let registers = REGISTERS.as_mut().unwrap();
+        let testenv = TESTENV.as_ref().unwrap();
+        registers.insert(
+            register,
+            testenv.current_account_id.to_string().into_bytes(),
+        );
+    }
 }
 
 #[no_mangle]
 pub extern "C" fn predecessor_account_id(register: i64) {
-    let mut registers = REGISTERS.lock().unwrap();
-    registers.insert(
-        register,
-        TESTENV
-            .lock()
-            .unwrap()
-            .predecessor_account_id
-            .to_string()
-            .into_bytes(),
-    );
+    unsafe {
+        let registers = REGISTERS.as_mut().unwrap();
+        let testenv = TESTENV.as_ref().unwrap();
+        registers.insert(
+            register,
+            testenv.predecessor_account_id.to_string().into_bytes(),
+        );
+    }
 }
 
 #[no_mangle]
 pub extern "C" fn input(register: i64) {
-    let mut registers = REGISTERS.lock().unwrap();
-    registers.insert(register, TESTENV.lock().unwrap().input.to_vec());
+    unsafe {
+        let registers = REGISTERS.as_mut().unwrap();
+        let testenv = TESTENV.as_ref().unwrap();
+        registers.insert(register, testenv.input.clone());
+    }
 }
 
 #[no_mangle]
 pub extern "C" fn attached_deposit(data_ptr: i64) {
-    let src = TESTENV
-        .lock()
-        .unwrap()
-        .attached_deposit
-        .to_le_bytes()
-        .to_vec();
     unsafe {
+        let testenv = TESTENV.as_ref().unwrap();
+        let src = testenv.attached_deposit.to_le_bytes();
         std::ptr::copy(src.as_ptr(), data_ptr as *mut u8, src.len());
     }
 }
 
 #[no_mangle]
 pub extern "C" fn value_return(value_len: i64, value_ptr: i64) {
-    let bufptr: *const u8 = value_ptr as *const u8;
-    let buflen: usize = value_len as usize;
     unsafe {
-        TESTENV.lock().unwrap().returned_value =
-            std::slice::from_raw_parts(bufptr, buflen).to_vec();
+        let bufptr: *const u8 = value_ptr as *const u8;
+        let buflen: usize = value_len as usize;
+        let testenv = TESTENV.as_mut().unwrap();
+        testenv.returned_value = std::slice::from_raw_parts(bufptr, buflen).to_vec();
     }
 }
 
 #[no_mangle]
 fn panic_utf8(len: i64, ptr: i64) -> ! {
-    let bufptr: *const u8 = ptr as *const u8;
-    let buflen: usize = len as usize;
     unsafe {
+        let bufptr: *const u8 = ptr as *const u8;
+        let buflen: usize = len as usize;
         let str = std::str::from_utf8_unchecked(std::slice::from_raw_parts(bufptr, buflen));
         panic!("env_panic: {}", str);
     }
@@ -224,9 +232,9 @@ fn panic_utf8(len: i64, ptr: i64) -> ! {
 
 #[no_mangle]
 pub extern "C" fn log_utf8(len: i64, ptr: i64) {
-    let bufptr: *const u8 = ptr as *const u8;
-    let buflen: usize = len as usize;
     unsafe {
+        let bufptr: *const u8 = ptr as *const u8;
+        let buflen: usize = len as usize;
         let str = std::str::from_utf8_unchecked(std::slice::from_raw_parts(bufptr, buflen));
         println!("{}", str);
     }
@@ -234,11 +242,11 @@ pub extern "C" fn log_utf8(len: i64, ptr: i64) {
 
 #[no_mangle]
 pub extern "C" fn storage_has_key(key_len: i64, key_ptr: i64) -> i64 {
-    let keyptr: *const u8 = key_ptr as *const u8;
-    let keylen: usize = key_len as usize;
     unsafe {
+        let keyptr: *const u8 = key_ptr as *const u8;
+        let keylen: usize = key_len as usize;
         let key = std::slice::from_raw_parts(keyptr, keylen).to_vec();
-        return if STORAGE.lock().unwrap().contains_key(&key) {
+        return if STORAGE.as_ref().unwrap().contains_key(&key) {
             1
         } else {
             0
@@ -254,82 +262,88 @@ pub extern "C" fn storage_write(
     value_ptr: i64,
     _register_id: i64,
 ) -> i64 {
-    let keyptr: *const u8 = key_ptr as *const u8;
-    let keylen: usize = key_len as usize;
-    let valueptr: *const u8 = value_ptr as *const u8;
-    let valuelen: usize = value_len as usize;
-    let mut registers = REGISTERS.lock().unwrap();
     unsafe {
+        let keyptr: *const u8 = key_ptr as *const u8;
+        let keylen: usize = key_len as usize;
+        let valueptr: *const u8 = value_ptr as *const u8;
+        let valuelen: usize = value_len as usize;
         let key = std::slice::from_raw_parts(keyptr, keylen).to_vec();
         let val = std::slice::from_raw_parts(valueptr, valuelen).to_vec();
-        let evicted = STORAGE.lock().unwrap().insert(key, val);
-        if evicted.is_some() {
-            registers.insert(EVICTED_REGISTER as i64, evicted.unwrap());
+        let evicted = STORAGE.as_mut().unwrap().insert(key, val);
+        if let Some(evicted_val) = evicted {
+            REGISTERS
+                .as_mut()
+                .unwrap()
+                .insert(EVICTED_REGISTER, evicted_val);
             return 1;
-        } else {
-            return 0;
         }
+        return 0;
     }
 }
 
 #[no_mangle]
 pub extern "C" fn storage_read(key_len: i64, key_ptr: i64, register_id: i64) -> i64 {
-    let keyptr: *const u8 = key_ptr as *const u8;
-    let keylen: usize = key_len as usize;
-    let mut registers = REGISTERS.lock().unwrap();
-    let storage = STORAGE.lock().unwrap();
     unsafe {
+        let keyptr: *const u8 = key_ptr as *const u8;
+        let keylen: usize = key_len as usize;
         let key = std::slice::from_raw_parts(keyptr, keylen).to_vec();
-        if storage.contains_key(&key) {
-            let ret = storage.get(&key).unwrap().to_vec();
-            registers.insert(register_id, ret);
+        let storage = STORAGE.as_ref().unwrap();
+        if let Some(val) = storage.get(&key) {
+            REGISTERS.as_mut().unwrap().insert(register_id, val.clone());
             return 1;
-        } else {
-            return 0;
         }
+        return 0;
     }
 }
 
 #[no_mangle]
 pub extern "C" fn storage_remove(key_len: i64, key_ptr: i64, register_id: i64) -> i64 {
-    let keyptr: *const u8 = key_ptr as *const u8;
-    let keylen: usize = key_len as usize;
-    let mut registers = REGISTERS.lock().unwrap();
-    let mut storage = STORAGE.lock().unwrap();
     unsafe {
+        let keyptr: *const u8 = key_ptr as *const u8;
+        let keylen: usize = key_len as usize;
         let key = std::slice::from_raw_parts(keyptr, keylen).to_vec();
-        if storage.contains_key(&key) {
-            let ret = storage.remove(&key).unwrap().to_vec();
-            registers.insert(register_id, ret);
+        if let Some(val) = STORAGE.as_mut().unwrap().remove(&key) {
+            REGISTERS.as_mut().unwrap().insert(register_id, val);
             return 1;
-        } else {
-            return 0;
         }
+        return 0;
     }
 }
 
 pub fn assert_latest_return_value_contains(value_to_be_contained: String) {
-    let latest_return_value = std::str::from_utf8(TESTENV.lock().unwrap().returned_value.as_ref())
-        .unwrap()
-        .to_string();
-    assert_eq!(latest_return_value.contains(&value_to_be_contained), true, "latest return value should contain {}, but was {}",value_to_be_contained,latest_return_value);
+    unsafe {
+        let latest_return_value =
+            std::str::from_utf8(TESTENV.as_ref().unwrap().returned_value.as_ref())
+                .unwrap()
+                .to_string();
+        assert!(
+            latest_return_value.contains(&value_to_be_contained),
+            "latest return value should contain {}, but was {}",
+            value_to_be_contained,
+            latest_return_value
+        );
+    }
 }
 
 pub fn assert_latest_return_value_string_eq(expected_return_value: String) {
-    assert_eq!(
-        std::str::from_utf8(TESTENV.lock().unwrap().returned_value.as_ref()).unwrap(),
-        expected_return_value
-    );
+    unsafe {
+        assert_eq!(
+            std::str::from_utf8(TESTENV.as_ref().unwrap().returned_value.as_ref()).unwrap(),
+            expected_return_value
+        );
+    }
 }
 
 #[no_mangle]
 pub extern "C" fn storage_usage() -> i64 {
-    return STORAGE
-        .lock()
-        .unwrap()
-        .values()
-        .map(|x| x.len() as i64)
-        .sum();
+    unsafe {
+        return STORAGE
+            .as_ref()
+            .unwrap()
+            .values()
+            .map(|x| x.len() as i64)
+            .sum();
+    }
 }
 
 #[no_mangle]
@@ -339,15 +353,15 @@ pub extern "C" fn prepaid_gas() -> i64 {
 
 #[no_mangle]
 pub extern "C" fn sha256(value_len: i64, value_ptr: i64, register_id: i64) {
-    let valueptr: *const u8 = value_ptr as *const u8;
-    let valuelen: usize = value_len as usize;
-    let mut registers = REGISTERS.lock().unwrap();
     unsafe {
+        let valueptr: *const u8 = value_ptr as *const u8;
+        let valuelen: usize = value_len as usize;
         let value = std::slice::from_raw_parts(valueptr, valuelen).to_vec();
-
         let value_hash = sha2::Sha256::digest(&value);
-
-        registers.insert(register_id, value_hash.as_slice().to_vec());
+        REGISTERS
+            .as_mut()
+            .unwrap()
+            .insert(register_id, value_hash.to_vec());
     }
 }
 
@@ -467,20 +481,30 @@ pub extern "C" fn promise_return(_promise_idx: i64) {}
 
 #[no_mangle]
 pub extern "C" fn block_timestamp() -> i64 {
-    return TESTENV.lock().unwrap().block_timestamp.try_into().unwrap();
+    unsafe {
+        return TESTENV
+            .as_ref()
+            .unwrap()
+            .block_timestamp
+            .try_into()
+            .unwrap();
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::TESTENV;
+    use super::*;
 
     #[test]
     fn test_value_return() {
-        let ret_value = "test_value_return";
-        near_sdk::env::value_return(ret_value.as_ref());
-        assert_eq!(
-            std::str::from_utf8(TESTENV.lock().unwrap().returned_value.as_ref()).unwrap(),
-            ret_value
-        );
+        setup_test_env();
+        unsafe {
+            let ret_value = "test_value_return";
+            near_sdk::env::value_return(ret_value.as_ref());
+            assert_eq!(
+                std::str::from_utf8(TESTENV.as_ref().unwrap().returned_value.as_ref()).unwrap(),
+                ret_value
+            );
+        }
     }
 }

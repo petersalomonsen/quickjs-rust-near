@@ -1,8 +1,21 @@
 {
-    "postCreateCommand": "./.devcontainer/post-create.sh",
+    "features": {
+        "ghcr.io/devcontainers/features/rust:1": {},
+        "ghcr.io/near/near-devcontainers/features/cargo-near:latest": {},
+        "ghcr.io/near/near-devcontainers/features/near-cli:latest": {},
+        "ghcr.io/devcontainers-community/features/llvm": {}
+    },
     "customizations": {
         "vscode": {
-            "extensions": ["dtsvet.vscode-wasm", "rust-lang.rust-analyzer"]
+            "extensions": [
+                "dtsvet.vscode-wasm",
+                "rust-lang.rust-analyzer",
+                "github.vscode-github-actions",
+                "vadimcn.vscode-lldb",
+                "ms-vscode.cpptools-extension-pack",
+                "ms-vscode.makefile-tools"
+            ]
         }
-    }
+    },
+    "postCreateCommand": "./.devcontainer/install-dependencies.sh"
 }

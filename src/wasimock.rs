@@ -19,6 +19,24 @@ pub extern "C" fn _emscripten_date_now() -> f64 {
 }
 
 #[no_mangle]
+pub extern "C" fn __wasi_clock_time_get(
+    _clock_id: i32,     // Unused, but included for signature correctness
+    _precision: u64,      // Precision parameter (u64), part of the spec but unused here
+    time: *mut u64       // Pointer where the time will be written
+) -> i32 {
+    // Get the block timestamp (mocking the actual time function using NEAR's block timestamp)
+    let block_timestamp = env::block_timestamp();
+
+    // Store the block timestamp in the provided memory location
+    unsafe {
+        *time = block_timestamp;
+    }
+
+    // Return 0 to indicate success
+    return 0;
+}
+
+#[no_mangle]
 pub extern "C" fn _emscripten_get_progname(_p1: i32, _p2: i32) {}
 
 #[no_mangle]
@@ -86,14 +104,14 @@ pub extern "C" fn __syscall_getcwd(_buf: i32, _size: i32) -> i32 {
 #[no_mangle]
 //pub extern "C" fn __wasi_environ_sizes_get(_environ_count: libc::size_t, _environ_buf_size: libc::size_t) -> i32 {
 pub extern "C" fn __wasi_environ_sizes_get(_environ_count: i32, _environ_buf_size: i32) -> i32 {
-    env::log_str("__wasi_environ_sizes_get");
+    //env::log_str("__wasi_environ_sizes_get");
     return 0;
 }
 
 #[no_mangle]
 //pub extern "C" fn __wasi_environ_get(_environ: *const libc::c_char, _environ_buf: *const libc::c_char) -> i32 {
 pub extern "C" fn __wasi_environ_get(_environ: i32, _environ_buf: i32) -> i32 {
-    env::log_str("__wasi_environ_get");
+    //env::log_str("__wasi_environ_get");
     return 0;
 }
 
@@ -131,7 +149,7 @@ pub extern "C" fn emscripten_get_now_res() -> f64 {
 
 #[no_mangle]
 pub extern "C" fn __wasi_fd_fdstat_get(_p1: i32, _p2: i32) -> i32 {
-    env::log_str("__wasi_fd_fdstat_get");
+    // env::log_str("__wasi_fd_fdstat_get");
     return 0;
 }
 

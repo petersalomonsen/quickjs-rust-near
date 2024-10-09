@@ -146,7 +146,7 @@ export function predecessor_account_id(register) {
     set_register_string_value(register, _predecessor_account_id);
 }
 export function block_index() { }
-export function block_timestamp() { return new Date().getTime() }
+export function block_timestamp() { return BigInt(new Date().getTime() * 1_000_000) }
 export function epoch_height() { }
 
 export function prepaid_gas() { }

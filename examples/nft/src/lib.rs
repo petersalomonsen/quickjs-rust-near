@@ -551,8 +551,12 @@ mod tests {
     #[test]
     fn test_nft_approve() {
         setup_test_env();
+
+        set_current_account_id(bob());
         set_predecessor_account_id(bob());
+
         let mut contract = Contract::new();
+
         contract.post_javascript(
             "
 
@@ -567,7 +571,7 @@ mod tests {
             .to_string(),
         );
 
-        set_attached_deposit(1900000000000000000000);
+        set_attached_deposit(1960000000000000000000);
 
         let token_id = "554433".to_string();
         contract.nft_mint(token_id.to_owned(), bob());
@@ -639,6 +643,9 @@ mod tests {
     fn test_store_content() {
         setup_test_env();
 
+        set_predecessor_account_id(bob());
+        set_current_account_id(bob());
+
         let mut contract = Contract::new();
         contract.post_javascript(
             "
@@ -683,15 +690,24 @@ mod tests {
         set_current_account_id(bob());
 
         let mut contract = Contract::new();
+
         contract.post_javascript(
             "
+        export function nft_mint() {
+            return JSON.stringify({
+                title: 'test_title',
+                description: 'test_description'
+            });
+        }
+
         export function get_nft_token() {
             env.value_return(env.nft_token('1'));
         }
         "
             .to_string(),
         );
-
+        set_attached_deposit(1860000000000000000000);
+        contract.nft_mint("1".to_string(), bob());
         contract.call_js_func("get_nft_token".to_string());
 
         let token = contract.nft_token("1".to_string()).unwrap();

@@ -1140,10 +1140,22 @@ dependencies = [
  "bindgen",
  "ed25519-dalek",
  "hex",
- "lazy_static",
  "near-sdk",
  "quickjs-rust-near-testenv",
  "sha2 0.10.6",
+]
+
+[[package]]
+name = "quickjs-rust-near-fungible-token"
+version = "0.1.0"
+dependencies = [
+ "bindgen",
+ "ed25519-dalek",
+ "lazy_static",
+ "near-contract-standards",
+ "near-sdk",
+ "quickjs-rust-near",
+ "quickjs-rust-near-testenv",
 ]
 
 [[package]]

@@ -4,7 +4,7 @@ use std::ffi::{CStr, CString};
 use std::slice;
 
 extern "C" {
-    fn create_runtime();
+    pub fn create_runtime();
     fn js_eval(filename: i32, script: i32, is_module: i32) -> i32;
     fn js_eval_bytecode(buf: *const u8, buf_len: usize) -> i64;
     fn js_compile_to_bytecode(filename: i32, source: i32, out_buf_len: i32, module: i32) -> i32;
@@ -301,6 +301,7 @@ mod tests {
 
     #[test]
     fn test_parse_object() {
+        setup_test_env();
         let bytecode = compile_js(
             "(function () { return {hello: 'world', thenumberis: 42}; })()".to_string(),
             None,
@@ -318,6 +319,7 @@ mod tests {
 
     #[test]
     fn test_base64_encode() {
+        setup_test_env();
         let bytecode = compile_js(
             "(function () { return { val: env.base64_encode('hello')}; })()".to_string(),
             None,
@@ -334,6 +336,7 @@ mod tests {
 
     #[test]
     fn test_sha256_utf8_to_base64() {
+        setup_test_env();
         let bytecode = compile_js(
             "(function () { return { val: env.sha256_utf8_to_base64('hello\\n')}; })()".to_string(),
             None,
