@@ -246,9 +246,9 @@ mod tests {
         set_predecessor_account_id(bob());
         contract.post_javascript(
             "
-        export function transfer() {
-            const { receiver_id, amount } = JSON.parse(env.input());
-            env.ft_transfer(receiver_id, amount);
+        export function transfer_2_000_to_alice() {
+            const amount = 2_000n;
+            env.ft_transfer('alice.near', amount.toString());
         }
         "
             .to_string(),
@@ -261,11 +261,10 @@ mod tests {
         contract.storage_deposit(Some(alice()), Some(true));
 
         set_predecessor_account_id(bob());
-        set_input("{\"receiver_id\": \"alice.near\", \"amount\": \"333333333333333\"}".into());
         set_attached_deposit(1);
 
-        contract.call_js_func("transfer".to_string());
-        assert_eq!(contract.ft_balance_of(bob()).0, TOTAL_SUPPLY - 333_333_333_333_333);
-        assert_eq!(contract.ft_balance_of(alice()).0, 333_333_333_333_333);
+        contract.call_js_func("transfer_2_000_to_alice".to_string());
+        assert_eq!(contract.ft_balance_of(bob()).0, TOTAL_SUPPLY - 2_000);
+        assert_eq!(contract.ft_balance_of(alice()).0, 2_000);
     }
 }
