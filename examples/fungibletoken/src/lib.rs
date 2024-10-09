@@ -36,6 +36,7 @@ const JS_BYTECODE_STORAGE_KEY: &[u8] = b"JS";
 pub struct Contract {
     token: FungibleToken,
     metadata: LazyOption<FungibleTokenMetadata>,
+    data_map: near_sdk::collections::LookupMap<String, String>,
 }
 
 static mut CONTRACT_REF: *mut Contract = 0 as *mut Contract;
@@ -71,6 +72,7 @@ impl Contract {
         let mut this = Self {
             token: FungibleToken::new(b"a".to_vec()),
             metadata: LazyOption::new(b"m".to_vec(), Some(&metadata)),
+            data_map: near_sdk::collections::LookupMap::new(b"d".to_vec()),
         };
         this.token.internal_register_account(&owner_id);
         this.token.internal_deposit(&owner_id, total_supply.into());
@@ -93,6 +95,41 @@ impl Contract {
     }
 
     unsafe fn add_js_functions(&mut self) {
+        add_function_to_js(
+            "clear_data",
+            |ctx: i32, _this_val: i64, _argc: i32, argv: i32| -> i64 {
+                let key = arg_to_str(ctx, 0, argv);
+                let value = arg_to_str(ctx, 1, argv);
+                (*CONTRACT_REF).data_map.insert(&key, &value);
+                0
+            },
+            2,
+        );
+
+        add_function_to_js(
+            "set_data",
+            |ctx: i32, _this_val: i64, _argc: i32, argv: i32| -> i64 {
+                let key = arg_to_str(ctx, 0, argv);
+                let value = arg_to_str(ctx, 1, argv);
+                (*CONTRACT_REF).data_map.insert(&key, &value);
+                0
+            },
+            2,
+        );
+
+        add_function_to_js(
+            "get_data",
+            |ctx: i32, _this_val: i64, _argc: i32, argv: i32| -> i64 {
+                let key = arg_to_str(ctx, 0, argv);
+                let value = (*CONTRACT_REF)
+                    .data_map
+                    .get(&key)
+                    .unwrap_or_else(|| "".to_string());
+                to_js_string(ctx, value)
+            },
+            1,
+        );
+
         CONTRACT_REF = self as *mut Contract;
         add_function_to_js(
             "ft_balance_of",
@@ -160,7 +197,8 @@ mod tests {
     use super::*;
     use quickjs_rust_near_testenv::testenv::{
         alice, assert_latest_return_value_string_eq, bob, set_attached_deposit,
-        set_current_account_id, set_input, set_predecessor_account_id, setup_test_env,
+        set_block_timestamp, set_current_account_id, set_input, set_predecessor_account_id,
+        setup_test_env,
     };
 
     const TOTAL_SUPPLY: Balance = 1_000_000_000_000_000;
@@ -266,5 +304,58 @@ mod tests {
         contract.call_js_func("transfer_2_000_to_alice".to_string());
         assert_eq!(contract.ft_balance_of(bob()).0, TOTAL_SUPPLY - 2_000);
         assert_eq!(contract.ft_balance_of(alice()).0, 2_000);
+    }
+
+    #[test]
+    fn test_js_transfer_with_custom_data() {
+        setup_test_env();
+
+        let mut contract = Contract::new_default_meta(bob().into(), TOTAL_SUPPLY.into());
+        set_current_account_id(bob());
+        set_predecessor_account_id(bob());
+        contract.post_javascript(
+            "
+        export function transfer_2_000_to_alice() {
+            const amount = 2_000n;
+            const transfer_id = env.signer_account_id() + '_' + new Date().getTime();
+            env.set_data(transfer_id, JSON.stringify({receiver_id: env.signer_account_id(), refund_amount: (amount / 2n).toString()}));
+            env.ft_transfer('alice.near', amount.toString());
+            env.value_return(transfer_id);
+        }
+
+        export function refund() {
+            const { transfer_id } = JSON.parse(env.input());
+            const {refund_amount, receiver_id} = JSON.parse(env.get_data(transfer_id));
+            env.clear_data(transfer_id);
+            env.ft_transfer(receiver_id, refund_amount);
+        }
+        "
+            .to_string(),
+        );
+
+        set_predecessor_account_id(alice());
+        set_attached_deposit(contract.storage_balance_bounds().min.into());
+
+        // Paying for account registration, aka storage deposit
+        contract.storage_deposit(Some(alice()), Some(true));
+
+        set_predecessor_account_id(bob());
+        set_attached_deposit(1);
+
+        set_block_timestamp(1234_000_000);
+        contract.call_js_func("transfer_2_000_to_alice".to_string());
+        assert_latest_return_value_string_eq("bob.near_1234".to_string());
+        assert_eq!(contract.ft_balance_of(bob()).0, TOTAL_SUPPLY - 2_000);
+        assert_eq!(contract.ft_balance_of(alice()).0, 2_000);
+
+        set_predecessor_account_id(alice());
+        set_input("{\"transfer_id\": \"bob.near_1234\"}".into());
+        contract.call_js_func("refund".to_string());
+        assert_eq!(contract.ft_balance_of(bob()).0, TOTAL_SUPPLY - 1_000);
+        assert_eq!(contract.ft_balance_of(alice()).0, 1_000);
+
+        contract.call_js_func("refund".to_string());
+        assert_eq!(contract.ft_balance_of(bob()).0, TOTAL_SUPPLY - 1_000);
+        assert_eq!(contract.ft_balance_of(alice()).0, 1_000);
     }
 }
