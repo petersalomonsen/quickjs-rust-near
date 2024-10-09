@@ -191,9 +191,6 @@ jobs:
       - name: Run Fungible Token example End to End Tests
         run: |
           yarn install
-          cd examples/fungibletoken
-          mkdir out
-          ./build.sh
           yarn test-examples-fungibletoken-e2e
 
   # Job to run NFT example local JS tests
