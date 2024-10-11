@@ -5,9 +5,9 @@ use near_contract_standards::non_fungible_token::metadata::{
 };
 use near_contract_standards::non_fungible_token::{NonFungibleToken, Token, TokenId};
 
-use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
+use near_sdk::borsh::{BorshDeserialize, BorshSerialize};
 use near_sdk::json_types::U128;
-use near_sdk::{
+use near_sdk::{near,
     assert_one_yocto, base64, env, near_bindgen, serde_json, AccountId, BorshStorageKey,
     PanicOnDefault, Promise, PromiseOrValue,
 };
@@ -23,6 +23,7 @@ const JS_BYTECODE_STORAGE_KEY: &[u8] = b"JS";
 const JS_CONTENT_RESOURCE_PREFIX: &str = "JSC_";
 
 #[derive(BorshSerialize, BorshStorageKey)]
+#[borsh(crate="near_sdk::borsh")]
 enum StorageKey {
     NonFungibleToken,
     TokenMetadata,
@@ -32,6 +33,7 @@ enum StorageKey {
 
 #[near_bindgen]
 #[derive(BorshDeserialize, BorshSerialize, PanicOnDefault)]
+#[borsh(crate="near_sdk::borsh")]
 pub struct Contract {
     tokens: NonFungibleToken,
 }
@@ -75,7 +77,7 @@ impl Contract {
             "nft_supply_for_owner",
             |ctx: i32, _this_val: i64, _argc: i32, argv: i32| -> i64 {
                 return (*CONTRACT_REF)
-                    .nft_supply_for_owner(AccountId::new_unchecked(arg_to_str(ctx, 0, argv)))
+                    .nft_supply_for_owner(arg_to_str(ctx, 0, argv).parse().unwrap())
                     .0 as i64;
             },
             1,
@@ -310,6 +312,7 @@ mod tests {
 
     use super::*;
 
+    use near_sdk::NearToken;
     use quickjs_rust_near::jslib::compile_js;
     use quickjs_rust_near_testenv::testenv::{
         alice, assert_latest_return_value_contains, assert_latest_return_value_string_eq, bob,
@@ -344,7 +347,7 @@ mod tests {
         setup_test_env();
         set_current_account_id(bob());
         set_predecessor_account_id(bob());
-        set_attached_deposit(1640000000000000000000);
+        set_attached_deposit(NearToken::from_yoctonear(1640000000000000000000));
 
         let mut contract = Contract::new();
         contract.post_javascript(
@@ -367,7 +370,7 @@ mod tests {
         contract.call_js_func("get_supply_for_bob".to_string());
         assert_latest_return_value_string_eq("bob supply: 0".to_string());
 
-        set_attached_deposit(1900000000000000000000);
+        set_attached_deposit(NearToken::from_yoctonear(1900000000000000000000));
         contract.nft_mint("abc".to_string(), bob());
         assert_eq!(contract.nft_supply_for_owner(bob()).0, 1 as u128);
 
@@ -404,7 +407,7 @@ mod tests {
         );
 
         set_signer_account_id(alice());
-        set_attached_deposit(10440000000000000000000);
+        set_attached_deposit(NearToken::from_yoctonear(10440000000000000000000));
 
         contract.nft_mint("2222".to_string(), alice());
 
@@ -471,7 +474,7 @@ mod tests {
 
         assert_eq!(
             contract
-                .nft_supply_for_owner(AccountId::new_unchecked("unknown.near".to_string()))
+                .nft_supply_for_owner("unknown.near".parse().unwrap())
                 .0,
             0 as u128
         );
@@ -512,7 +515,7 @@ mod tests {
         setup_test_env();
         set_current_account_id(carol());
         set_predecessor_account_id(carol());
-        set_attached_deposit(1900000000000000000000);
+        set_attached_deposit(NearToken::from_yoctonear(1900000000000000000000));
 
         let mut contract = Contract::new();
         contract.post_javascript(
@@ -571,7 +574,7 @@ mod tests {
             .to_string(),
         );
 
-        set_attached_deposit(1960000000000000000000);
+        set_attached_deposit(NearToken::from_yoctonear(1960000000000000000000));
 
         let token_id = "554433".to_string();
         contract.nft_mint(token_id.to_owned(), bob());
@@ -619,7 +622,7 @@ mod tests {
             .to_string(),
         );
 
-        set_attached_deposit(2000000000000000000000);
+        set_attached_deposit(NearToken::from_yoctonear(2000000000000000000000));
 
         let token_id = "5544332".to_string();
         contract.nft_mint(token_id.to_owned(), alice());
@@ -706,7 +709,7 @@ mod tests {
         "
             .to_string(),
         );
-        set_attached_deposit(1860000000000000000000);
+        set_attached_deposit(NearToken::from_yoctonear(1860000000000000000000));
         contract.nft_mint("1".to_string(), bob());
         contract.call_js_func("get_nft_token".to_string());
 
@@ -737,7 +740,7 @@ mod tests {
             .to_string(),
         );
 
-        set_attached_deposit(2080000000000000000000);
+        set_attached_deposit(NearToken::from_yoctonear(2080000000000000000000));
 
         let token_id = "burn_me_now".to_string();
         contract.nft_mint(token_id.to_owned(), burn_account.to_owned());
@@ -756,7 +759,7 @@ mod tests {
             "burn_me_now"
         );
 
-        set_attached_deposit(1);
+        set_attached_deposit(NearToken::from_yoctonear(1));
 
         contract.nft_burn(token_id);
         assert_eq!(contract.nft_token("burn_me_now".to_string()), None);
