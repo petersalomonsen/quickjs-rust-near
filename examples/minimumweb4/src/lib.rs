@@ -10,6 +10,7 @@ const JS_CONTENT_RESOURCE_PREFIX: &str = "JSC_";
 
 #[near_bindgen]
 #[derive(BorshDeserialize, BorshSerialize, Default)]
+#[borsh(crate="near_sdk::borsh")]
 pub struct Contract {}
 
 static mut CONTRACT_REF: *const Contract = 0 as *const Contract;
