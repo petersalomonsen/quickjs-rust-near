@@ -17,14 +17,16 @@ NOTES:
 */
 use std::ffi::CString;
 
+use near_contract_standards::storage_management::{StorageBalance, StorageBalanceBounds};
+use near_sdk::near;
 use near_contract_standards::fungible_token::metadata::{
     FungibleTokenMetadata, FungibleTokenMetadataProvider, FT_METADATA_SPEC,
 };
 use near_contract_standards::fungible_token::FungibleToken;
-use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
+use near_sdk::borsh::{BorshDeserialize, BorshSerialize};
 use near_sdk::collections::LazyOption;
 use near_sdk::json_types::U128;
-use near_sdk::{env, log, near_bindgen, AccountId, Balance, PanicOnDefault, PromiseOrValue};
+use near_sdk::{env, log, near_bindgen, AccountId, NearToken, PanicOnDefault, PromiseOrValue};
 use quickjs_rust_near::jslib::{
     add_function_to_js, arg_to_str, compile_js, js_call_function, load_js_bytecode, to_js_string,
 };
@@ -33,6 +35,7 @@ const JS_BYTECODE_STORAGE_KEY: &[u8] = b"JS";
 
 #[near_bindgen]
 #[derive(BorshDeserialize, BorshSerialize, PanicOnDefault)]
+#[borsh(crate="near_sdk::borsh")]
 pub struct Contract {
     token: FungibleToken,
     metadata: LazyOption<FungibleTokenMetadata>,
@@ -78,7 +81,7 @@ impl Contract {
         this.token.internal_deposit(&owner_id, total_supply.into());
         near_contract_standards::fungible_token::events::FtMint {
             owner_id: &owner_id,
-            amount: &total_supply,
+            amount: total_supply,
             memo: Some("Initial tokens supply is minted"),
         }
         .emit();
@@ -134,8 +137,9 @@ impl Contract {
         add_function_to_js(
             "ft_balance_of",
             move |ctx: i32, _this_val: i64, _argc: i32, argv: i32| -> i64 {
+                let account_id = arg_to_str(ctx, 0, argv).parse().unwrap();
                 let balance = (*CONTRACT_REF)
-                    .ft_balance_of(AccountId::new_unchecked(arg_to_str(ctx, 0, argv)))
+                    .ft_balance_of(account_id)
                     .0;
                 return to_js_string(ctx, balance.to_string());
             },
@@ -145,7 +149,7 @@ impl Contract {
         add_function_to_js(
             "ft_transfer",
             |ctx: i32, _this_val: i64, _argc: i32, argv: i32| -> i64 {
-                let receiver_id = AccountId::new_unchecked(arg_to_str(ctx, 0, argv));
+                let receiver_id = arg_to_str(ctx, 0, argv).parse().unwrap();
                 let amount: U128 = U128(arg_to_str(ctx, 1, argv).parse::<u128>().unwrap());
                 (*CONTRACT_REF).ft_transfer(receiver_id, amount, None);
                 return 0;
@@ -172,17 +176,53 @@ impl Contract {
         self.store_js_bytecode(compile_js(javascript, Some("main.js".to_string())));
     }
 
-    fn on_account_closed(&mut self, account_id: AccountId, balance: Balance) {
+    fn on_account_closed(&mut self, account_id: AccountId, balance: u128) {
         log!("Closed @{} with {}", account_id, balance);
     }
 
-    fn on_tokens_burned(&mut self, account_id: AccountId, amount: Balance) {
+    fn on_tokens_burned(&mut self, account_id: AccountId, amount: u128) {
         log!("Account @{} burned {}", account_id, amount);
     }
 }
 
 near_contract_standards::impl_fungible_token_core!(Contract, token, on_tokens_burned);
-near_contract_standards::impl_fungible_token_storage!(Contract, token, on_account_closed);
+
+
+#[near]
+impl near_contract_standards::storage_management::StorageManagement for Contract {
+    #[payable]
+    fn storage_deposit(
+        &mut self,
+        account_id: Option<AccountId>,
+        registration_only: Option<bool>,
+    ) -> StorageBalance {
+        self.token.storage_deposit(account_id, registration_only)
+    }
+
+    #[payable]
+    fn storage_withdraw(&mut self, amount: Option<NearToken>) -> StorageBalance {
+        self.token.storage_withdraw(amount)
+    }
+
+    #[payable]
+    fn storage_unregister(&mut self, force: Option<bool>) -> bool {
+        #[allow(unused_variables)]
+        if let Some((account_id, balance)) = self.token.internal_storage_unregister(force) {
+            self.on_account_closed(account_id, balance);
+            true
+        } else {
+            false
+        }
+    }
+
+    fn storage_balance_bounds(&self) -> StorageBalanceBounds {
+        self.token.storage_balance_bounds()
+    }
+
+    fn storage_balance_of(&self, account_id: AccountId) -> Option<StorageBalance> {
+        self.token.storage_balance_of(account_id)
+    }
+}
 
 #[near_bindgen]
 impl FungibleTokenMetadataProvider for Contract {
@@ -193,16 +233,15 @@ impl FungibleTokenMetadataProvider for Contract {
 
 #[cfg(test)]
 mod tests {
-    use near_sdk::Balance;
-
     use super::*;
+    use near_contract_standards::storage_management::StorageManagement;
     use quickjs_rust_near_testenv::testenv::{
         alice, assert_latest_return_value_string_eq, bob, set_attached_deposit,
         set_block_timestamp, set_current_account_id, set_input, set_predecessor_account_id,
         setup_test_env,
     };
 
-    const TOTAL_SUPPLY: Balance = 1_000_000_000_000_000;
+    const TOTAL_SUPPLY: u128 = 1_000_000_000_000_000;
 
     #[test]
     fn test_new() {
@@ -225,7 +264,7 @@ mod tests {
         contract.storage_deposit(Some(alice()), Some(true));
 
         set_predecessor_account_id(bob());
-        set_attached_deposit(1);
+        set_attached_deposit(NearToken::from_yoctonear(1));
         let transfer_amount = TOTAL_SUPPLY / 3;
         contract.ft_transfer(alice(), transfer_amount.into(), None);
 
@@ -300,7 +339,7 @@ mod tests {
         contract.storage_deposit(Some(alice()), Some(true));
 
         set_predecessor_account_id(bob());
-        set_attached_deposit(1);
+        set_attached_deposit(NearToken::from_yoctonear(1));
 
         contract.call_js_func("transfer_2_000_to_alice".to_string());
         assert_eq!(contract.ft_balance_of(bob()).0, TOTAL_SUPPLY - 2_000);
@@ -341,7 +380,7 @@ mod tests {
         contract.storage_deposit(Some(alice()), Some(true));
 
         set_predecessor_account_id(bob());
-        set_attached_deposit(1);
+        set_attached_deposit(NearToken::from_yoctonear(1));
 
         set_block_timestamp(1234_000_000);
         contract.call_js_func("transfer_2_000_to_alice".to_string());

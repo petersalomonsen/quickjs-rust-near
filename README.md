@@ -56,7 +56,7 @@ The web application is packaged into a single HTML file using rollup, where the 
   - **DONE** Running tests
   - **DONE** Displaying errors (needs a panic hook)
   - **DONE** Minimum NEAR mock env  
-- Local simulation in browser/node Wasm runtime with mocked NEAR env in JavaScript
+- **DONE** Local simulation in browser/node Wasm runtime with mocked NEAR env in JavaScript
 - **DONE** End to End tests (testnet)
 - **DONE** Expose some NEAR environment functions to JS runtime
   - **DONE** `env.value_return`
@@ -64,6 +64,4 @@ The web application is packaged into a single HTML file using rollup, where the 
   - **DONE** `env.signer_account_id` (no need to load into register first)
 - **DONE** Web4 hosting showcase
 - **DONE** NFT implementation configurable with JavaScript
-- Fungible Token example
-
-
+- **DONE** Fungible Token example
