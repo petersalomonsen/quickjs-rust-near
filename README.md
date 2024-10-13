@@ -9,6 +9,12 @@ https://www.youtube.com/watch?v=JBZEr__pid0&list=PLv5wm4YuO4IwVNrSsYxeqKrtQZYRML
 
 Also check out the [end-to-end](#end-to-end-tests-using-near-workspaces) tests for how to use the contracts from this project.
 
+# Devcontainer / github actions
+
+All the pre-requisities for getting the project up and running can be found in the [.devcontainer](./.devcontainer) folder, which will be automaticall set up if using a github codespace.
+
+The github actions also shows how to build and run all the examples.
+
 # Architecture / structure
 
 QuickJS is built with [Emscripten](https://emscripten.org/) to a static library. Another C library, which can be found in the [quickjslib](./quickjslib/) folder, is providing a simplified interface to QuickJS, which is then linked to the Rust code along with other relevant static libraries from the Emscripten distribution ( such as the C standard library, allocator, WASI etc. ).
@@ -25,10 +31,14 @@ While it's common and more straightforward for NEAR smart contracts and many oth
 
 In the [e2e](./e2e/) folder and also within the [examples](./examples/) folders there are test files that demonstrates deployment and interaction with the contract using [near-workspaces-js](https://github.com/near/near-workspaces-js). All these tests are being run as part of the github actions pipeline, but you can also look at this for examples on how to use the contracts produced in this project.
 
+# Local JS test environment
+
+A simple mocking of NEAR interfaces for simulation of a smart contract directly in NodeJS or in the browser can be found in [localjstestenv](./localjstestenv/README.md).
+
 # Example contracts
 
-- [NFT](./examples/nft/README.md)
-- [Fungible Token](./examples/fungibletoken/README.md)
-- [Minimum Web4](./examples/minimumweb4/README.md)
-- "[PureJS](./examples/purejs/README.md)
-- [Web4 and a WebAssembly Music showcase](./web4/README.md)
+- [NFT](./examples/nft/README.md) - The standard NFT contract, customizable with JavaScript
+- [Fungible Token](./examples/fungibletoken/README.md) - The standard FT contract, customizable with JavaScript
+- [Minimum Web4](./examples/minimumweb4/README.md) - Implement the web4 interface in JavaScript to serve a website from the smart contract
+- "[PureJS](./examples/purejs/README.md)" - Precompile the JS bytecode into the contract, and provide direct exports to the JS functions.
+- [Web4 and a WebAssembly Music showcase](./web4/README.md) - JavaScript from WebAssembly Music running in the smart contract
