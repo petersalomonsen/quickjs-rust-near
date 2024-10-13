@@ -1,67 +1,34 @@
-Rust WebAssembly smart contract for NEAR with Javascript runtime
+Rust WebAssembly smart contracts for NEAR with Javascript runtime
 ================================================================
 
-This is a Proof of Concept of embedding QuickJS with https://github.com/near/near-sdk-rs for being able to execute custom JavaScript code inside a smart contract written in Rust.
+This project shows compiling and embedding [QuickJS](https://bellard.org/quickjs/) with https://github.com/near/near-sdk-rs for being able to execute custom JavaScript code inside a smart contract written in Rust. It contains examples of standard contracts like NFT and Fungible token, with JavaScript customization layers on top. There are also examples of a [web4](https://github.com/vgrichina/web4) contract.
 
-First of all, have a look at the videos where I present the project
+Check out the youtube playlist with videos showing the project:
 
 https://www.youtube.com/watch?v=JBZEr__pid0&list=PLv5wm4YuO4IwVNrSsYxeqKrtQZYRML03Z
 
-The QuickJS runtime is compiled from https://github.com/petersalomonsen/quickjs-wasm-near
+Also check out the [end-to-end](#end-to-end-tests-using-near-workspaces) tests for how to use the contracts from this project.
 
-The contract has two functions:
-- `run_script` accepting javascript as text for compiling on the fly.
-- `run_bytecode` for running JS pre-compiled into the QuickJS bytecode format. Send the pre-compiled bytecode as a base64 string. See https://github.com/petersalomonsen/quickjs-wasm-near/blob/master/web/compiler/compile.spec.js for examples on compiling JS to QuickJS bytecode.
-- `submit_script` for submitting and storing JavaScript and running later
-- `run_script_for_account` run script stored by account, returns an integer returned by the script
-- `run_script_for_account_no_return` run script stored by account, does not return anything unless the script calls `env.value_return`.
+# Architecture / structure
 
-For building and deploying the contract have a look at [buildanddeploy.sh](./buildanddeploy.sh).
+QuickJS is built with [Emscripten](https://emscripten.org/) to a static library. Another C library, which can be found in the [quickjslib](./quickjslib/) folder, is providing a simplified interface to QuickJS, which is then linked to the Rust code along with other relevant static libraries from the Emscripten distribution ( such as the C standard library, allocator, WASI etc. ).
 
-# Calling the deployed contract
+See the entire build process in [build.rs](./build.rs).
 
-Test running javascript as text:
+In the Rust part, there are contract implementations exposing functions for submitting JavaScript code. Both in the internal bytecode format of QuickJS, and pure JS source code.
 
-```
-near call dev-1650299983789-21350249865305 --accountId=psalomo.testnet run_script '{"script": "(function() {return 5*33+22;})();" }'
-```
+# Unit tests running in WebAssembly
 
-Here are some examples from a deployment to testnet account: `dev-1650299983789-21350249865305`
+While it's common and more straightforward for NEAR smart contracts and many other Rust WebAssembly projects, to have their unit tests compiled to the native platform, this project runs the unit test in a WebAssembly runtime. The reason for this is because of the static libraries compiled from C, which are already targeting Wasm. One limitation when running tests inside the Wasm runtime is that you cannot catch panics, and so testing the error messages has to be done in the end-2-end tests
 
-Test running bytecode ( which is compiled from `JSON.parse('{"a": 222}').a+3`):
+# End-to-end tests using near-workspaces
 
-```
-near call dev-1650299983789-21350249865305 --accountId=psalomo.testnet run_bytecode '{"bytecodebase64": "AgQKcGFyc2UUeyJhIjogMjIyfQJhGDxldmFsc291cmNlPg4ABgCgAQABAAMAABsBogEAAAA4mwAAAELeAAAABN8AAAAkAQBB4AAAALidzSjCAwEA" }'
-```
-# Testing
+In the [e2e](./e2e/) folder and also within the [examples](./examples/) folders there are test files that demonstrates deployment and interaction with the contract using [near-workspaces-js](https://github.com/near/near-workspaces-js). All these tests are being run as part of the github actions pipeline, but you can also look at this for examples on how to use the contracts produced in this project.
 
-Since we are linking with C libraries it is more practical to have Wasm pre-builds and run tests in a Wasm target rather than having builds for native platforms. Run the test using wasi like this:
+# Example contracts
 
-`RUSTFLAGS='-C link-args=--initial-memory=67108864' cargo wasi test -- --show-output --nocapture`
-
-Unfortunately testing with wasi has some limitations today. Especially panic does not support unwinding in Wasm, and so tests that should panic needs to be performed in e2e test scenarios. Read more here: https://bytecodealliance.github.io/cargo-wasi/testing.html
-
-# Web4 and a WebAssembly Music showcase
-
-The web application in the [web4](./web4) folder is a vanilla JS Web Component application for uploading music written in Javascript and also playing it, and accepting parameters in JSON for configuring the playback. It also contains functionality for exporting to WAV. See the video playlist above for a demo.
-
-The music to be played back is fetched in a view method call, and for controlling who can access this view method the JSON parameters payload is signed using the callers private key. The contract will then verify the signature according to the callers public key stored in a transaction before the view method call.
-
-The web application is packaged into a single HTML file using rollup, where the final bundle is embedded into the Rust sources encoded as a base64 string.
-
-# TODO
-
-- **DONE** Implement (mock) WASI methods in a linkable library so that WAT file does not have to be edited manually
-- **DONE** Integration/Unit testing support for Wasm32 target ( which is not supported with near-sdk-rs, see https://github.com/near/near-sdk-rs/issues/467 )
-  - **DONE** Running tests
-  - **DONE** Displaying errors (needs a panic hook)
-  - **DONE** Minimum NEAR mock env  
-- **DONE** Local simulation in browser/node Wasm runtime with mocked NEAR env in JavaScript
-- **DONE** End to End tests (testnet)
-- **DONE** Expose some NEAR environment functions to JS runtime
-  - **DONE** `env.value_return`
-  - **DONE** `env.input` (no need to load into register first)
-  - **DONE** `env.signer_account_id` (no need to load into register first)
-- **DONE** Web4 hosting showcase
-- **DONE** NFT implementation configurable with JavaScript
-- **DONE** Fungible Token example
+- [NFT](./examples/nft/README.md)
+- [Fungible Token](./examples/fungibletoken/README.md)
+- [Minimum Web4](./examples/minimumweb4/README.md)
+- "[PureJS](./examples/purejs/README.md)
+- [Web4 and a WebAssembly Music showcase](./web4/README.md)
