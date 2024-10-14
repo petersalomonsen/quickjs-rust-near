@@ -17,15 +17,15 @@ NOTES:
 */
 use std::ffi::CString;
 
-use near_contract_standards::storage_management::{StorageBalance, StorageBalanceBounds};
-use near_sdk::near;
 use near_contract_standards::fungible_token::metadata::{
     FungibleTokenMetadata, FungibleTokenMetadataProvider, FT_METADATA_SPEC,
 };
 use near_contract_standards::fungible_token::FungibleToken;
+use near_contract_standards::storage_management::{StorageBalance, StorageBalanceBounds};
 use near_sdk::borsh::{BorshDeserialize, BorshSerialize};
 use near_sdk::collections::LazyOption;
 use near_sdk::json_types::U128;
+use near_sdk::near;
 use near_sdk::{env, log, near_bindgen, AccountId, NearToken, PanicOnDefault, PromiseOrValue};
 use quickjs_rust_near::jslib::{
     add_function_to_js, arg_to_str, compile_js, js_call_function, load_js_bytecode, to_js_string,
@@ -35,7 +35,7 @@ const JS_BYTECODE_STORAGE_KEY: &[u8] = b"JS";
 
 #[near_bindgen]
 #[derive(BorshDeserialize, BorshSerialize, PanicOnDefault)]
-#[borsh(crate="near_sdk::borsh")]
+#[borsh(crate = "near_sdk::borsh")]
 pub struct Contract {
     token: FungibleToken,
     metadata: LazyOption<FungibleTokenMetadata>,
@@ -138,9 +138,7 @@ impl Contract {
             "ft_balance_of",
             move |ctx: i32, _this_val: i64, _argc: i32, argv: i32| -> i64 {
                 let account_id = arg_to_str(ctx, 0, argv).parse().unwrap();
-                let balance = (*CONTRACT_REF)
-                    .ft_balance_of(account_id)
-                    .0;
+                let balance = (*CONTRACT_REF).ft_balance_of(account_id).0;
                 return to_js_string(ctx, balance.to_string());
             },
             1,
@@ -152,6 +150,20 @@ impl Contract {
                 let receiver_id = arg_to_str(ctx, 0, argv).parse().unwrap();
                 let amount: U128 = U128(arg_to_str(ctx, 1, argv).parse::<u128>().unwrap());
                 (*CONTRACT_REF).ft_transfer(receiver_id, amount, None);
+                return 0;
+            },
+            2,
+        );
+
+        add_function_to_js(
+            "ft_transfer_internal",
+            |ctx: i32, _this_val: i64, _argc: i32, argv: i32| -> i64 {
+                let sender_id = env::predecessor_account_id();
+                let receiver_id = arg_to_str(ctx, 0, argv).parse().unwrap();
+                let amount: U128 = U128(arg_to_str(ctx, 1, argv).parse::<u128>().unwrap());
+                (*CONTRACT_REF)
+                    .token
+                    .internal_transfer(&sender_id, &receiver_id, amount.0, None);
                 return 0;
             },
             2,
@@ -186,7 +198,6 @@ impl Contract {
 }
 
 near_contract_standards::impl_fungible_token_core!(Contract, token, on_tokens_burned);
-
 
 #[near]
 impl near_contract_standards::storage_management::StorageManagement for Contract {
@@ -397,5 +408,37 @@ mod tests {
         contract.call_js_func("refund".to_string());
         assert_eq!(contract.ft_balance_of(bob()).0, TOTAL_SUPPLY - 1_000);
         assert_eq!(contract.ft_balance_of(alice()).0, 1_000);
+    }
+
+    #[test]
+    fn test_js_transfer_without_attached_neartokens() {
+        setup_test_env();
+
+        let mut contract = Contract::new_default_meta(bob().into(), TOTAL_SUPPLY.into());
+        set_current_account_id(bob());
+        set_predecessor_account_id(bob());
+        contract.post_javascript(
+            "
+        export function transfer_2_000_to_alice() {
+            const amount = 2_000n;
+            env.ft_transfer_internal('alice.near', amount.toString());
+            env.value_return(transfer_id);
+        }"
+            .to_string(),
+        );
+
+        set_predecessor_account_id(alice());
+        set_attached_deposit(contract.storage_balance_bounds().min.into());
+
+        // Paying for account registration, aka storage deposit
+        contract.storage_deposit(Some(alice()), Some(true));
+
+        set_predecessor_account_id(bob());
+        //set_attached_deposit(NearToken::from_yoctonear(1));
+
+        set_block_timestamp(1234_000_000);
+        contract.call_js_func("transfer_2_000_to_alice".to_string());
+        assert_eq!(contract.ft_balance_of(bob()).0, TOTAL_SUPPLY - 2_000);
+        assert_eq!(contract.ft_balance_of(alice()).0, 2_000);
     }
 }
