@@ -1,4 +1,4 @@
-use near_sdk::{AccountId, Balance, PublicKey};
+use near_sdk::{AccountId, NearToken, PublicKey};
 use sha2::Digest;
 use std::collections::HashMap;
 use std::io::{self, Write};
@@ -7,17 +7,17 @@ const EVICTED_REGISTER: i64 = (u64::MAX - 1) as i64;
 
 #[allow(dead_code)]
 pub fn alice() -> AccountId {
-    AccountId::new_unchecked("alice.near".to_string())
+    "alice.near".parse().unwrap()
 }
 
 #[allow(dead_code)]
 pub fn bob() -> AccountId {
-    AccountId::new_unchecked("bob.near".to_string())
+    "bob.near".parse().unwrap()
 }
 
 #[allow(dead_code)]
 pub fn carol() -> AccountId {
-    AccountId::new_unchecked("carol.near".to_string())
+    "carol.near".parse().unwrap()
 }
 
 struct TestEnv {
@@ -26,7 +26,7 @@ struct TestEnv {
     signer_account_pk: PublicKey,
     current_account_id: AccountId,
     predecessor_account_id: AccountId,
-    attached_deposit: Balance,
+    attached_deposit: NearToken,
     input: Vec<u8>,
     returned_value: Vec<u8>,
 }
@@ -38,7 +38,7 @@ impl TestEnv {
             signer_account_id: bob(),
             current_account_id: alice(),
             predecessor_account_id: bob(),
-            attached_deposit: 0,
+            attached_deposit: NearToken::from_near(0),
             signer_account_pk: vec![
                 00, 66, 211, 21, 84, 20, 241, 129, 29, 118, 83, 184, 41, 215, 240, 117, 106, 56,
                 29, 69, 103, 43, 191, 167, 199, 102, 3, 16, 194, 250, 138, 198, 78,
@@ -113,7 +113,7 @@ pub fn set_input(input: Vec<u8>) {
     }
 }
 
-pub fn set_attached_deposit(deposit: Balance) {
+pub fn set_attached_deposit(deposit: NearToken) {
     unsafe {
         if let Some(test_env) = TESTENV.as_mut() {
             test_env.attached_deposit = deposit;
@@ -205,7 +205,7 @@ pub extern "C" fn input(register: i64) {
 pub extern "C" fn attached_deposit(data_ptr: i64) {
     unsafe {
         let testenv = TESTENV.as_ref().unwrap();
-        let src = testenv.attached_deposit.to_le_bytes();
+        let src = testenv.attached_deposit.as_yoctonear().to_le_bytes();
         std::ptr::copy(src.as_ptr(), data_ptr as *mut u8, src.len());
     }
 }

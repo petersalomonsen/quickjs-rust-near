@@ -1,17 +1,19 @@
 use ed25519_dalek::ed25519::signature::Signature as DalekSig;
 use ed25519_dalek::PublicKey as DalekPK;
-use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
+use near_sdk::borsh::{BorshDeserialize, BorshSerialize};
 use near_sdk::{base64, env};
 use std::collections::HashMap;
 
 const ACCOUNT_SIGNING_KEYS_KEY: &[u8] = b"ACCSIGNKEYS";
 #[derive(Default, BorshDeserialize, BorshSerialize)]
+#[borsh(crate = "near_sdk::borsh")]
 struct AccountSigningKey {
     public_key: Vec<u8>,
     expires_timestamp_ms: u64,
 }
 
 #[derive(Default, BorshDeserialize, BorshSerialize)]
+#[borsh(crate = "near_sdk::borsh")]
 pub struct AccountSigningKeys {
     signing_keys_per_account: HashMap<String, AccountSigningKey>,
 }
@@ -26,12 +28,11 @@ pub fn load_account_signing_keys() -> AccountSigningKeys {
 }
 
 pub fn save_account_signing_keys(account_signing_keys: AccountSigningKeys) {
-    env::storage_write(
-        ACCOUNT_SIGNING_KEYS_KEY,
-        &account_signing_keys
-            .try_to_vec()
-            .expect("Cannot serialize account signing keys."),
-    );
+    let mut account_signing_keys_buffer: Vec<u8> = Vec::new();
+    account_signing_keys
+        .serialize(&mut account_signing_keys_buffer)
+        .expect("Cannot serialize account signing keys.");
+    env::storage_write(ACCOUNT_SIGNING_KEYS_KEY, &account_signing_keys_buffer);
 }
 
 pub fn store_signing_key_for_account(expires_timestamp_ms: u64) {
@@ -69,8 +70,9 @@ pub fn verify_message_signed_by_account(
     if account_signing_key_option.is_some() {
         let account_signing_key = account_signing_key_option.unwrap();
         if account_signing_key.expires_timestamp_ms > env::block_timestamp_ms() {
-            let pk = DalekPK::from_bytes(&account_signing_key_option.unwrap().public_key[1..].to_vec())
-                .unwrap();
+            let pk =
+                DalekPK::from_bytes(&account_signing_key_option.unwrap().public_key[1..].to_vec())
+                    .unwrap();
             let sig = DalekSig::from_bytes(base64::decode(&signature).unwrap().as_slice()).unwrap();
 
             return pk.verify_strict(signed_message.as_bytes(), &sig).is_ok();
@@ -84,11 +86,11 @@ mod tests {
     use super::{
         load_account_signing_keys, store_signing_key_for_account, verify_message_signed_by_account,
     };
+    use near_sdk::env::block_timestamp_ms;
     use quickjs_rust_near_testenv::testenv::{
         alice, bob, set_block_timestamp, set_signer_account_id, set_signer_account_pk,
         setup_test_env,
     };
-    use near_sdk::env::{block_timestamp_ms};
 
     const EXPIRY_MILLISECONDS: u64 = 24 * 60 * 60 * 1000;
     #[test]

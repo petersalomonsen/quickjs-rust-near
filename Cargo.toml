@@ -19,7 +19,7 @@ strip="symbols"
 strip = false
 
 [dependencies]
-near-sdk = "4.0.0"
+near-sdk = "5.5.0"
 ed25519-dalek = "1.0.1"
 sha2 = "0.10.6"
 hex = "0.4.3"

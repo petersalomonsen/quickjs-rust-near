@@ -17,6 +17,7 @@ pub mod viewaccesscontrol;
 mod wasimock;
 #[near_bindgen]
 #[derive(Default, BorshDeserialize, BorshSerialize)]
+#[borsh(crate="near_sdk::borsh")]
 #[cfg(not(feature = "library"))]
 pub struct Scripts {
     scripts: HashMap<String, Vec<u8>>,
