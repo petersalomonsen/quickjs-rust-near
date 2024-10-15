@@ -158,9 +158,9 @@ impl Contract {
         add_function_to_js(
             "ft_transfer_internal",
             |ctx: i32, _this_val: i64, _argc: i32, argv: i32| -> i64 {
-                let sender_id = env::predecessor_account_id();
-                let receiver_id = arg_to_str(ctx, 0, argv).parse().unwrap();
-                let amount: U128 = U128(arg_to_str(ctx, 1, argv).parse::<u128>().unwrap());
+                let sender_id = arg_to_str(ctx, 0, argv).parse().unwrap();
+                let receiver_id = arg_to_str(ctx, 1, argv).parse().unwrap();
+                let amount: U128 = U128(arg_to_str(ctx, 2, argv).parse::<u128>().unwrap());
                 (*CONTRACT_REF)
                     .token
                     .internal_transfer(&sender_id, &receiver_id, amount.0, None);
@@ -411,7 +411,7 @@ mod tests {
     }
 
     #[test]
-    fn test_js_transfer_without_attached_neartokens() {
+    fn test_js_transfer_internal_without_attached_neartokens() {
         setup_test_env();
 
         let mut contract = Contract::new_default_meta(bob().into(), TOTAL_SUPPLY.into());
@@ -419,9 +419,9 @@ mod tests {
         set_predecessor_account_id(bob());
         contract.post_javascript(
             "
-        export function transfer_2_000_to_alice() {
+        export function transfer_2_000_from_bob_to_alice() {
             const amount = 2_000n;
-            env.ft_transfer_internal('alice.near', amount.toString());
+            env.ft_transfer_internal('bob.near','alice.near', amount.toString());
             env.value_return(transfer_id);
         }"
             .to_string(),
@@ -434,10 +434,10 @@ mod tests {
         contract.storage_deposit(Some(alice()), Some(true));
 
         set_predecessor_account_id(bob());
-        //set_attached_deposit(NearToken::from_yoctonear(1));
+        set_attached_deposit(NearToken::from_yoctonear(0));
 
         set_block_timestamp(1234_000_000);
-        contract.call_js_func("transfer_2_000_to_alice".to_string());
+        contract.call_js_func("transfer_2_000_from_bob_to_alice".to_string());
         assert_eq!(contract.ft_balance_of(bob()).0, TOTAL_SUPPLY - 2_000);
         assert_eq!(contract.ft_balance_of(alice()).0, 2_000);
     }
