@@ -195,3 +195,4 @@ export function storage_has_key(key_len, key_ptr) {
 }
 export function validator_stake() { }
 export function validator_total_stake() { }
+export function ed25519_verify() { }

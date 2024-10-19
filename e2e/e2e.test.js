@@ -1,8 +1,8 @@
-import { Worker } from 'near-workspaces';
+import { KeyPair, Worker } from 'near-workspaces';
 import { before, after, test, describe } from 'node:test';
 import { expect } from 'chai';
 
-describe('run simple js', () => {
+describe('run simple js', { only: true }, () => {
     /**
      * @type {Worker}
      */
@@ -94,4 +94,49 @@ env.value_return(JSON.stringify(result));            `
         expect(result).to.equal('valid');
     }, 40000);
 
+    test('should verify signed message using ed25519_verify', { only: true }, async () => {
+        /**
+        * @type {KeyPair}
+        */
+        const keyPair = contractAccountKeyPair;
+        const messageToBeSigned = 'the expected message to be signed';
+
+        const messageBytes = new TextEncoder().encode(messageToBeSigned);
+        const signature = Array.from((await keyPair.sign(messageBytes)).signature);
+        const message = Array.from(messageBytes);
+        const public_key = Array.from(keyPair.getPublicKey().data);
+
+        await contract.call(
+            contract.accountId,
+            'submit_script',
+            {
+                script: `
+const args = JSON.parse(env.input());
+const result = env.ed25519_verify(new Uint8Array(args.signature), new Uint8Array(args.message), new Uint8Array(args.public_key));
+env.value_return(JSON.stringify(result ? 'valid' : 'invalid'));
+`
+            }
+        );
+
+        let result = await contract.view(
+            'run_script_for_account_no_return',
+            {
+                account_id: contract.accountId,
+                message,
+                signature,
+                public_key
+            }
+        );
+        expect(result).to.equal('valid');
+        result = await contract.view(
+            'run_script_for_account_no_return',
+            {
+                account_id: contract.accountId,
+                message: [3, 2, 5, 1],
+                signature,
+                public_key
+            }
+        );
+        expect(result).to.equal('invalid');
+    }, 40000);
 });

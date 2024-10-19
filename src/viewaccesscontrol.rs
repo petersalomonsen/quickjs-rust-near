@@ -1,7 +1,6 @@
-use ed25519_dalek::ed25519::signature::Signature as DalekSig;
-use ed25519_dalek::PublicKey as DalekPK;
 use near_sdk::borsh::{BorshDeserialize, BorshSerialize};
-use near_sdk::{base64, env};
+use near_sdk::env;
+use near_sdk::base64::{engine::general_purpose, Engine as _};
 use std::collections::HashMap;
 
 const ACCOUNT_SIGNING_KEYS_KEY: &[u8] = b"ACCSIGNKEYS";
@@ -59,7 +58,7 @@ pub fn store_signing_key_for_account(expires_timestamp_ms: u64) {
 
 pub fn verify_message_signed_by_account(
     signed_message: String,
-    signature: String,
+    signature_base64: String,
     account_id: String,
 ) -> bool {
     let account_signing_keys = load_account_signing_keys();
@@ -70,12 +69,10 @@ pub fn verify_message_signed_by_account(
     if account_signing_key_option.is_some() {
         let account_signing_key = account_signing_key_option.unwrap();
         if account_signing_key.expires_timestamp_ms > env::block_timestamp_ms() {
-            let pk =
-                DalekPK::from_bytes(&account_signing_key_option.unwrap().public_key[1..].to_vec())
-                    .unwrap();
-            let sig = DalekSig::from_bytes(base64::decode(&signature).unwrap().as_slice()).unwrap();
-
-            return pk.verify_strict(signed_message.as_bytes(), &sig).is_ok();
+            let signature_vec = general_purpose::STANDARD.decode(signature_base64).unwrap();
+            let signature = signature_vec.as_slice().try_into().unwrap();
+            let public_key = account_signing_key_option.unwrap().public_key[1..].try_into().unwrap();
+            return env::ed25519_verify(signature, signed_message.as_bytes(), public_key);
         }
     }
     return false;

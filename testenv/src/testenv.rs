@@ -1,3 +1,4 @@
+use ed25519_dalek::Signature;
 use near_sdk::{AccountId, NearToken, PublicKey};
 use sha2::Digest;
 use std::collections::HashMap;
@@ -488,6 +489,40 @@ pub extern "C" fn block_timestamp() -> i64 {
             .block_timestamp
             .try_into()
             .unwrap();
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn random_seed(_register: i64) {
+
+}
+
+#[no_mangle]
+pub extern "C" fn ed25519_verify(
+    signature_len: i64,
+    signature_ptr: i64,
+    message_len: i64,
+    message_ptr: i64,
+    public_key_len: i64,
+    public_key_ptr: i64,
+) -> i64 {
+    unsafe {
+        let signature = Signature::from_bytes(std::slice::from_raw_parts(
+            signature_ptr as *const u8,
+            signature_len as usize,
+        ))
+        .unwrap();
+        let message = std::slice::from_raw_parts(message_ptr as *const u8, message_len as usize);
+        let public_key = ed25519_dalek::PublicKey::from_bytes(std::slice::from_raw_parts(
+            public_key_ptr as *const u8,
+            public_key_len as usize,
+        ))
+        .unwrap();
+        if public_key.verify_strict(message, &signature).is_ok() {
+            1
+        } else {
+            0
+        }
     }
 }
 
