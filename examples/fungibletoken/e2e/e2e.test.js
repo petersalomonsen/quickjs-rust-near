@@ -1,6 +1,6 @@
 import { connect, keyStores } from 'near-api-js';
 import { Worker } from 'near-workspaces';
-import { before, after, test, describe } from 'node:test';
+import { before, after, test, describe, afterEach } from 'node:test';
 import { expect } from 'chai';
 import { createHash } from 'crypto';
 
@@ -56,6 +56,16 @@ describe('Fungible token contract', { only: true }, () => {
     });
     after(async () => {
         await worker.tearDown();
+    });
+
+    afterEach(async () => {
+        const aliceBalance = await contract.view('ft_balance_of', { account_id: 'alice.test.near' });
+        await alice.call(contract.accountId, 'ft_transfer', {
+            receiver_id: 'bob.test.near',
+            amount: aliceBalance.toString(),
+        }, {
+            attachedDeposit: 1n.toString()
+        });
     });
 
     test('should run custom javascript transfer functions in contract', async () => {
