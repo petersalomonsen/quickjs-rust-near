@@ -53,6 +53,12 @@ describe('Fungible token contract', { only: true }, () => {
         await contract.call(contract.accountId, 'new_default_meta', { owner_id: 'bob.test.near', total_supply: 1_000_000n.toString() });
         contractAccountKeyPair = await contract.getKey();
         connectionConfig.keyStore.setKey("sandbox", contract.accountId, contractAccountKeyPair);
+        await alice.call(contract.accountId, 'storage_deposit', {
+            account_id: 'alice.test.near',
+            registration_only: true,
+        }, {
+            attachedDeposit: 1_0000_0000000000_0000000000n.toString()
+        });
     });
     after(async () => {
         await worker.tearDown();
@@ -96,18 +102,6 @@ describe('Fungible token contract', { only: true }, () => {
                 `
             }
         });
-        await bob.call(accountId, 'storage_deposit', {
-            account_id: 'bob.test.near',
-            registration_only: true,
-        }, {
-            attachedDeposit: 1_0000_0000000000_0000000000n.toString()
-        });
-        await alice.call(accountId, 'storage_deposit', {
-            account_id: 'alice.test.near',
-            registration_only: true,
-        }, {
-            attachedDeposit: 1_0000_0000000000_0000000000n.toString()
-        });
 
         expect(await contract.view('ft_balance_of', { account_id: 'bob.test.near' })).to.equal(1_000_000n.toString());
 
@@ -148,12 +142,6 @@ describe('Fungible token contract', { only: true }, () => {
                 }
                 `
             }
-        });
-        await alice.call(accountId, 'storage_deposit', {
-            account_id: 'alice.test.near',
-            registration_only: true,
-        }, {
-            attachedDeposit: 1_0000_0000000000_0000000000n.toString()
         });
 
         let result = await bob.callRaw(accountId, 'call_js_func',
@@ -217,12 +205,6 @@ describe('Fungible token contract', { only: true }, () => {
             }
         });
 
-        await alice.call(accountId, 'storage_deposit', {
-            account_id: 'alice.test.near',
-            registration_only: true,
-        }, {
-            attachedDeposit: 1_0000_0000000000_0000000000n.toString()
-        });
         await bob.call(accountId, 'ft_transfer', {
             receiver_id: 'alice.test.near',
             amount: 2000n.toString(),
