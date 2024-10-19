@@ -28,6 +28,11 @@ extern "C" {
         psize: *mut usize, // Pointer to store the buffer size
         obj: i64,          // The JSValue representing the ArrayBuffer
     ) -> *mut u8; //
+    fn JS_NewArrayBufferCopy(
+        ctx: i32,
+        data: *const u8,
+        size: usize
+    ) -> i64;
 }
 
 pub const JS_UNDEFINED: i64 = 0x0000000300000000;
@@ -254,6 +259,18 @@ unsafe fn setup_quickjs() {
         1,
     );
     add_function_to_js(
+        "sha256_utf8",
+        |ctx: i32, _this_val: i64, _argc: i32, argv: i32| -> i64 {
+            let message_sha256 = near_sdk::env::sha256(arg_to_str(ctx, 0, argv).as_bytes());
+            JS_NewArrayBufferCopy(
+                ctx,
+                message_sha256.as_ptr(),  // Pass the pointer to the data (const u8)
+                message_sha256.len()          // Length of the data
+            )
+        },
+        1,
+    );
+    add_function_to_js(
         "ed25519_verify",
         |ctx: i32, _this_val: i64, _argc: i32, argv: i32| -> i64 {
             let signature_vec = arg_to_u8_array(ctx, 0, argv);
@@ -335,11 +352,14 @@ pub fn compile_js(script: String, modulename: Option<String>) -> Vec<u8> {
 mod tests {
     use super::{compile_js, js_get_property, js_get_string, run_js, run_js_bytecode};
     use crate::viewaccesscontrol::store_signing_key_for_account;
-    use near_sdk::base64;
+    use near_sdk::{base64, env::sha256};
+    use ed25519_dalek::{ed25519::signature::SignerMut, SigningKey};
+
     use quickjs_rust_near_testenv::testenv::{
         alice, assert_latest_return_value_string_eq, set_input, set_signer_account_id,
         setup_test_env,
     };
+    use rand::rngs::OsRng;
     use std::ffi::CStr;
 
     #[test]
@@ -432,6 +452,27 @@ mod tests {
                 str
             );
         }
+    }
+
+    #[test]
+    fn test_ed25519_verify_message() {
+        let mut csprng = OsRng;
+        let mut signing_key = SigningKey::generate(&mut csprng);
+        let message_hashed = sha256(b"Hello");
+        let signature = signing_key.sign(message_hashed[..].try_into().unwrap());
+        let script = format!("
+            (function () {{ 
+                let signature = new Uint8Array({:?});
+                let message = new Uint8Array(env.sha256_utf8(\"Hello\"));
+                let publicKey = new Uint8Array({:?});
+                return env.ed25519_verify(signature, message, publicKey) ? 1 : 0;
+            }})();
+        ", signature.to_bytes(), signing_key.verifying_key().as_bytes());
+
+        let bytecode = compile_js(script, None);
+        let result = run_js_bytecode(bytecode);
+
+        assert_eq!(1, result);
     }
 
     #[test]
