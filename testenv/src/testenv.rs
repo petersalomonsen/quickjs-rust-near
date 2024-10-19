@@ -493,6 +493,11 @@ pub extern "C" fn block_timestamp() -> i64 {
 }
 
 #[no_mangle]
+pub extern "C" fn random_seed(_register: i64) {
+
+}
+
+#[no_mangle]
 pub extern "C" fn ed25519_verify(
     signature_len: i64,
     signature_ptr: i64,

@@ -359,7 +359,6 @@ mod tests {
         alice, assert_latest_return_value_string_eq, set_input, set_signer_account_id,
         setup_test_env,
     };
-    use rand::rngs::OsRng;
     use std::ffi::CStr;
 
     #[test]
@@ -456,8 +455,7 @@ mod tests {
 
     #[test]
     fn test_ed25519_verify_message() {
-        let mut csprng = OsRng;
-        let mut signing_key = SigningKey::generate(&mut csprng);
+        let mut signing_key = SigningKey::from_bytes(&near_sdk::env::random_seed_array());
         let message_hashed = sha256(b"Hello");
         let signature = signing_key.sign(message_hashed[..].try_into().unwrap());
         let script = format!("

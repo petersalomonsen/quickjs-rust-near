@@ -20,11 +20,10 @@ strip = false
 
 [dependencies]
 near-sdk = "5.5.0"
-ed25519-dalek = { version = "2.1.1", features = ["rand_core"]}
+ed25519-dalek = "2.1.1"
 sha2 = "0.10.6"
 hex = "0.4.3"
 quickjs-rust-near-testenv = { path = "testenv" }
-rand = "0.8.5"
 
 [build-dependencies]
 bindgen = "0.60.1"
