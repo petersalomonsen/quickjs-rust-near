@@ -1,13 +1,18 @@
 [
     {
-      "name": "call_js_func",
-      "export": "call_js_func",
-      "root": true
+        "name": "call_js_func",
+        "export": "call_js_func",
+        "root": true
     },
     {
-      "name": "post_javascript",
-      "export": "post_javascript",
-      "root": true
+        "name": "view_js_func",
+        "export": "view_js_func",
+        "root": true
+    },
+    {
+        "name": "post_javascript",
+        "export": "post_javascript",
+        "root": true
     },
     {
         "name": "ft_transfer",
@@ -69,4 +74,4 @@
         "export": "new",
         "root": true
     }
-  ]
+]

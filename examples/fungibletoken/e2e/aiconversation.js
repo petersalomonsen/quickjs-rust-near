@@ -7,7 +7,8 @@ export function start_ai_conversation() {
 }
 
 export function view_ai_conversation() {
-    
+    const { conversation_id } = JSON.parse(env.input());
+    env.value_return(env.get_data(conversation_id));
 }
 
 export function refund_unspent() {

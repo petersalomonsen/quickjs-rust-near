@@ -89,3 +89,24 @@ near contract call-function as-transaction aitoken.testnet call_js_func json-arg
 ```
 
 The result of this function call should be a conversation id, that consists of the account name and a timestamp. For example it can be `aiuser.testnet_1729432017818`.
+
+## The AI service
+
+Before serving AI generated content, the AI service will contact the contract to see if the conversation has tokens deposited. It will make a view call to the function `view_ai_conversation` to check the registered data for the given `conversation_id`.
+
+We can also make this view call to see the registered data for the conversation.
+
+```bash
+near contract call-function as-read-only aitoken.testnet view_js_func json-args '{"function_name": "view_ai_conversation", "conversation_id": "aiuser.testnet_1729432017818"}' network-config testnet now
+```
+
+We should see a result like this:
+
+```
+{
+  "amount": "2000",
+  "receiver_id": "aiuser.testnet"
+}
+```
+
+The AI service is now good to go, and will track usage for this conversation.
