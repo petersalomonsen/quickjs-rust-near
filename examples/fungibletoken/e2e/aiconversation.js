@@ -1,5 +1,5 @@
 export function start_ai_conversation() {
-    const amount = 2_000n;
+    const amount = 128_000_000n;
     let conversation_id = env.signer_account_id() + "_" + (new Date().getTime());
     env.set_data(conversation_id, JSON.stringify({ receiver_id: env.signer_account_id(), amount: amount.toString() }));
     env.ft_transfer_internal(env.signer_account_id(), 'aitoken.testnet', amount.toString());

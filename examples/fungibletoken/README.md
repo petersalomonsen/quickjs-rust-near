@@ -8,31 +8,7 @@ Below is an example from the tests, that transfers a fixed amount of `2000` toke
 
 One of the intended use cases of this is to be able to reserve the max needed tokens for an AI request, and then return back to the caller the unspent tokens.
 
-```javascript
-export function start_ai_conversation() {
-    const amount = 2_000n;
-    let conversation_id = env.signer_account_id()+"_"+(new Date().getTime());
-    env.set_data(conversation_id, JSON.stringify({receiver_id: env.signer_account_id(), amount: amount.toString() }));
-    env.ft_transfer_internal(env.signer_account_id(), 'aitoken.testnet', amount.toString());
-    env.value_return(conversation_id);
-}
-
-export function refund_unspent() {
-    const { refund_message, signature } = JSON.parse(env.input());
-    const public_key = new Uint8Array([]);
-
-    const signature_is_valid = env.ed25519_verify(new Uint8Array(signature), new Uint8Array(env.sha256_utf8(refund_message)) , public_key);
-    if (signature_is_valid) {
-        const { receiver_id, refund_amount, conversation_id } = JSON.parse(refund_message);
-        const conversation_data = JSON.parse(env.get_data(conversation_id));
-        if (BigInt(conversation_data.amount) > BigInt(refund_amount)) {
-            env.clear_data(conversation_id);
-            env.ft_transfer_internal('aitoken.testnet', receiver_id, refund_amount);            
-            print(`refunded ${amount} to ${receiver_id}`);
-        }
-    }
-}
-```
+See [aiconversation.js](./e2e/aiconversation.js) for an example of the added JavaScript code.
 
 # Deploying and creating your token
 
@@ -68,13 +44,13 @@ A user wants to start an AI conversation. Before doing so, the user needs to be 
 near contract call-function as-transaction aitoken.testnet storage_deposit json-args '{"account_id": "aiuser.testnet"}' prepaid-gas '100.0 Tgas' attached-deposit '0.01 near' sign-as aiuser.testnet network-config testnet sign-with-keychain send
 ```
 
-Now we can transfer 10000 tokens to a `aiuser.testnet` using the following command:
+Now we can transfer 1,000,000,000 tokens to a `aiuser.testnet` using the following command:
 
 ```bash
-near contract call-function as-transaction aitoken.testnet ft_transfer json-args '{"receiver_id": "aiuser.testnet", "amount": "10000"}' prepaid-gas '100.0 Tgas' attached-deposit '1 yoctonear' sign-as aitoken.testnet network-config testnet sign-with-keychain send
+near contract call-function as-transaction aitoken.testnet ft_transfer json-args '{"receiver_id": "aiuser.testnet", "amount": "1000000000"}' prepaid-gas '100.0 Tgas' attached-deposit '1 yoctonear' sign-as aitoken.testnet network-config testnet sign-with-keychain send
 ```
 
-And we can also see that the token balance for `aiuser.testnet` is `10000` by running the following command:
+And we can also see that the token balance for `aiuser.testnet` is `1000000000` by running the following command:
 
 ```bash
 near contract call-function as-read-only aitoken.testnet ft_balance_of json-args '{"account_id": "aiuser.testnet"}' network-config testnet now
