@@ -13,7 +13,7 @@ export function view_ai_conversation() {
 
 export function refund_unspent() {
     const { refund_message, signature } = JSON.parse(env.input());
-    const public_key = new Uint8Array([200, 81, 234, 103, 28, 14, 211, 88, 47, 211, 104, 56, 141, 77, 178, 56, 204, 184, 143, 64, 23, 17, 113, 172, 156, 85, 4, 73, 44, 93, 116, 96]);
+    const public_key = new Uint8Array([74, 228, 41, 15, 116, 28, 61, 128, 166, 59, 142, 157, 249, 47, 117, 247, 100, 245, 49, 238, 11, 198, 191, 189, 249, 115, 108, 241, 114, 247, 26, 166]);
 
     const signature_is_valid = env.ed25519_verify(new Uint8Array(signature), new Uint8Array(env.sha256_utf8(refund_message)), public_key);
     if (signature_is_valid) {
@@ -22,7 +22,7 @@ export function refund_unspent() {
         if (BigInt(conversation_data.amount) > BigInt(refund_amount)) {
             env.clear_data(conversation_id);
             env.ft_transfer_internal('aitoken.testnet', receiver_id, refund_amount);
-            print(`refunded ${amount} to ${receiver_id}`);
+            print(`refunded ${refund_amount} to ${receiver_id}`);
         }
     }
 }
