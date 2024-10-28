@@ -42,8 +42,9 @@ pub struct Contract {
     data_map: near_sdk::collections::LookupMap<String, String>,
 }
 
-static mut CONTRACT_REF: *mut Contract = 0 as *mut Contract;
 const DATA_IMAGE_SVG_NEAR_ICON: &str = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 288 288'%3E%3Cg id='l' data-name='l'%3E%3Cpath d='M187.58,79.81l-30.1,44.69a3.2,3.2,0,0,0,4.75,4.2L191.86,103a1.2,1.2,0,0,1,2,.91v80.46a1.2,1.2,0,0,1-2.12.77L102.18,77.93A15.35,15.35,0,0,0,90.47,72.5H87.34A15.34,15.34,0,0,0,72,87.84V201.16A15.34,15.34,0,0,0,87.34,216.5h0a15.35,15.35,0,0,0,13.08-7.31l30.1-44.69a3.2,3.2,0,0,0-4.75-4.2L96.14,186a1.2,1.2,0,0,1-2-.91V104.61a1.2,1.2,0,0,1,2.12-.77l89.55,107.23a15.35,15.35,0,0,0,11.71,5.43h3.13A15.34,15.34,0,0,0,216,201.16V87.84A15.34,15.34,0,0,0,200.66,72.5h0A15.35,15.35,0,0,0,187.58,79.81Z'/%3E%3C/g%3E%3C/svg%3E";
+static mut CONTRACT_REF_MUT: *mut Contract = 0 as *mut Contract;
+static mut CONTRACT_REF: *const Contract = 0 as *const Contract;
 
 #[near_bindgen]
 impl Contract {
@@ -97,13 +98,14 @@ impl Contract {
         return load_js_bytecode(bytecode.as_ptr(), bytecode.len());
     }
 
-    unsafe fn add_js_functions(&mut self) {
+    unsafe fn add_mut_js_functions(&mut self) {
+        CONTRACT_REF_MUT = self as *mut Contract;
         add_function_to_js(
             "clear_data",
             |ctx: i32, _this_val: i64, _argc: i32, argv: i32| -> i64 {
                 let key = arg_to_str(ctx, 0, argv);
                 let value = arg_to_str(ctx, 1, argv);
-                (*CONTRACT_REF).data_map.insert(&key, &value);
+                (*CONTRACT_REF_MUT).data_map.insert(&key, &value);
                 0
             },
             2,
@@ -114,11 +116,43 @@ impl Contract {
             |ctx: i32, _this_val: i64, _argc: i32, argv: i32| -> i64 {
                 let key = arg_to_str(ctx, 0, argv);
                 let value = arg_to_str(ctx, 1, argv);
-                (*CONTRACT_REF).data_map.insert(&key, &value);
+                (*CONTRACT_REF_MUT).data_map.insert(&key, &value);
                 0
             },
             2,
         );
+
+        add_function_to_js(
+            "ft_transfer",
+            |ctx: i32, _this_val: i64, _argc: i32, argv: i32| -> i64 {
+                let receiver_id = arg_to_str(ctx, 0, argv).parse().unwrap();
+                let amount: U128 = U128(arg_to_str(ctx, 1, argv).parse::<u128>().unwrap());
+                (*CONTRACT_REF_MUT).ft_transfer(receiver_id, amount, None);
+                return 0;
+            },
+            2,
+        );
+
+        add_function_to_js(
+            "ft_transfer_internal",
+            |ctx: i32, _this_val: i64, _argc: i32, argv: i32| -> i64 {
+                let sender_id = arg_to_str(ctx, 0, argv).parse().unwrap();
+                let receiver_id = arg_to_str(ctx, 1, argv).parse().unwrap();
+                let amount: U128 = U128(arg_to_str(ctx, 2, argv).parse::<u128>().unwrap());
+                (*CONTRACT_REF_MUT).token.internal_transfer(
+                    &sender_id,
+                    &receiver_id,
+                    amount.0,
+                    None,
+                );
+                return 0;
+            },
+            2,
+        );
+    }
+
+    unsafe fn add_js_functions(&self) {
+        CONTRACT_REF = self as *const Contract;
 
         add_function_to_js(
             "get_data",
@@ -133,7 +167,6 @@ impl Contract {
             1,
         );
 
-        CONTRACT_REF = self as *mut Contract;
         add_function_to_js(
             "ft_balance_of",
             move |ctx: i32, _this_val: i64, _argc: i32, argv: i32| -> i64 {
@@ -143,35 +176,21 @@ impl Contract {
             },
             1,
         );
-
-        add_function_to_js(
-            "ft_transfer",
-            |ctx: i32, _this_val: i64, _argc: i32, argv: i32| -> i64 {
-                let receiver_id = arg_to_str(ctx, 0, argv).parse().unwrap();
-                let amount: U128 = U128(arg_to_str(ctx, 1, argv).parse::<u128>().unwrap());
-                (*CONTRACT_REF).ft_transfer(receiver_id, amount, None);
-                return 0;
-            },
-            2,
-        );
-
-        add_function_to_js(
-            "ft_transfer_internal",
-            |ctx: i32, _this_val: i64, _argc: i32, argv: i32| -> i64 {
-                let sender_id = arg_to_str(ctx, 0, argv).parse().unwrap();
-                let receiver_id = arg_to_str(ctx, 1, argv).parse().unwrap();
-                let amount: U128 = U128(arg_to_str(ctx, 2, argv).parse::<u128>().unwrap());
-                (*CONTRACT_REF)
-                    .token
-                    .internal_transfer(&sender_id, &receiver_id, amount.0, None);
-                return 0;
-            },
-            2,
-        );
     }
 
     #[payable]
     pub fn call_js_func(&mut self, function_name: String) {
+        let jsmod = self.load_js_bytecode();
+
+        unsafe {
+            self.add_js_functions();
+            self.add_mut_js_functions();
+            let function_name_cstr = CString::new(function_name).unwrap();
+            js_call_function(jsmod, function_name_cstr.as_ptr() as i32);
+        }
+    }
+
+    pub fn view_js_func(&self, function_name: String) {
         let jsmod = self.load_js_bytecode();
 
         unsafe {

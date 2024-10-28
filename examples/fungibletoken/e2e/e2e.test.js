@@ -66,12 +66,14 @@ describe('Fungible token contract', { only: true }, () => {
 
     afterEach(async () => {
         const aliceBalance = await contract.view('ft_balance_of', { account_id: 'alice.test.near' });
-        await alice.call(contract.accountId, 'ft_transfer', {
-            receiver_id: 'bob.test.near',
-            amount: aliceBalance.toString(),
-        }, {
-            attachedDeposit: 1n.toString()
-        });
+        if (BigInt(aliceBalance) > 0n) {
+            await alice.call(contract.accountId, 'ft_transfer', {
+                receiver_id: 'bob.test.near',
+                amount: aliceBalance.toString(),
+            }, {
+                attachedDeposit: 1n.toString()
+            });
+        }
     });
 
     test('should run custom javascript transfer functions in contract', async () => {
@@ -181,6 +183,11 @@ describe('Fungible token contract', { only: true }, () => {
                     env.value_return(conversation_id);
                 }
 
+                export function view_ai_conversation() {
+                    const { conversation_id } = JSON.parse(env.input());
+                    env.value_return(env.get_data(conversation_id));
+                }
+
                 export function refund_unspent() {
                     const { refund_message, signature } = JSON.parse(env.input());
                     const public_key = new Uint8Array([${Array.from((await bob.getKey()).getPublicKey().data).toString()}]);
@@ -218,6 +225,10 @@ describe('Fungible token contract', { only: true }, () => {
 
         expect(conversation_id.split("_")[0]).to.equal("alice.test.near");
         expect(await contract.view('ft_balance_of', { account_id: 'alice.test.near' })).to.equal(0n.toString());
+        const conversation_data = await contract.view('view_js_func', { function_name: "view_ai_conversation", conversation_id });
+
+        expect(conversation_data.receiver_id).to.equal('alice.test.near');
+        expect(conversation_data.amount).to.equal(2000n.toString());
 
         const refund_message = JSON.stringify({ receiver_id: 'alice.test.near', refund_amount: 1000n.toString() });
         const refund_message_hashed = createHash('sha256').update(Buffer.from(refund_message, 'utf8')).digest();
