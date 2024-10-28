@@ -10,6 +10,34 @@ One of the intended use cases of this is to be able to reserve the max needed to
 
 See [aiconversation.js](./e2e/aiconversation.js) for an example of the added JavaScript code.
 
+## High level overview of the flow of an AI conversation
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Contract
+    participant AIService
+
+    User->>Contract: call_js_func(start_ai_conversation)
+    Contract->>Contract: Generate conversation_id
+    Contract->>Contract: ft_transfer_internal(user, AIService, amount)
+    Contract->>User: Return conversation_id
+
+    User->>AIService: Initiate AI request with conversation_id
+    AIService->>Contract: Check deposit for conversation_id
+    Contract->>AIService: Confirm deposited tokens
+
+    AIService->>User: Provide AI-generated content
+    AIService->>AIService: Track spent AI tokens
+    AIService->>User: Sign message with unspent tokens
+
+    User->>Contract: call_js_func(refund_unspent, {signature, refund_message})
+    Contract->>Contract: Verify signature
+    Contract->>Contract: Process refund
+
+    Contract->>User: Return unspent tokens
+```
+
 # Deploying and creating your token
 
 Build the contract by running the script [build.sh](./build.sh).
