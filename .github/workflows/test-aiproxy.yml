@@ -1,14 +1,14 @@
-name: "Wasi preview 2 tests"
+name: "AI proxy tests"
 
 on:
   push:
-    branches: [ main ]
+    branches: [ master ]
   pull_request:
-    branches: [ main ]
+    branches: [ master ]
 
 jobs:
   test:
-    name: Test
+    name: "AI proxy"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
