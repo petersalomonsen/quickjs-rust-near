@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenAI Proxy Streaming</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 2em auto;
+            padding: 1em;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+        }
+        #messages {
+            border: 1px solid #ddd;
+            padding: 1em;
+            min-height: 200px;
+            margin-bottom: 1em;
+            white-space: pre-wrap;
+        }
+        #question-container {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5em;
+        }
+        textarea {
+            width: 100%;
+        }
+        button {
+            align-self: flex-end;
+        }
+    </style>
+</head>
+<body>
+    <h1>OpenAI Proxy Streaming UI</h1>
+    <input id="conversation_id" placeholder="conversation id" /><button onclick="refund()">Stop conversation and refund tokens</button><br />
+    <div id="messages"></div>
+    <div id="question-container">
+        
+        <textarea id="question" rows="4" placeholder="Type your question here..."></textarea>
+        <button onclick="sendQuestion()">Ask OpenAI</button>
+        
+    </div>
+    <div>
+        <pre>
+            <code id="refund_message"></code>
+        </pre>
+    </div>
+    <script>
+        const baseUrl = 'http://localhost:3000';
+        const proxyUrl = `${baseUrl}/proxy-openai`;  // Replace with your actual Spin proxy URL
+        let conversation = [
+            { role: 'system', content: 'You are a helpful assistant.' }
+        ];
+
+        async function refund() {
+            const requestBody = JSON.stringify({
+                conversation_id: document.getElementById('conversation_id').value
+            });
+            const headers = {
+                'Content-Type': 'application/json'
+            };
+
+            const response = await fetch(`${baseUrl}/refund-conversation`, {
+                method: 'POST',
+                headers: headers,
+                body: requestBody
+            });
+            refund_message.innerHTML =  JSON.stringify(await response.json(), null, 1);
+        }
+        async function sendQuestion() {
+            const question = document.getElementById('question').value;
+            const messagesDiv = document.getElementById('messages');
+            document.getElementById('question').value = ''; // Clear input field
+
+            // Add user question to the conversation
+            conversation.push({ role: 'user', content: question });
+            messagesDiv.innerHTML += `<strong>User:</strong> ${question}<br>`;
+
+            const requestBody = JSON.stringify({
+                conversation_id: document.getElementById('conversation_id').value,
+                messages: conversation
+            });
+
+            const headers = {
+                'Content-Type': 'application/json'
+            };
+
+            try {
+                // Fetch the proxy endpoint with a POST request
+                const response = await fetch(proxyUrl, {
+                    method: 'POST',
+                    headers: headers,
+                    body: requestBody
+                });
+
+                // Check if the response is OK
+                if (!response.ok) {
+                    messagesDiv.innerHTML += '<strong>Assistant:</strong> Failed to fetch from proxy: ' + response.statusText + '<br>'+ (await response.text()) + '<br>';
+                    return;
+                }
+
+                // Read the streaming response using a ReadableStream
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder('utf-8');
+                let assistantResponse = '';
+
+                // Add placeholder for the assistant's response
+                let assistantResponseElement = document.createElement('div');
+                assistantResponseElement.innerHTML = '<strong>Assistant:</strong> ';
+                messagesDiv.appendChild(assistantResponseElement);
+
+                // Continuously read data from the stream
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) {
+                        break;
+                    }
+
+                    // Decode the streamed chunk and parse it as JSON
+                    const chunk = decoder.decode(value, { stream: true });
+                    const lines = chunk.split('\n').filter(line => line.trim() !== '');
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            const json = line.substring(6);
+                            if (json !== '[DONE]') {
+                                try {
+                                    const parsed = JSON.parse(json);
+                                    if (parsed.choices && parsed.choices[0].delta && parsed.choices[0].delta.content) {
+                                        const newContent = parsed.choices[0].delta.content;
+                                        assistantResponse += newContent;
+                                        assistantResponseElement.innerHTML = `<strong>Assistant:</strong> ${assistantResponse}`;
+                                    }
+                                } catch (e) {
+                                    console.error('Error parsing JSON chunk:', e);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Add assistant response to the conversation
+                conversation.push({ role: 'assistant', content: assistantResponse });
+            } catch (error) {
+                messagesDiv.innerHTML += '<strong>Assistant:</strong> Error: ' + error + '<br>';
+            }
+        }
+    </script>
+</body>
+</html>
