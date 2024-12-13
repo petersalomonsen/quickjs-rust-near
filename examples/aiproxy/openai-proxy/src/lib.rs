@@ -67,7 +67,7 @@ where
 
 fn conversation_id_to_hash_string(conversation_id: &str) -> String {
     let mut hasher = Sha256::new();
-    hasher.update(conversation_id.as_bytes());     
+    hasher.update(conversation_id.as_bytes());
     hex::encode(hasher.finalize())
 }
 
