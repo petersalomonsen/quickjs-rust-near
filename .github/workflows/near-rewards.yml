@@ -4,7 +4,7 @@ on:
     - cron: '0 */12 * * *'  # Every 12 hours
   workflow_dispatch:        # Manual trigger
   push:
-    branches: [ master ]     # Start on main branch updates
+    branches: [ main ]     # Start on main branch updates
 
 jobs:
   calculate-rewards:
