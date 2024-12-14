@@ -14,6 +14,12 @@ use spin_test_sdk::{
 
 const SIGNING_PUBLIC_KEY: &str = "63LxSTBisoUfp3Gu7eGY8kAVcRAmZacZjceJ2jNeGZLH";
 
+fn hash_string(conversation_id: &str) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(conversation_id.as_bytes());
+    hex::encode(hasher.finalize())
+}
+
 fn handle_openai_request() {
     let openai_response = http::types::OutgoingResponse::new(http::types::Headers::new());
     openai_response.write_body("data: {\"id\":\"chatcmpl-AMaFCyZmtLWFTUrXg0ZyEI9gz0wbj\",\"object\":\"chat.completion.chunk\",\"created\":1729945902,\"model\":\"gpt-4o-2024-08-06\",\"system_fingerprint\":\"fp_72bbfa6014\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"\",\"refusal\":null},\"logprobs\":null,\"finish_reason\":null}],\"usage\":null}\n\ndata: {\"id\":\"chatcmpl-AMaFCyZmtLWFTUrXg0ZyEI9gz0wbj\",\"object\":\"chat.completion.chunk\",\"created\":1729945902,\"model\":\"gpt-4o-2024-08-06\",\"system_fingerprint\":\"fp_72bbfa6014\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"Hello\"},\"logprobs\":null,\"finish_reason\":null}],\"usage\":null}\n\n
@@ -37,14 +43,14 @@ fn handle_near_ai_token_request() {
             .as_bytes(),
     );
 
-    http_handler::set_response("https://aitoken.testnet.page/web4/contract/aitoken.testnet/view_js_func?function_name=view_ai_conversation&conversation_id=aiuser.testnet_1729432017818", http_handler::ResponseHandler::Response(response));
+    http_handler::set_response(format!("https://aitoken.testnet.page/web4/contract/aitoken.testnet/view_js_func?function_name=view_ai_conversation&conversation_id={}", hash_string("aiuser.testnet_1729432017818")).as_str(), http_handler::ResponseHandler::Response(response));
 
     let unknown_conversation_response =
         http::types::OutgoingResponse::new(http::types::Headers::new());
     unknown_conversation_response.write_body("invalid json response body at https://rpc.web4.testnet.page/account/aitoken.testnet/view/view_js_func reason: Unexpected end of JSON input\n".as_bytes());
     unknown_conversation_response.set_status_code(400).unwrap();
 
-    http_handler::set_response("https://aitoken.testnet.page/web4/contract/aitoken.testnet/view_js_func?function_name=view_ai_conversation&conversation_id=aiuser.testnet_1729432017819", http_handler::ResponseHandler::Response(unknown_conversation_response));
+    http_handler::set_response(format!("https://aitoken.testnet.page/web4/contract/aitoken.testnet/view_js_func?function_name=view_ai_conversation&conversation_id={}", hash_string("aiuser.testnet_1729432017819")).as_str(),http_handler::ResponseHandler::Response(unknown_conversation_response));
 
     let insufficient_funds_response =
         http::types::OutgoingResponse::new(http::types::Headers::new());
@@ -54,7 +60,7 @@ fn handle_near_ai_token_request() {
             .as_bytes(),
     );
 
-    http_handler::set_response("https://aitoken.testnet.page/web4/contract/aitoken.testnet/view_js_func?function_name=view_ai_conversation&conversation_id=aiuser.testnet_1729432017820", http_handler::ResponseHandler::Response(insufficient_funds_response));
+    http_handler::set_response(format!("https://aitoken.testnet.page/web4/contract/aitoken.testnet/view_js_func?function_name=view_ai_conversation&conversation_id={}", hash_string("aiuser.testnet_1729432017820")).as_str(), http_handler::ResponseHandler::Response(insufficient_funds_response));
 }
 
 fn set_variables() {

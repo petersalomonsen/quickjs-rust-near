@@ -3,7 +3,9 @@
     "rust-analyzer.linkedProjects": [
         "examples/nft/Cargo.toml",
         "examples/minimumweb4/Cargo.toml",
-        "examples/purejs/Cargo.toml"
+        "examples/purejs/Cargo.toml",
+        "examples/aiproxy/openai-proxy/Cargo.toml",
+        "examples/aiproxy/tests/Cargo.toml"
     ]
     
 }

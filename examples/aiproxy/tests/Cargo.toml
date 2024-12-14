@@ -10,6 +10,7 @@ crate-type = ["cdylib"]
 spin-test-sdk = { git = "https://github.com/fermyon/spin-test", version = "0.1.0" }
 serde_json = "1.0.128"
 ed25519-dalek = "2.1.1"
+hex = "0.4.3"
 bs58 = "0.5.1"
 sha2 = "0.10.8"
 
