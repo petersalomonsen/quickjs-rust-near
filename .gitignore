@@ -9,3 +9,7 @@ wabt-*
 emsdk
 quickjs-*
 emsdk
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
