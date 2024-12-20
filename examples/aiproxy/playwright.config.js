@@ -74,7 +74,7 @@ export default defineConfig({
     reuseExistingServer: !process.env.CI,
   },
   {
-    command: "export $(grep -v '^#' .test.env | xargs) && node playwright-tests/openaimockserver.js",
+    command: "export $(grep -v '^#' .test.env | xargs) && node examples/aiproxy/playwright-tests/openaimockserver.js",
     url: 'http://127.0.0.1:3001',
     reuseExistingServer: !process.env.CI,
   }],
