@@ -393,7 +393,7 @@ dependencies = [
 [[package]]
 name = "spin-test-sdk"
 version = "0.1.0"
-source = "git+https://github.com/fermyon/spin-test#c2492696a054abd6439d47c5754d9d230517aafe"
+source = "git+https://github.com/petersalomonsen/spin-test?branch=response-handler-func#f7dd586e3e0f3727f14c2ede8bd6ff07b1e763ff"
 dependencies = [
  "spin-test-sdk-macro",
  "wit-bindgen",
@@ -402,7 +402,7 @@ dependencies = [
 [[package]]
 name = "spin-test-sdk-macro"
 version = "0.1.0"
-source = "git+https://github.com/fermyon/spin-test#c2492696a054abd6439d47c5754d9d230517aafe"
+source = "git+https://github.com/petersalomonsen/spin-test?branch=response-handler-func#f7dd586e3e0f3727f14c2ede8bd6ff07b1e763ff"
 dependencies = [
  "heck",
  "proc-macro2",

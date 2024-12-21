@@ -12,7 +12,7 @@ component = "openai-proxy"
 
 [component.openai-proxy]
 source = "openai-proxy/target/wasm32-wasi/release/openai_proxy.wasm"
-allowed_outbound_hosts = ["https://api.openai.com:443", "https://aitoken.testnet.page:443"]
+allowed_outbound_hosts = ["https://api.openai.com:443", "https://aitoken.testnet.page:443", "https://rpc.mainnet.near.org:443"]
 key_value_stores = ["default"]
 
 [component.openai-proxy.build]
@@ -25,12 +25,14 @@ openai_api_key = { required = true }
 refund_signing_key = { required = true }
 openai_completions_endpoint = { required = true }
 ft_contract_id = { required = true }
+rpc_url = {required = true }
 
 [component.openai-proxy.variables]
 openai_api_key = "{{ openai_api_key }}"
 refund_signing_key = "{{ refund_signing_key }}"
 openai_completions_endpoint =  "{{ openai_completions_endpoint }}"
 ft_contract_id = "{{ ft_contract_id }}"
+rpc_url = "{{ rpc_url }}"
 
 [component.openai-proxy.tool.spin-test]
 source = "tests/target/wasm32-wasip1/release/tests.wasm"
