@@ -28,6 +28,7 @@ jobs:
         with:
           path: |
             ~/.wasmtime
+            bin
             node_modules
             emsdk
             wabt-1.0.35
