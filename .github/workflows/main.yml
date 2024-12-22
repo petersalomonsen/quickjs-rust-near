@@ -233,6 +233,7 @@ jobs:
           rustup target add wasm32-wasip1 
           rustup target add wasm32-wasi
           rustup target add wasm32-unknown-unknown
+          cargo install cargo-component
       - name: Build Fungible Token contract
         run: |
           cd examples/fungibletoken
