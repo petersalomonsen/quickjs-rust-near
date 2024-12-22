@@ -429,7 +429,10 @@ async fn get_initial_token_balance_for_conversation(
                     }
                 }
                 Err(e) => {
-                    eprintln!("Invalid response from RPC: {:?}", String::from_utf8(response_body));
+                    eprintln!(
+                        "Invalid response from RPC: {:?}",
+                        String::from_utf8(response_body)
+                    );
                     return Err(anyhow::anyhow!("Invalid response from RPC: {e}"));
                 }
             }

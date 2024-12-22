@@ -224,6 +224,7 @@ jobs:
           echo "$(pwd)/binaryen-version_116/bin" >> $GITHUB_PATH
           echo "$(pwd)/wabt-1.0.35/bin" >> $GITHUB_PATH
           rustup target add wasm32-wasip1 
+          rustup target add wasm32-wasi
           rustup target add wasm32-unknown-unknown
 
       - name: Install dependencies
