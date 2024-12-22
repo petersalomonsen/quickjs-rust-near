@@ -13,3 +13,5 @@ emsdk
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+bin
+
