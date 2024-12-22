@@ -42,7 +42,7 @@ cargo install static-web-server
 yarn playwright install --with-deps
 
 curl -fsSL https://developer.fermyon.com/downloads/install.sh | bash
-mkdir ./bin
+mkdir -p ./bin
 mv ./spin ./bin/spin
 export PATH="$(pwd)/bin:$PATH"
 echo 'export PATH="$(pwd)/bin:$PATH"' >> ~/.bashrc
