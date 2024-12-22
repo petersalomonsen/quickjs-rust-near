@@ -21,7 +21,7 @@ jobs:
 
       - name: Cache dependencies
         id: cache-dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.wasmtime
@@ -32,8 +32,6 @@ jobs:
             binaryen-version_116
             quickjs-2024-01-13
           key: ${{ runner.os }}-dependencies-${{ hashFiles('**/yarn.lock', '.devcontainer/install-dependencies.sh') }}
-          restore-keys: |
-            ${{ runner.os }}-dependencies-
 
       - name: Install dependencies
         if: steps.cache-dependencies.outputs.cache-hit != 'true'
@@ -49,10 +47,11 @@ jobs:
       - uses: actions/checkout@v2
 
       - name: Restore Cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.wasmtime
+            bin
             node_modules
             emsdk
             wabt-1.0.35
@@ -90,10 +89,11 @@ jobs:
           node-version: '20'
 
       - name: Restore Cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.wasmtime
+            bin
             node_modules
             emsdk
             wabt-1.0.35
@@ -131,10 +131,11 @@ jobs:
           node-version: '20'
 
       - name: Restore Cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.wasmtime
+            bin
             node_modules
             emsdk
             wabt-1.0.35
@@ -172,10 +173,11 @@ jobs:
           node-version: '20'
 
       - name: Restore Cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.wasmtime
+            bin
             node_modules
             emsdk
             wabt-1.0.35
@@ -210,10 +212,11 @@ jobs:
           node-version: '20'
 
       - name: Restore Cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.wasmtime
+            bin
             node_modules
             emsdk
             wabt-1.0.35
@@ -260,10 +263,11 @@ jobs:
           node-version: '20'
 
       - name: Restore Cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.wasmtime
+            bin
             node_modules
             emsdk
             wabt-1.0.35
@@ -299,10 +303,11 @@ jobs:
           node-version: '20'
 
       - name: Restore Cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.wasmtime
+            bin
             node_modules
             emsdk
             wabt-1.0.35
@@ -336,10 +341,11 @@ jobs:
           node-version: '20'
 
       - name: Restore Cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.wasmtime
+            bin
             node_modules
             emsdk
             wabt-1.0.35
@@ -372,10 +378,11 @@ jobs:
           node-version: '20'
 
       - name: Restore Cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.wasmtime
+            bin
             node_modules
             emsdk
             wabt-1.0.35
