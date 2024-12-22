@@ -245,6 +245,7 @@ jobs:
           ./build.sh
       - name: Run AI proxy spin test
         run: |
+          spin plugin install -y -u https://github.com/fermyon/spin-test/releases/download/canary/spin-test.json
           cd examples/aiproxy
           spin build
           spin test
