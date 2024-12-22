@@ -193,6 +193,55 @@ jobs:
           yarn install
           yarn test-examples-fungibletoken-e2e
 
+  # Job to run AI proxy tests
+  test-aiproxy:
+    name: Test AI proxy
+    runs-on: ubuntu-latest
+    needs: install-dependencies
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js 20.x
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+
+      - name: Restore Cache
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.wasmtime
+            node_modules
+            emsdk
+            wabt-1.0.35
+            binaryen-version_116
+            quickjs-2024-01-13
+          key: ${{ runner.os }}-dependencies-${{ hashFiles('**/yarn.lock', '.devcontainer/install-dependencies.sh') }}
+
+      - name: Set up paths and Rust
+        run: |
+          echo "$HOME/.wasmtime/bin" >> $GITHUB_PATH
+          echo "$(pwd)/binaryen-version_116/bin" >> $GITHUB_PATH
+          echo "$(pwd)/wabt-1.0.35/bin" >> $GITHUB_PATH
+          rustup target add wasm32-wasip1 
+          rustup target add wasm32-unknown-unknown
+
+      - name: Install dependencies
+        run: |
+          yarn install
+          yarn playwright install --with-deps
+      - name: Build Fungible Token contract
+        run: |
+          (cd examples/fungibletoken && ./build.sh)
+      - name: Run AI proxy spin test
+        run: |
+          cd examples/aiproxy
+          spin test
+      - name: Run AI proxy Playwright test
+        run: |
+          cd examples/aiproxy
+          yarn test-playwright-aiproxy  
+
   # Job to run NFT example local JS tests
   localjs-test-example-nft:
     name: NFT example local JS test
