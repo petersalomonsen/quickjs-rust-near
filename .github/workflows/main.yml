@@ -14,16 +14,13 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: Install dependencies
-        run: |
-          ./.devcontainer/install-dependencies.sh
-
       - name: Use Node.js 20.x
         uses: actions/setup-node@v3
         with:
           node-version: '20'
 
-      - name: Cache Wasmtime and Node modules
+      - name: Cache dependencies
+        id: cache-dependencies
         uses: actions/cache@v3
         with:
           path: |
@@ -37,6 +34,11 @@ jobs:
           key: ${{ runner.os }}-dependencies-${{ hashFiles('**/yarn.lock', '.devcontainer/install-dependencies.sh') }}
           restore-keys: |
             ${{ runner.os }}-dependencies-
+
+      - name: Install dependencies
+        if: steps.cache-dependencies.outputs.cache-hit != 'true'
+        run: |
+          ./.devcontainer/install-dependencies.sh
 
   # Job to run unit tests
   rununittest:
