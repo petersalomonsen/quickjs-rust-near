@@ -228,14 +228,21 @@ jobs:
 
       - name: Install dependencies
         run: |
+          curl -fsSL https://developer.fermyon.com/downloads/install.sh | bash
+          sudo mv spin /usr/local/bin/
+          cargo install cargo-component --locked
+          spin plugin install -y -u https://github.com/fermyon/spin-test/releases/download/canary/spin-test.json
+
           yarn install
           yarn playwright install --with-deps
       - name: Build Fungible Token contract
         run: |
-          (cd examples/fungibletoken && ./build.sh)
+          cd examples/fungibletoken
+          ./build.sh
       - name: Run AI proxy spin test
         run: |
           cd examples/aiproxy
+          spin build
           spin test
       - name: Run AI proxy Playwright test
         run: |
