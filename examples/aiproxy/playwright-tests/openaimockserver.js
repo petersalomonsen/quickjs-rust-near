@@ -4,7 +4,7 @@ import { Readable } from "stream";
 const PORT = 3001;
 
 const server = createServer((req, res) => {
-  if (req.method === "POST" && req.url.startsWith("/openai/")) {
+  if (req.method === "POST" && req.url.startsWith("/v1/chat/completions")) {
     let body = "";
 
     req.on("data", (chunk) => {

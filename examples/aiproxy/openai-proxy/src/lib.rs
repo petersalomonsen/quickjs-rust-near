@@ -395,12 +395,14 @@ async fn get_initial_token_balance_for_conversation(
         })
         .to_string(),
     )
+    .header("content-type", "application/json")
     .build();
 
     match http::send::<_, IncomingResponse>(request).await {
         Ok(resp) => {
+            let response_body = resp.into_body().await.unwrap();
             let json_response_result: Result<Value, serde_json::Error> =
-                serde_json::from_slice(&resp.into_body().await?[..]);
+                serde_json::from_slice(&response_body[..]);
             match json_response_result {
                 Ok(json_response) => {
                     if let Some(result_bytes) = json_response["result"]["result"].as_array() {
@@ -427,7 +429,7 @@ async fn get_initial_token_balance_for_conversation(
                     }
                 }
                 Err(e) => {
-                    eprintln!("Invalid response from RPC: {e}");
+                    eprintln!("Invalid response from RPC: {:?}", String::from_utf8(response_body));
                     return Err(anyhow::anyhow!("Invalid response from RPC: {e}"));
                 }
             }

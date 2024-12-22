@@ -30,7 +30,7 @@ export default defineConfig({
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
     },
-
+/*
     {
       name: 'firefox',
       use: { ...devices['Desktop Firefox'] },
@@ -39,7 +39,7 @@ export default defineConfig({
     {
       name: 'webkit',
       use: { ...devices['Desktop Safari'] },
-    },
+    },*/
 
     /* Test against mobile viewports. */
     // {
@@ -74,8 +74,13 @@ export default defineConfig({
     reuseExistingServer: !process.env.CI,
   },
   {
-    command: "export $(grep -v '^#' .test.env | xargs) && node examples/aiproxy/playwright-tests/openaimockserver.js",
+    command: "export $(grep -v '^#' .test.env | xargs) && node playwright-tests/openaimockserver.js",
     url: 'http://127.0.0.1:3001',
+    reuseExistingServer: !process.env.CI,
+  },
+  {
+    command: "node playwright-tests/near_rpc.js",
+    url: 'http://127.0.0.1:14501',
     reuseExistingServer: !process.env.CI,
   }],
 });
