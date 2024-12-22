@@ -252,6 +252,7 @@ jobs:
       - name: Run AI proxy Playwright test
         run: |
           cd examples/aiproxy
+          yarn playwright install --with-deps
           yarn test-playwright-aiproxy  
 
   # Job to run NFT example local JS tests
