@@ -35,34 +35,6 @@ data: {\"id\":\"chatcmpl-AMaFCyZmtLWFTUrXg0ZyEI9gz0wbj\",\"object\":\"chat.compl
     );
 }
 
-fn handle_near_ai_token_request() {
-    let response = http::types::OutgoingResponse::new(http::types::Headers::new());
-    response.write_body(
-        json!({"receiver_id":"aiuser.testnet","amount":"256000"})
-            .to_string()
-            .as_bytes(),
-    );
-
-    http_handler::set_response(format!("https://aitoken.testnet.page/web4/contract/aitoken.testnet/view_js_func?function_name=view_ai_conversation&conversation_id={}", hash_string("aiuser.testnet_1729432017818")).as_str(), http_handler::ResponseHandler::Response(response));
-
-    let unknown_conversation_response =
-        http::types::OutgoingResponse::new(http::types::Headers::new());
-    unknown_conversation_response.write_body("invalid json response body at https://rpc.web4.testnet.page/account/aitoken.testnet/view/view_js_func reason: Unexpected end of JSON input\n".as_bytes());
-    unknown_conversation_response.set_status_code(400).unwrap();
-
-    http_handler::set_response(format!("https://aitoken.testnet.page/web4/contract/aitoken.testnet/view_js_func?function_name=view_ai_conversation&conversation_id={}", hash_string("aiuser.testnet_1729432017819")).as_str(),http_handler::ResponseHandler::Response(unknown_conversation_response));
-
-    let insufficient_funds_response =
-        http::types::OutgoingResponse::new(http::types::Headers::new());
-    insufficient_funds_response.write_body(
-        json!({"receiver_id":"aiuser.testnet","amount":"26"})
-            .to_string()
-            .as_bytes(),
-    );
-
-    http_handler::set_response(format!("https://aitoken.testnet.page/web4/contract/aitoken.testnet/view_js_func?function_name=view_ai_conversation&conversation_id={}", hash_string("aiuser.testnet_1729432017820")).as_str(), http_handler::ResponseHandler::Response(insufficient_funds_response));
-}
-
 fn set_variables() {
     spin_test_virt::variables::set(
         "refund_signing_key",
@@ -74,6 +46,7 @@ fn set_variables() {
         "https://api.openai.com/v1/chat/completions",
     );
     spin_test_virt::variables::set("ft_contract_id", "aitoken.testnet");
+    spin_test_virt::variables::set("rpc_url", "https://rpc.mainnet.near.org");
 }
 
 #[spin_test]
@@ -96,7 +69,29 @@ fn openai_request() {
     set_variables();
 
     handle_openai_request();
-    handle_near_ai_token_request();
+    let conversation_info = json!({"receiver_id":"aiuser.testnet","amount":"256000"})
+        .to_string()
+        .as_bytes()
+        .to_vec();
+    let response = http::types::OutgoingResponse::new(http::types::Headers::new());
+    response.write_body(
+        json!({
+          "jsonrpc": "2.0",
+          "result": {
+            "result": conversation_info,
+            "logs": [],
+            "block_height": 17817336,
+            "block_hash": "4qkA4sUUG8opjH5Q9bL5mWJTnfR4ech879Db1BZXbx6P"
+          },
+          "id": "dontcare"
+        })
+        .to_string()
+        .as_bytes(),
+    );
+    http_handler::set_response(
+        "https://rpc.mainnet.near.org",
+        http_handler::ResponseHandler::Response(response),
+    );
 
     let request = http::types::OutgoingRequest::new(http::types::Headers::new());
     request.set_method(&http::types::Method::Post).unwrap();
@@ -129,7 +124,6 @@ fn openai_request_unknown_conversation() {
     set_variables();
 
     handle_openai_request();
-    handle_near_ai_token_request();
 
     let request = http::types::OutgoingRequest::new(http::types::Headers::new());
     request.set_method(&http::types::Method::Post).unwrap();
@@ -148,7 +142,29 @@ fn openai_request_insufficient_funds_deposited() {
     set_variables();
 
     handle_openai_request();
-    handle_near_ai_token_request();
+    let conversation_info = json!({"receiver_id":"aiuser.testnet","amount":"26"})
+        .to_string()
+        .as_bytes()
+        .to_vec();
+    let response = http::types::OutgoingResponse::new(http::types::Headers::new());
+    response.write_body(
+        json!({
+          "jsonrpc": "2.0",
+          "result": {
+            "result": conversation_info,
+            "logs": [],
+            "block_height": 17817336,
+            "block_hash": "4qkA4sUUG8opjH5Q9bL5mWJTnfR4ech879Db1BZXbx6P"
+          },
+          "id": "dontcare"
+        })
+        .to_string()
+        .as_bytes(),
+    );
+    http_handler::set_response(
+        "https://rpc.mainnet.near.org",
+        http_handler::ResponseHandler::Response(response),
+    );
 
     let request = http::types::OutgoingRequest::new(http::types::Headers::new());
     request.set_method(&http::types::Method::Post).unwrap();

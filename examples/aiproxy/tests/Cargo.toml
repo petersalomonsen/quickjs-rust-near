@@ -7,7 +7,7 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
-spin-test-sdk = { git = "https://github.com/fermyon/spin-test", version = "0.1.0" }
+spin-test-sdk = { git = "https://github.com/petersalomonsen/spin-test",  branch = "response-handler-func"  }
 serde_json = "1.0.128"
 ed25519-dalek = "2.1.1"
 hex = "0.4.3"

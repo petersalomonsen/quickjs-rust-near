@@ -1,7 +1,8 @@
+use base64::prelude::*;
 use ed25519_dalek::{ed25519::signature::SignerMut, SigningKey};
 use futures::{SinkExt, StreamExt};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use serde_json::Value;
+use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use spin_sdk::{
     http::{self, Headers, IncomingResponse, Method, OutgoingResponse, Request, ResponseOutparam},
@@ -199,8 +200,8 @@ async fn handle_request(request: Request, response_out: ResponseOutparam) {
                             .unwrap();
                         match get_initial_token_balance_for_conversation(conversation_id).await {
                             Ok(result) => result,
-                            Err(_) => {
-                                eprintln!("Unable to get initial conversation balance");
+                            Err(err) => {
+                                eprintln!("Unable to get initial conversation balance: {:?}", err);
                                 return server_error(response_out);
                             }
                         }
@@ -372,20 +373,67 @@ async fn get_initial_token_balance_for_conversation(
     conversation_id: &str,
 ) -> anyhow::Result<ConversationBalance> {
     let ft_contract_id = variables::get("ft_contract_id")?;
+    let rpc_url = variables::get("rpc_url")?;
 
-    let initial_token_balance_request_uri = format!("https://{}.page/web4/contract/{}/view_js_func?function_name=view_ai_conversation&conversation_id={}", ft_contract_id, ft_contract_id, conversation_id_to_hash_string(conversation_id));
-    let request = Request::get(initial_token_balance_request_uri).build();
+    let rpc_args = serde_json::json!({
+        "function_name": "view_ai_conversation",
+        "conversation_id": conversation_id_to_hash_string(conversation_id)
+    });
+    let request = Request::post(
+        rpc_url,
+        serde_json::json!({
+          "jsonrpc": "2.0",
+          "id": "dontcare",
+          "method": "query",
+          "params": {
+            "request_type": "call_function",
+            "finality": "final",
+            "account_id": ft_contract_id,
+            "method_name": "view_js_func",
+            "args_base64": BASE64_STANDARD.encode(rpc_args.to_string())
+          }
+        })
+        .to_string(),
+    )
+    .header("content-type", "application/json")
+    .build();
+
     match http::send::<_, IncomingResponse>(request).await {
         Ok(resp) => {
-            let result: Result<ConversationBalance, serde_json::Error> =
-                serde_json::from_slice(&resp.into_body().await?[..]);
-            match result {
-                Ok(result) => Ok(result),
+            let response_body = resp.into_body().await.unwrap();
+            let json_response_result: Result<Value, serde_json::Error> =
+                serde_json::from_slice(&response_body[..]);
+            match json_response_result {
+                Ok(json_response) => {
+                    if let Some(result_bytes) = json_response["result"]["result"].as_array() {
+                        let result_bytes_vec: Vec<u8> = result_bytes
+                            .iter()
+                            .map(|v| v.as_u64().unwrap() as u8)
+                            .collect();
+                        let result: Result<ConversationBalance, serde_json::Error> =
+                            serde_json::from_slice(result_bytes_vec.as_slice());
+                        match result {
+                            Ok(result) => Ok(result),
+                            Err(e) => {
+                                eprintln!("Error getting initial balance for conversation: {e}");
+                                return Err(anyhow::anyhow!(
+                                    "Error getting initial balance for conversation: {e}"
+                                ));
+                            }
+                        }
+                    } else {
+                        let error_message =
+                            format!("no result value {}", json_response.to_string());
+                        eprintln!("{}", error_message);
+                        return Err(anyhow::anyhow!(error_message));
+                    }
+                }
                 Err(e) => {
-                    eprintln!("Error getting initial balance for conversation: {e}");
-                    return Err(anyhow::anyhow!(
-                        "Error getting initial balance for conversation: {e}"
-                    ));
+                    eprintln!(
+                        "Invalid response from RPC: {:?}",
+                        String::from_utf8(response_body)
+                    );
+                    return Err(anyhow::anyhow!("Invalid response from RPC: {e}"));
                 }
             }
         }

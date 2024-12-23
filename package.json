@@ -1,32 +1,35 @@
 {
-    "name": "quickjs-rust-near",
-    "type": "module",
-    "license": "MIT",
-    "scripts": {
-        "serve": "http-server -p 8085 web4",
-        "serve-dist": "http-server -p 8085 web4/dist",
-        "web4bundle": "cd web4 && rollup -c rollup.config.js",
-        "test-e2e": "node --test ./e2e",
-        "test-web": "node --test web4",
-        "test-examples-fungibletoken-e2e": "cd examples/fungibletoken && ./build.sh && node --test e2e",
-        "test-examples-nft-e2e": "yarn examples-nft-web4bundle && cd examples/nft && ./build.sh && node --test e2e",
-        "test-examples-nft-localjs": "cd examples/nft && ./build.sh && node --test localjstest",
-        "test-purejs": "cd examples/purejs && ./build.sh && node --test localjstest",
-        "test-quickjslib": "cd quickjslib && ./build.sh && node --test",
-        "examples-nft-web4bundle": "cd examples/nft/web4 && rollup -c rollup.config.js",
-        "serve-examples-nft": "http-server -p 8085 examples/nft/web4"
-    },
-    "jest": {
-        "transform": {}
-    },
-    "devDependencies": {
-        "@web/rollup-plugin-html": "^1.11.0",
-        "chai": "^5.1.1",
-        "http-server": "^14.1.1",
-        "near-api-js": "^1.1.0",
-        "near-workspaces": "^3.5.0",
-        "rollup": "^2.79.0",
-        "rollup-plugin-terser": "^7.0.2"
-    },
-    "dependencies": {}
+  "name": "quickjs-rust-near",
+  "type": "module",
+  "license": "MIT",
+  "scripts": {
+    "serve": "http-server -p 8085 web4",
+    "serve-dist": "http-server -p 8085 web4/dist",
+    "web4bundle": "cd web4 && rollup -c rollup.config.js",
+    "test-e2e": "node --test ./e2e",
+    "test-web": "node --test web4",
+    "test-examples-fungibletoken-e2e": "cd examples/fungibletoken && ./build.sh && node --test e2e",
+    "test-examples-nft-e2e": "yarn examples-nft-web4bundle && cd examples/nft && ./build.sh && node --test e2e",
+    "test-examples-nft-localjs": "cd examples/nft && ./build.sh && node --test localjstest",
+    "test-purejs": "cd examples/purejs && ./build.sh && node --test localjstest",
+    "test-quickjslib": "cd quickjslib && ./build.sh && node --test",
+    "examples-nft-web4bundle": "cd examples/nft/web4 && rollup -c rollup.config.js",
+    "serve-examples-nft": "http-server -p 8085 examples/nft/web4",
+    "test-playwright-aiproxy": "yarn playwright test -c examples/aiproxy/playwright.config.js"
+  },
+  "jest": {
+    "transform": {}
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.1",
+    "@types/node": "^22.10.2",
+    "@web/rollup-plugin-html": "^1.11.0",
+    "chai": "^5.1.1",
+    "http-server": "^14.1.1",
+    "near-api-js": "^1.1.0",
+    "near-workspaces": "^3.5.0",
+    "rollup": "^2.79.0",
+    "rollup-plugin-terser": "^7.0.2"
+  },
+  "dependencies": {}
 }
