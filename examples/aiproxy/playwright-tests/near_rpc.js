@@ -16,7 +16,7 @@ await aiTokenAccount.deploy(await readFile('../fungibletoken/out/fungible_token.
 await aiTokenAccount.call(aiTokenAccount.accountId, 'new_default_meta', { owner_id: aiTokenAccount.accountId, total_supply: 1_000_000_000_000n.toString() });
 
 const javascript = (await readFile(new URL('../../fungibletoken/e2e/aiconversation.js', import.meta.url))).toString()
-    .replace("REPLACE_REFUND_SIGNATURE_PUBLIC_KEY", JSON.stringify(Array.from((await aiTokenAccount.getKey()).getPublicKey().data)));
+    .replace("REPLACE_REFUND_SIGNATURE_PUBLIC_KEY", JSON.stringify("ed25519:4vUdkHdG3DSDmw39DCADuwovsnPeTtymsigZSaPTEQA2"));
 
 await aiTokenAccount.call(
     aiTokenAccount.accountId,
