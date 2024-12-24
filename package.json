@@ -26,8 +26,8 @@
     "@web/rollup-plugin-html": "^1.11.0",
     "chai": "^5.1.1",
     "http-server": "^14.1.1",
-    "near-api-js": "^1.1.0",
-    "near-workspaces": "^3.5.0",
+    "near-api-js": "4.0.1",
+    "near-workspaces": "4.0.0",
     "rollup": "^2.79.0",
     "rollup-plugin-terser": "^7.0.2"
   },
