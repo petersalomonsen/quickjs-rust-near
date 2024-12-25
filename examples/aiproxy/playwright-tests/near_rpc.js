@@ -1,49 +1,66 @@
-import { Worker } from 'near-workspaces';
+import { KeyPairEd25519, KeyPair, parseNEAR, Worker } from 'near-workspaces';
+
 import { readFile } from 'fs/promises';
 import { createServer } from "http";
 import { createHash } from 'crypto';
 
+
 const worker = await Worker.init({ port: 14500, rpcAddr: "http://localhost:14500" });
+
+process.on('exit', () => {
+    console.log('Tearing down sandbox worker');
+    worker.tearDown();
+});
+
 const aiTokenAccount = await worker.rootAccount.createAccount('aitoken.test.near');
 await aiTokenAccount.deploy(await readFile('../fungibletoken/out/fungible_token.wasm'));
 await aiTokenAccount.call(aiTokenAccount.accountId, 'new_default_meta', { owner_id: aiTokenAccount.accountId, total_supply: 1_000_000_000_000n.toString() });
 
+const publicKeyBytes = KeyPair.fromString('ed25519:'+process.env.SPIN_VARIABLE_REFUND_SIGNING_KEY).getPublicKey().data;
+
 const javascript = (await readFile(new URL('../../fungibletoken/e2e/aiconversation.js', import.meta.url))).toString()
-    .replace("REPLACE_REFUND_SIGNATURE_PUBLIC_KEY", JSON.stringify(Array.from((await aiTokenAccount.getKey()).getPublicKey().data)));
+    .replace("REPLACE_REFUND_SIGNATURE_PUBLIC_KEY", JSON.stringify(Array.from(publicKeyBytes)));
 
 await aiTokenAccount.call(
     aiTokenAccount.accountId,
-    'post_javascript',    
-    {javascript}
+    'post_javascript',
+    { javascript }
 );
 
-const alice = await worker.rootAccount.createAccount('alice.test.near');
-await alice.call(aiTokenAccount.accountId, 'storage_deposit', {
-    account_id: alice.accountId,
+const aiuser = await worker.rootAccount.createAccount('aiuser.test.near');
+await aiuser.call(aiTokenAccount.accountId, 'storage_deposit', {
+    account_id: aiuser.accountId,
     registration_only: true,
 }, {
     attachedDeposit: 1_0000_0000000000_0000000000n.toString()
 });
 
 await aiTokenAccount.call(aiTokenAccount.accountId, 'ft_transfer', {
-    receiver_id: alice.accountId,
+    receiver_id: aiuser.accountId,
     amount: 128_000_000n.toString(),
 }, {
     attachedDeposit: 1n.toString()
 });
 
-const real_conversation_id = `alice.test.near_${new Date().getTime()}`;;
-const conversation_id = createHash('sha256').update(Buffer.from(real_conversation_id, 'utf8')).digest('hex');
+const functionAccessKeyPair = KeyPairEd25519.fromRandom();
 
-await alice.call(aiTokenAccount.accountId, 'call_js_func', {
-    function_name: "start_ai_conversation",
-    conversation_id
+await aiuser.updateAccessKey(functionAccessKeyPair, {
+    permission: {
+        FunctionCall: {
+            method_names: ["call_js_func"], receiver_id: aiTokenAccount.accountId, allowance: parseNEAR("0.25").toString(),
+        }
+    }, nonce: 0
 });
+
+const publicKey = (await aiuser.getKey()).getPublicKey().toString();
 
 const server = createServer((req, res) => {
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify({
-        real_conversation_id
+        publicKey,
+        functionAccessKeyPair: functionAccessKeyPair.toString(),
+        accountId: aiuser.accountId,
+        contractId: aiTokenAccount.accountId
     }));
 });
 

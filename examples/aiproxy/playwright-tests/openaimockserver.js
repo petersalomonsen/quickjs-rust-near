@@ -17,10 +17,11 @@ const server = createServer((req, res) => {
           choices: [
             {
               delta: {
-                content: "I am just a mockserver\n",
+                content: "Hello! How can I assist you today?\n",
               },
             },
           ],
+          usage: null
         }),
         JSON.stringify({
           choices: [
@@ -30,6 +31,15 @@ const server = createServer((req, res) => {
               },
             },
           ],
+          usage:
+          {
+            "prompt_tokens": 18,
+              "completion_tokens": 9,
+              "total_tokens": 27,
+              "prompt_tokens_details":
+                { "cached_tokens": 0 }, 
+                "completion_tokens_details": { "reasoning_tokens": 0 }
+          }
         }),
         "[DONE]",
       ];
