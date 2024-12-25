@@ -18,10 +18,9 @@ sequenceDiagram
     participant Contract
     participant AIService
 
-    User->>Contract: call_js_func(start_ai_conversation)
-    Contract->>Contract: Generate conversation_id
+    User->>Contract: call_js_func(start_ai_conversation, conversation_id_hash)
     Contract->>Contract: ft_transfer_internal(user, AIService, amount)
-    Contract->>User: Return conversation_id
+    Contract->>User: conversation_id_hash and deposit registered
 
     User->>AIService: Initiate AI request with conversation_id
     AIService->>Contract: Check deposit for conversation_id
@@ -29,6 +28,7 @@ sequenceDiagram
 
     AIService->>User: Provide AI-generated content
     AIService->>AIService: Track spent AI tokens
+    User->>AIService: Initiate refund for conversation_id
     AIService->>User: Sign message with unspent tokens
 
     User->>Contract: call_js_func(refund_unspent, {signature, refund_message})
