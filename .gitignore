@@ -14,4 +14,4 @@ emsdk
 /blob-report/
 /playwright/.cache/
 bin
-
+*.mp4

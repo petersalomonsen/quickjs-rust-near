@@ -18,9 +18,12 @@ test('ask question', async ({ page }) => {
   const questionArea = await page.getByPlaceholder('Type your question here...');
   await expect(questionArea).toBeEnabled();
   questionArea.fill("Hello!");
+  await page.waitForTimeout(500);
   await page.getByRole('button', { name: 'Ask AI' }).click();
-  await expect(await page.getByText("I am just a mockserver")).toBeVisible();
+  await expect(await page.getByText("Hello! How can I assist you today?")).toBeVisible();
+  
+  await page.waitForTimeout(500);
   await page.locator("#refundButton").click();
   
-  await expect(await page.locator("#refund_message")).toContainText(`[\"EVENT_JSON:{\\\"standard\\\":\\\"nep141\\\",\\\"version\\\":\\\"1.0.0\\\",\\\"event\\\":\\\"ft_transfer\\\",\\\"data\\\":[{\\\"old_owner_id\\\":\\\"${contractId}\\\",\\\"new_owner_id\\\":\\\"${accountId}\\\",\\\"amount\\\":\\\"127999973\\\"}]}\",\"refunded 127999973 to ${accountId}\",\"\\n\"]`)
+  await expect(await page.locator("#refund_message")).toContainText(`EVENT_JSON:{"standard":"nep141","version":"1.0.0","event":"ft_transfer","data":[{"old_owner_id":"${contractId}","new_owner_id":"${accountId}","amount":"127999973"}]}\nrefunded 127999973 to ${accountId}`);
 });

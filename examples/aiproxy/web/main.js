@@ -40,7 +40,7 @@ async function refund() {
             ...refundMessage
         }
     });
-    refund_message.innerHTML = JSON.stringify(result.receipts_outcome[0].outcome.logs);
+    refund_message.innerHTML = result.receipts_outcome[0].outcome.logs.join("\n");
 }
 
 async function startConversation() {

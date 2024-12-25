@@ -17,7 +17,7 @@ const server = createServer((req, res) => {
           choices: [
             {
               delta: {
-                content: "I am just a mockserver\n",
+                content: "Hello! How can I assist you today?\n",
               },
             },
           ],
