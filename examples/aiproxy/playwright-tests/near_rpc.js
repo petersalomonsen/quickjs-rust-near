@@ -1,4 +1,5 @@
-import { KeyPairEd25519, parseNEAR, Worker } from 'near-workspaces';
+import { KeyPairEd25519, KeyPair, parseNEAR, Worker } from 'near-workspaces';
+
 import { readFile } from 'fs/promises';
 import { createServer } from "http";
 import { createHash } from 'crypto';
@@ -15,8 +16,10 @@ const aiTokenAccount = await worker.rootAccount.createAccount('aitoken.test.near
 await aiTokenAccount.deploy(await readFile('../fungibletoken/out/fungible_token.wasm'));
 await aiTokenAccount.call(aiTokenAccount.accountId, 'new_default_meta', { owner_id: aiTokenAccount.accountId, total_supply: 1_000_000_000_000n.toString() });
 
+const publicKeyBytes = KeyPair.fromString('ed25519:'+process.env.SPIN_VARIABLE_REFUND_SIGNING_KEY).getPublicKey().data;
+
 const javascript = (await readFile(new URL('../../fungibletoken/e2e/aiconversation.js', import.meta.url))).toString()
-    .replace("REPLACE_REFUND_SIGNATURE_PUBLIC_KEY", JSON.stringify("ed25519:4vUdkHdG3DSDmw39DCADuwovsnPeTtymsigZSaPTEQA2"));
+    .replace("REPLACE_REFUND_SIGNATURE_PUBLIC_KEY", JSON.stringify(Array.from(publicKeyBytes)));
 
 await aiTokenAccount.call(
     aiTokenAccount.accountId,

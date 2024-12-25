@@ -29,7 +29,18 @@ async function refund() {
         headers: headers,
         body: requestBody
     });
-    refund_message.innerHTML =  JSON.stringify(await response.json(), null, 1);
+    const refundMessage = await response.json();
+
+    const account = walletConnection.account();
+    const result = await account.functionCall({
+        contractId: contractId,
+        methodName: 'call_js_func',
+        args: {
+            function_name: "refund_unspent",
+            ...refundMessage
+        }
+    });
+    refund_message.innerHTML = JSON.stringify(result.receipts_outcome[0].outcome.logs);
 }
 
 async function startConversation() {
@@ -42,7 +53,7 @@ async function startConversation() {
                         .join("");
 
     const account = walletConnection.account();
-    console.log('calling');
+
     const result = await account.functionCall({
         contractId: contractId,
         methodName: 'call_js_func',
