@@ -401,7 +401,7 @@ describe('NFT contract', () => {
             });
             throw new Error('should not succeed minting');
         } catch (e) {
-            expect(e.kind.ExecutionError).to.equal('Smart contract panicked: mint is forbidden');
+            expect(e.kind.kind.FunctionCallError.ExecutionError).to.equal('Smart contract panicked: mint is forbidden');
         }
     });
 
