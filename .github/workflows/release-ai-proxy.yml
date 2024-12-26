@@ -2,6 +2,8 @@ name: Release AI proxy spin app
 
 on:
   workflow_dispatch:        # Manual trigger
+  pull_request:
+    branches: [ main ]
   push:
     tags:
       - 'v*.*.*'
