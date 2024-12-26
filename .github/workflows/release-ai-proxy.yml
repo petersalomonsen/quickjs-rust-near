@@ -37,7 +37,7 @@ jobs:
       - name: "Publish"
         working-directory: examples/aiproxy
         run: |
-          spin registry push ghcr.io/${{ github.repository_owner }}//near-ft-openai-proxy:${{ github.ref }}
+          spin registry push ghcr.io/${{ github.repository_owner }}//near-ft-openai-proxy:test
 
   release:
     name: "Release"
@@ -47,4 +47,4 @@ jobs:
     steps:
       - name: Push to registry
         run: |
-          #spin registry push ghcr.io/${{ github.repository_owner }}//near-ft-openai-proxy:test
+          #spin registry push ghcr.io/${{ github.repository_owner }}//near-ft-openai-proxy:${{ github.ref }}
