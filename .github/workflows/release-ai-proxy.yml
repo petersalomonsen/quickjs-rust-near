@@ -10,7 +10,7 @@ on:
 
 jobs:
   build:
-    name: "Build and test AI proxy"
+    name: "Build and publish AI proxy"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -34,6 +34,10 @@ jobs:
         working-directory: examples/aiproxy
         run: |
           spin test
+      - name: "Publish"
+        working-directory: examples/aiproxy
+        run: |
+          spin registry push ghcr.io/${{ github.repository_owner }}//near-ft-openai-proxy:${{ github.ref }}
 
   release:
     name: "Release"
@@ -43,4 +47,4 @@ jobs:
     steps:
       - name: Push to registry
         run: |
-          spin registry push ghcr.io/${{ github.repository_owner }}//near-ft-openai-proxy:${{ github.ref }}
+          #spin registry push ghcr.io/${{ github.repository_owner }}//near-ft-openai-proxy:${{ github.ref }}
