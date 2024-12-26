@@ -1,0 +1,45 @@
+name: Release AI proxy spin app
+
+on:
+  workflow_dispatch:        # Manual trigger
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  build:
+    name: "Build and publish AI proxy"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install dependencies
+        run: |
+          curl -fsSL https://developer.fermyon.com/downloads/install.sh | bash
+          sudo mv spin /usr/local/bin/
+          rustup target add wasm32-wasi
+          cargo install cargo-component --locked
+          spin plugin install -y -u https://github.com/fermyon/spin-test/releases/download/canary/spin-test.json
+      - name: Check formatting
+        working-directory: examples/aiproxy
+        run: |
+          (cd openai-proxy && cargo fmt --check)
+          (cd tests && cargo fmt --check)
+      - name: Build project
+        working-directory: examples/aiproxy
+        run: |
+          spin build
+      - name: Run tests
+        working-directory: examples/aiproxy
+        run: |
+          spin test
+      - name: Log in to GitHub Container Registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin  
+      - name: "Publish"
+        working-directory: examples/aiproxy
+        run: |
+          TAG=${{ github.ref_name }}
+          if [ "${{ github.ref }}" == "refs/tags/${TAG}" ]; then
+            spin registry push ghcr.io/${{ github.repository_owner }}/near-ft-openai-proxy:${TAG}
+          else
+            spin registry push ghcr.io/${{ github.repository_owner }}/near-ft-openai-proxy:${{ github.sha }}
+          fi
