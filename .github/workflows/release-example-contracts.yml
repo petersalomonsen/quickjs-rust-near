@@ -36,11 +36,12 @@ jobs:
         run: |
           (cd examples/nft && ./build.sh)
           (cd examples/minimumweb4 && ./build.sh)
+          (cd examples/fungibletoken && ./build.sh)
 
       - name: Package WASM files into a ZIP
         run: |
           mkdir -p release
-          zip -j release/example_contracts.zip examples/nft/out/nft.wasm examples/minimumweb4/out/minimum_web4.wasm
+          zip -j release/example_contracts.zip examples/nft/out/nft.wasm examples/minimumweb4/out/minimum_web4.wasm examples/fungibletoken/out/fungible_token.wasm
 
       - name: Upload WASM ZIP artifact
         uses: actions/upload-artifact@v3
