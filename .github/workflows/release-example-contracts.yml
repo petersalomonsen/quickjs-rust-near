@@ -4,13 +4,23 @@ on:
   push:
     tags:
       - 'v*.*.*'
-
+  pull_request:
+    branches: [ main ]
+      
 jobs:
   buildexamplecontracts:
     name: Build example contracts
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+
+      - name: Install Emscripten
+        run: |
+          # Install Emscripten
+          git clone https://github.com/emscripten-core/emsdk.git
+          cd emsdk
+          ./emsdk install latest
+          ./emsdk activate latest
 
       - name: Install Wasmtime and Rust dependencies
         run: |
