@@ -18,6 +18,14 @@ jobs:
         run: |
           ./.devcontainer/install-dependencies.sh
 
+      - name: Set up paths and Rust
+        run: |
+          echo "$HOME/.wasmtime/bin" >> $GITHUB_PATH
+          echo "$(pwd)/binaryen-version_116/bin" >> $GITHUB_PATH
+          echo "$(pwd)/wabt-1.0.35/bin" >> $GITHUB_PATH
+          rustup target add wasm32-wasip1 
+          rustup target add wasm32-unknown-unknown
+
       - name: Build example contracts
         run: |
           (cd examples/nft && ./build.sh)
