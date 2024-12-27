@@ -12,35 +12,11 @@ jobs:
     name: Build example contracts
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-      - name: Install Emscripten
+      - name: Install dependencies
         run: |
-          # Install Emscripten
-          git clone https://github.com/emscripten-core/emsdk.git
-          cd emsdk
-          ./emsdk install latest
-          ./emsdk activate latest
-
-      - name: Install Wasmtime and Rust dependencies
-        run: |
-          curl https://wasmtime.dev/install.sh -sSf | bash
-          export PATH="$HOME/.wasmtime/bin:$PATH"
-          rustup target add wasm32-unknown-unknown
-          cargo install cargo-wasi
-
-          wget https://github.com/WebAssembly/binaryen/releases/download/version_116/binaryen-version_116-x86_64-linux.tar.gz
-          tar -xvzf binaryen-version_116-x86_64-linux.tar.gz 
-          sudo cp -r binaryen-version_116/* /usr/
-          rm -Rf binaryen-version_116*
-
-          wget https://github.com/WebAssembly/wabt/releases/download/1.0.35/wabt-1.0.35.tar.xz
-          tar -xvf wabt-1.0.35.tar.xz
-          cd wabt-1.0.35
-          mkdir build
-          cd build
-          cmake ..
-          sudo cmake --build . --target install
+          ./.devcontainer/install-dependencies.sh
 
       - name: Build example contracts
         run: |
