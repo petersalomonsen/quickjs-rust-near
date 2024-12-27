@@ -11,7 +11,7 @@ jobs:
     name: "Build and publish AI proxy"
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Install dependencies
         run: |
           curl -fsSL https://developer.fermyon.com/downloads/install.sh | bash

@@ -4,40 +4,44 @@ on:
   push:
     tags:
       - 'v*.*.*'
-
+  pull_request:
+    branches: [ main ]
+      
 jobs:
   buildexamplecontracts:
     name: Build example contracts
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-      - name: Install Wasmtime and Rust dependencies
+      - name: Restore Cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.wasmtime
+            ~/.cargo
+            bin
+            node_modules
+            emsdk
+            wabt-1.0.35
+            binaryen-version_116
+            quickjs-2024-01-13
+          key: ${{ runner.os }}-dependencies-${{ hashFiles('**/yarn.lock', '.devcontainer/install-dependencies.sh') }}
+
+      - name: Set up paths and Rust
         run: |
-          curl https://wasmtime.dev/install.sh -sSf | bash
-          export PATH="$HOME/.wasmtime/bin:$PATH"
+          echo "$HOME/.wasmtime/bin" >> $GITHUB_PATH
+          echo "$(pwd)/binaryen-version_116/bin" >> $GITHUB_PATH
+          echo "$(pwd)/wabt-1.0.35/bin" >> $GITHUB_PATH
+          rustup target add wasm32-wasip1 
           rustup target add wasm32-unknown-unknown
-          cargo install cargo-wasi
-
-          wget https://github.com/WebAssembly/binaryen/releases/download/version_116/binaryen-version_116-x86_64-linux.tar.gz
-          tar -xvzf binaryen-version_116-x86_64-linux.tar.gz 
-          sudo cp -r binaryen-version_116/* /usr/
-          rm -Rf binaryen-version_116*
-
-          wget https://github.com/WebAssembly/wabt/releases/download/1.0.35/wabt-1.0.35.tar.xz
-          tar -xvf wabt-1.0.35.tar.xz
-          cd wabt-1.0.35
-          mkdir build
-          cd build
-          cmake ..
-          sudo cmake --build . --target install
 
       - name: Build example contracts
         run: |
           (cd examples/nft && ./build.sh)
           (cd examples/minimumweb4 && ./build.sh)
           (cd examples/fungibletoken && ./build.sh)
-
+    
       - name: Package WASM files into a ZIP
         run: |
           mkdir -p release
@@ -45,10 +49,11 @@ jobs:
 
       - name: Upload WASM ZIP artifact
         uses: actions/upload-artifact@v3
+        if: startsWith(github.ref, 'refs/tags/')
         with:
           name: wasm-zip
           path: release/example_contracts.zip
-
+  
   release:
     name: Create Release
     needs: buildexamplecontracts
