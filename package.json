@@ -15,7 +15,8 @@
     "test-quickjslib": "cd quickjslib && ./build.sh && node --test",
     "examples-nft-web4bundle": "cd examples/nft/web4 && rollup -c rollup.config.js",
     "serve-examples-nft": "http-server -p 8085 examples/nft/web4",
-    "test-playwright-aiproxy": "yarn playwright test -c examples/aiproxy/playwright.config.js"
+    "test-playwright-aiproxy": "yarn playwright test -c examples/aiproxy/playwright.config.js",
+    "aiproxy:web4bundle": "cd examples/aiproxy && rollup -c rollup.config.js"
   },
   "jest": {
     "transform": {}
@@ -28,7 +29,7 @@
     "http-server": "^14.1.1",
     
     "near-workspaces": "4.0.0",
-    "rollup": "^2.79.0",
+    "rollup": "^4.29.1",
     "rollup-plugin-terser": "^7.0.2"
   },
   "dependencies": {}
