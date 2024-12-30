@@ -75,6 +75,11 @@
         "root": true
     },
     {
+        "name": "web4_get",
+        "export": "web4_get",
+        "root": true
+    },
+    {
         "name": "new",
         "export": "new",
         "root": true
