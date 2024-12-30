@@ -10,7 +10,7 @@ export default {
     closeBundle: () => {
       const js = readFileSync('dist/main.js').toString();
       const html = readFileSync('dist/index.html').toString()
-        .replace(`<script src="main.js" type="module"></script>`, `<script type="module">${js}</script>`);
+        .replace(`<script type="module" src="./main.js"></script>`, `<script type="module">${js}</script>`);
       
       writeFileSync('web4.js', `
 export function web4_get() {
