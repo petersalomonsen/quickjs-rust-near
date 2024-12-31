@@ -6,7 +6,15 @@ There is a simple example of a web client in the [web](./web/) folder.
 
 The application will keep track of of token usage per conversation in the built-in key-value storage of Spin. The initial balance for a conversation is retrieved from the Fungible Token smart contract.
 
-To launch the application, make sure to have the Spin SDK installed. Set the environment variable `SPIN_VARIABLE_OPENAI_API_KEY` to your OpenAI API key.
+To launch the application, make sure to have the Spin SDK installed.
+
+You also need to set some environment variables:
+
+- `SPIN_VARIABLE_OPENAI_API_KEY` your OpenAI API key.
+- `SPIN_VARIABLE_REFUND_SIGNING_KEY` an ed21159 secret key that will be used to sign refund requests. You can run the [create-refund-signing-keypair.js](./create-refund-signing-keypair.js) script to create the keypair. Run it using the command `$(node create-refund-signing-keypair.js)` and it will set the environment variable for you.
+- `SPIN_VARIABLE_FT_CONTRACT_ID` the NEAR contract account id. e.g `aitoken.test.near`
+- `SPIN_VARIABLE_OPENAI_COMPLETIONS_ENDPOINT` OpenAI API completions endpoint. E.g. https://api.openai.com/v1/chat/completions
+- `SPIN_VARIABLE_RPC_URL` The NEAR RPC node URL. E.g. https://rpc.mainnet.near.org
 
 Then run the following commands:
 
@@ -25,7 +33,27 @@ http-server web
 
 You will then find the web client at http://localhost:8080. Here you can have a conversation with the AI model.
 
-# Setting up the Fungible Token contract
+# Deploying
+
+## Deploying to Spin cloud
+
+While you can deploy to your own Kubernetes cluster using [spinkube](https://www.spinkube.dev/), the easiest approach, that we will describe here is to deploy to the [Fermyon cloud](https://www.fermyon.com/cloud).
+
+You can find a prebuilt image at the [github registry](https://github.com/petersalomonsen/quickjs-rust-near/pkgs/container/near-ft-openai-proxy), and deploy it using the following command:
+
+```bash
+spin deploy -f ghcr.io/petersalomonsen/near-ft-openai-proxy:v0.0.2 --variable refund_signing_key=4FGKKSoRmSVu5q8M1w1fuewJSNwKbM2Cw84EDcz3V2eB --variable ft_contract_id=arizcredits.testnet --variable openai_api_key=sk-Q4QE2pIc4LG_aA --variable rpc_url=https://rpc.testnet.near.org --variable openai_completions_endpoint=https://api.openai.com/v1/chat/completions
+```
+
+The variables passed in should be adjusted to your setup. Here's an explanation:
+
+- `refund_signing_key` - This is the signing key used by the AI proxy to sign refund requests. The contract needs the corresponding public key to verify signatures from the AI proxy.
+- `ft_contract_id` - This is the Fungible Token contract account id
+- `openai_api_key` - The API key for accessing the OpenAI completions endpoint
+- `rpc_url` - NEAR RPC node URL
+- `openai_completions_endpoint` - The OpenAI chat completion endpoint. Can be any OpenAI API compatible URL
+
+## Setting up the Fungible Token contract
 
 To set up the Fungible Token contract to use with the AI proxy, you need to provide initial supply and metadata. Here is an example of how the "ARIZ" token was set up on the testnet.
 
@@ -35,7 +63,13 @@ near contract call-function as-transaction arizcredits.testnet new json-args '{"
 
 ### Submitting the Javascript code
 
-The special functions for the AI conversation and web4 should be posted as javascript code to the contract. Here's an example taking the content of the files [../fungibletoken/e2e/aiconversation.js](../fungibletoken/e2e/aiconversation.js) and [web4.js](./web4.js).
+The special functions for the AI conversation and web4 should be posted as javascript code to the contract. Below is an example taking the content of the files [../fungibletoken/e2e/aiconversation.js](../fungibletoken/e2e/aiconversation.js) and [web4.js](./web4.js).
+
+The first command `yarn aiproxy:web4bundle` takes the `index.html` and `main.js` files in the [web](./web/) folder, bundles it and encodes it as base64 in the `web4_get`function response, resulting in the file `web4.js`.
+
+In the second command, the javascript is posted. Note that the `aiconversation.js` and `web4.js` files are concatenated and inserted into the `javascript` property of the function call args in this part of the command: `cat ../fungibletoken/e2e/aiconversation.js web4.js |jq -Rs '{javascript: .}'`.
+
+In the file [aiconversation.js](../fungibletoken/e2e/aiconversation.js), there is the placeholder `REPLACE_REFUND_SIGNATURE_PUBLIC_KEY`, which needs to be replaced with the public key corresponding to the signing key passed to the AI proxy above. 
 
 ```bash
 yarn aiproxy:web4bundle
