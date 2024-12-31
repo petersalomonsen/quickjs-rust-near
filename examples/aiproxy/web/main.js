@@ -10,8 +10,8 @@ const near = await connect({
 });
 const walletConnection = new WalletConnection(near, "aiproxy");
 
-const baseUrl = 'http://localhost:3000';
-const proxyUrl = `${baseUrl}/proxy-openai`;  // Replace with your actual Spin proxy URL
+const baseUrl = 'http://localhost:3000'; // Replace with your actual Spin proxy URL
+const proxyUrl = `${baseUrl}/proxy-openai`;  
 let conversation = [
     { role: 'system', content: 'You are a helpful assistant.' }
 ];
@@ -45,7 +45,6 @@ async function refund() {
 
 async function startConversation() {
     const conversation_id = `${walletConnection.getAccountId()}_${new Date().getTime()}`;
-    document.getElementById('conversation_id').value = conversation_id;
     const conversation_id_hash = Array.from(new Uint8Array(
                             await window.crypto.subtle.digest("SHA-256", new TextEncoder().encode(conversation_id))
                         ))
@@ -62,9 +61,17 @@ async function startConversation() {
             conversation_id: conversation_id_hash
         }
     });
-    console.log(result);
-    document.getElementById('question').disabled = false;
-    document.getElementById('askAIButton').disabled = false;
+    localStorage.setItem('conversation_id', conversation_id);
+    checkExistingConversationId();
+}
+
+function checkExistingConversationId() {
+    const existingConversationId = localStorage.getItem('conversation_id');
+    if (existingConversationId) {
+        document.getElementById('conversation_id').value = existingConversationId;
+        document.getElementById('question').disabled = false;
+        document.getElementById('askAIButton').disabled = false;
+    }
 }
 
 function escapeHtml(unsafe) {
@@ -157,3 +164,4 @@ async function sendQuestion() {
 document.getElementById('startConversationButton').addEventListener('click', () => startConversation());
 document.getElementById('refundButton').addEventListener('click', () => refund());
 document.getElementById('askAIButton').addEventListener('click', () => sendQuestion());
+checkExistingConversationId();
