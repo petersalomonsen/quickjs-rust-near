@@ -67,12 +67,11 @@ The special functions for the AI conversation and web4 should be posted as javas
 
 The first command `yarn aiproxy:web4bundle` takes the `index.html` and `main.js` files in the [web](./web/) folder, bundles it and encodes it as base64 in the `web4_get`function response, resulting in the file `web4.js`.
 
-In the second command, the javascript is posted. Note that the `aiconversation.js` and `web4.js` files are concatenated and inserted into the `javascript` property of the function call args in this part of the command: `cat ../fungibletoken/e2e/aiconversation.js web4.js |jq -Rs '{javascript: .}'`.
-
-In the file [aiconversation.js](../fungibletoken/e2e/aiconversation.js), there is the placeholder `REPLACE_REFUND_SIGNATURE_PUBLIC_KEY`, which needs to be replaced with the public key corresponding to the signing key passed to the AI proxy above. 
+Note when creating the `JSON_ARGS`, that the `aiconversation.js` and `web4.js` files are concatenated and inserted into the `javascript` property of the function call args. In the file [aiconversation.js](../fungibletoken/e2e/aiconversation.js), there is the placeholder `REPLACE_REFUND_SIGNATURE_PUBLIC_KEY`, which needs to be replaced with the public key corresponding to the signing key passed to the AI proxy above. This replacement is also done in the command snippet below.
 
 ```bash
 yarn aiproxy:web4bundle
-near contract call-function as-transaction arizcredits.testnet post_javascript json-args "$(cat ../fungibletoken/e2e/aiconversation.js web4.js |jq -Rs '{javascript: .}')" prepaid-gas '100.0 Tgas' attached-deposit '0 NEAR' sign-as arizcredits.testnet network-config testnet sign-with-keychain send
+JSON_ARGS=$(cat ../fungibletoken/e2e/aiconversation.js web4.js | sed "s/REPLACE_REFUND_SIGNATURE_PUBLIC_KEY/${REPLACE_REFUND_SIGNATURE_PUBLIC_KEY}/g" | jq -Rs '{javascript: .}')
+near contract call-function as-transaction arizcredits.testnet post_javascript json-args $JSON_ARGS prepaid-gas '100.0 Tgas' attached-deposit '0 NEAR' sign-as arizcredits.testnet network-config testnet sign-with-keychain send
 ```
 
