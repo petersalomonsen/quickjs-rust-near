@@ -1,6 +1,6 @@
 import html from '@web/rollup-plugin-html';
 import { terser } from 'rollup-plugin-terser';
-import { readFileSync, readdirSync, unlinkSync, writeFileSync } from 'fs';
+import { readFileSync, unlinkSync, writeFileSync } from 'fs';
 
 export default {
   input: ['./index.html'],
