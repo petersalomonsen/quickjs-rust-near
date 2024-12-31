@@ -207,6 +207,15 @@ impl Contract {
         self.store_js_bytecode(compile_js(javascript, Some("main.js".to_string())));
     }
 
+    pub fn web4_get(&self) {
+        let jsmod = self.load_js_bytecode();
+        let web4_get_str = CString::new("web4_get").unwrap();
+        unsafe {
+            self.add_js_functions();
+            js_call_function(jsmod, web4_get_str.as_ptr() as i32);
+        }
+    }
+
     fn on_account_closed(&mut self, account_id: AccountId, balance: u128) {
         log!("Closed @{} with {}", account_id, balance);
     }
@@ -459,5 +468,41 @@ mod tests {
         contract.call_js_func("transfer_2_000_from_bob_to_alice".to_string());
         assert_eq!(contract.ft_balance_of(bob()).0, TOTAL_SUPPLY - 2_000);
         assert_eq!(contract.ft_balance_of(alice()).0, 2_000);
+    }
+
+    #[test]
+    fn test_web4_get() {
+        setup_test_env();
+        set_current_account_id(bob());
+        set_predecessor_account_id(bob());
+
+        set_input(
+            "{\"request\": {\"path\": \"/index.html\"}}"
+                .try_into()
+                .unwrap(),
+        );
+        let mut contract = Contract::new_default_meta(bob().into(), TOTAL_SUPPLY.into());
+
+        contract.post_javascript(
+            "export function web4_get() {
+    const request = JSON.parse(env.input()).request;
+
+    let response;
+
+    if (request.path == '/index.html') {
+        response = {
+            contentType: 'text/html; charset=UTF-8',
+            body:  env.base64_encode('<html><body>hello</body></html>')
+        };
+    }
+    env.value_return(JSON.stringify(response));
+}"
+            .to_string(),
+        );
+        contract.web4_get();
+        assert_latest_return_value_string_eq(
+            r#"{"contentType":"text/html; charset=UTF-8","body":"PGh0bWw+PGJvZHk+aGVsbG88L2JvZHk+PC9odG1sPg=="}"#
+                .to_owned(),
+        );
     }
 }

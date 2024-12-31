@@ -243,4 +243,37 @@ describe('Fungible token contract', { only: true }, () => {
 
         expect(await contract.view('ft_balance_of', { account_id: 'alice.test.near' })).to.equal(1_000n.toString());
     });
+
+    test('should support web4', { only: false }, async () => {
+        const nearConnection = await connect(connectionConfig);
+        const accountId = contract.accountId;
+
+        const account = await nearConnection.account(accountId);
+        await account.functionCall({
+            contractId: accountId,
+            methodName: 'post_javascript',
+            gas: '300000000000000',
+            args: {
+                javascript: `
+                export function web4_get() {
+    const request = JSON.parse(env.input()).request;
+
+    let response;
+
+    if (request.path == '/index.html') {
+        response = {
+            contentType: 'text/html; charset=UTF-8',
+            body:  env.base64_encode('<html><body>hello</body></html>')
+        };
+    }
+    env.value_return(JSON.stringify(response));
+}
+                `
+            }
+        });
+
+        const web4Response = await contract.view('web4_get', { request: { path: '/index.html' } });
+        expect(web4Response.contentType).to.equal("text/html; charset=UTF-8");
+        expect(web4Response.body).to.equal(Buffer.from('<html><body>hello</body></html>').toString('base64'));
+    });
 });

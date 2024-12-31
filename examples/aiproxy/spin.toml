@@ -12,7 +12,7 @@ component = "openai-proxy"
 
 [component.openai-proxy]
 source = "openai-proxy/target/wasm32-wasi/release/openai_proxy.wasm"
-allowed_outbound_hosts = ["https://api.openai.com:443", "https://aitoken.testnet.page:443", "https://rpc.mainnet.near.org:443", "http://localhost:14500", "http://127.0.0.1:3001"]
+allowed_outbound_hosts = ["https://api.openai.com:443", "https://rpc.testnet.near.org:443", "https://rpc.mainnet.near.org:443", "http://localhost:14500", "http://127.0.0.1:3001"]
 key_value_stores = ["default"]
 
 [component.openai-proxy.build]

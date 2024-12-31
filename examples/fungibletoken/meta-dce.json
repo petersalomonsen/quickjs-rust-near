@@ -20,6 +20,11 @@
         "root": true
     },
     {
+        "name": "ft_metadata",
+        "export": "ft_metadata",
+        "root": true
+    },
+    {
         "name": "ft_balance_of",
         "export": "ft_balance_of",
         "root": true
@@ -67,6 +72,11 @@
     {
         "name": "storage_balance_of",
         "export": "storage_balance_of",
+        "root": true
+    },
+    {
+        "name": "web4_get",
+        "export": "web4_get",
         "root": true
     },
     {
