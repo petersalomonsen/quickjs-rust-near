@@ -58,4 +58,4 @@ Integrating with NEAR AI is also a natural next step in the evolution. Today NEA
 
 Finally, for the project to get more attention, it needs more documentation. Even though it already contains comprehensive test cases that also serves as code examples, the documentation explaining the concepts can be developed even more.
 
-This are all goals ahead for 2025.
+These are all goals ahead for 2025.
