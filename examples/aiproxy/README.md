@@ -4,13 +4,14 @@ This folder contains a [Spin](https://www.fermyon.com/spin) application, based o
 
 There is a simple example of a web client in the [web](./web/) folder.
 
-The application will keep track of of token usage per conversation in the built-in key-value storage of Spin. The initial balance for a conversation is retrieved from the Fungible Token smart contract.
+The application will keep track of token usage per conversation in the built-in key-value storage of Spin. The initial balance for a conversation is retrieved from the Fungible Token smart contract.
 
 To launch the application, make sure to have the Spin SDK installed.
 
 You also need to set some environment variables:
 
 - `SPIN_VARIABLE_OPENAI_API_KEY` your OpenAI API key.
+- `SPIN_VARIABLE_OPENAI_API_KEY_METHOD` specifies the method to provide the API key. Use `authorization` for OpenAI (default) and `api-key` for Azure OpenAI.
 - `SPIN_VARIABLE_REFUND_SIGNING_KEY` an ed21159 secret key that will be used to sign refund requests. You can run the [create-refund-signing-keypair.js](./create-refund-signing-keypair.js) script to create the keypair. Run it using the command `$(node create-refund-signing-keypair.js)` and it will set the environment variable for you.
 - `SPIN_VARIABLE_FT_CONTRACT_ID` the NEAR contract account id. e.g `aitoken.test.near`
 - `SPIN_VARIABLE_OPENAI_COMPLETIONS_ENDPOINT` OpenAI API completions endpoint. E.g. https://api.openai.com/v1/chat/completions

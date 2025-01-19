@@ -14,12 +14,6 @@ use spin_test_sdk::{
 
 const SIGNING_PUBLIC_KEY: &str = "63LxSTBisoUfp3Gu7eGY8kAVcRAmZacZjceJ2jNeGZLH";
 
-fn hash_string(conversation_id: &str) -> String {
-    let mut hasher = Sha256::new();
-    hasher.update(conversation_id.as_bytes());
-    hex::encode(hasher.finalize())
-}
-
 fn handle_openai_request() {
     let openai_response = http::types::OutgoingResponse::new(http::types::Headers::new());
     openai_response.write_body("data: {\"id\":\"chatcmpl-AMaFCyZmtLWFTUrXg0ZyEI9gz0wbj\",\"object\":\"chat.completion.chunk\",\"created\":1729945902,\"model\":\"gpt-4o-2024-08-06\",\"system_fingerprint\":\"fp_72bbfa6014\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"\",\"refusal\":null},\"logprobs\":null,\"finish_reason\":null}],\"usage\":null}\n\ndata: {\"id\":\"chatcmpl-AMaFCyZmtLWFTUrXg0ZyEI9gz0wbj\",\"object\":\"chat.completion.chunk\",\"created\":1729945902,\"model\":\"gpt-4o-2024-08-06\",\"system_fingerprint\":\"fp_72bbfa6014\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"Hello\"},\"logprobs\":null,\"finish_reason\":null}],\"usage\":null}\n\n
@@ -28,6 +22,18 @@ data: {\"id\":\"chatcmpl-AMaFCyZmtLWFTUrXg0ZyEI9gz0wbj\",\"object\":\"chat.compl
 data: {\"id\":\"chatcmpl-AMaFCyZmtLWFTUrXg0ZyEI9gz0wbj\",\"object\":\"chat.completion.chunk\",\"created\":1729945902,\"model\":\"gpt-4o-2024-08-06\",\"system_fingerprint\":\"fp_72bbfa6014\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\" assist\"},\"logprobs\":null,\"finish_reason\":null}],\"usage\":null}\n\ndata: {\"id\":\"chatcmpl-AMaFCyZmtLWFTUrXg0ZyEI9gz0wbj\",\"object\":\"chat.completion.chunk\",\"created\":1729945902,\"model\":\"gpt-4o-2024-08-06\",\"system_fingerprint\":\"fp_72bbfa6014\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\" you\"},\"logprobs\":null,\"finish_reason\":null}],\"usage\":null}\n\n
 data: {\"id\":\"chatcmpl-AMaFCyZmtLWFTUrXg0ZyEI9gz0wbj\",\"object\":\"chat.completion.chunk\",\"created\":1729945902,\"model\":\"gpt-4o-2024-08-06\",\"system_fingerprint\":\"fp_72bbfa6014\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\" today\"},\"logprobs\":null,\"finish_reason\":null}],\"usage\":null}\n\ndata: {\"id\":\"chatcmpl-AMaFCyZmtLWFTUrXg0ZyEI9gz0wbj\",\"object\":\"chat.completion.chunk\",\"created\":1729945902,\"model\":\"gpt-4o-2024-08-06\",\"system_fingerprint\":\"fp_72bbfa6014\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"?\"},\"logprobs\":null,\"finish_reason\":null}],\"usage\":null}\n\ndata: {\"id\":\"chatcmpl-AMaFCyZmtLWFTUrXg0ZyEI9gz0wbj\",\"object\":\"chat.completion.chunk\",\"created\":1729945902,\"model\":\"gpt-4o-2024-08-06\",\"system_fingerprint\":\"fp_72bbfa6014\",\"choices\":[{\"index\":0,\"delta\":{},\"logprobs\":null,\"finish_reason\":\"stop\"}],\"usage\":null}\n\ndata: {\"id\":\"chatcmpl-AMaFCyZmtLWFTUrXg0ZyEI9gz0wbj\",\"object\":\"chat.completion.chunk\",\"created\":1729945902,\"model\":\"gpt-4o-2024-08-06\",\"system_fingerprint\":\"fp_72bbfa6014\",\"choices\":[],\"usage\":{\"prompt_tokens\":18,\"completion_tokens\":9,\"total_tokens\":27,\"prompt_tokens_details\":{\"cached_tokens\":0},\"completion_tokens_details\":{\"reasoning_tokens\":0}}}\n\ndata: [DONE]\n\n
 ".as_bytes());
+
+    http_handler::set_response(
+        "https://api.openai.com/v1/chat/completions",
+        http_handler::ResponseHandler::Response(openai_response),
+    );
+}
+
+fn handle_openai_request_with_error() {
+    let openai_response = http::types::OutgoingResponse::new(http::types::Headers::new());
+    openai_response.set_status_code(401).unwrap();
+
+    openai_response.write_body("{ \"statusCode\": 401, \"message\": \"Unauthorized. Access token is missing, invalid, audience is incorrect (https://cognitiveservices.azure.com), or have expired.\" }".as_bytes());
 
     http_handler::set_response(
         "https://api.openai.com/v1/chat/completions",
@@ -112,6 +118,60 @@ fn openai_request() {
     assert_eq!(
         u64::from_str_radix(stored_conversation_balance["amount"].as_str().unwrap(), 10).unwrap(),
         (256000 - 27) as u64
+    );
+    assert_eq!(
+        stored_conversation_balance["locked_for_ongoing_request"],
+        false
+    );
+}
+
+#[spin_test]
+fn handle_openai_request_error() {
+    set_variables();
+    handle_openai_request_with_error();
+
+    let conversation_info = json!({"receiver_id":"aiuser.testnet","amount":"256000"})
+        .to_string()
+        .as_bytes()
+        .to_vec();
+    let response = http::types::OutgoingResponse::new(http::types::Headers::new());
+    response.write_body(
+        json!({
+          "jsonrpc": "2.0",
+          "result": {
+            "result": conversation_info,
+            "logs": [],
+            "block_height": 17817336,
+            "block_hash": "4qkA4sUUG8opjH5Q9bL5mWJTnfR4ech879Db1BZXbx6P"
+          },
+          "id": "dontcare"
+        })
+        .to_string()
+        .as_bytes(),
+    );
+    http_handler::set_response(
+        "https://rpc.mainnet.near.org",
+        http_handler::ResponseHandler::Response(response),
+    );
+
+    let request = http::types::OutgoingRequest::new(http::types::Headers::new());
+    request.set_method(&http::types::Method::Post).unwrap();
+    request.set_path_with_query(Some("/proxy-openai")).unwrap();
+    request.body().unwrap().write_bytes(json!(
+        {
+            "conversation_id": "aiuser.testnet_1729432017818",
+            "messages":[{"role":"system","content":"You are a helpful assistant."},{"role":"user","content":"hello"}]
+    }).to_string().as_bytes());
+    let response = spin_test_sdk::perform_request(request);
+
+    assert_ne!(response.status(), 200);
+    let store = spin_test_virt::key_value::Store::open("default");
+    let stored_conversation_balance: serde_json::Value =
+        serde_json::from_slice(&store.get("aiuser.testnet_1729432017818").unwrap()[..]).unwrap();
+
+    assert_eq!(
+        u64::from_str_radix(stored_conversation_balance["amount"].as_str().unwrap(), 10).unwrap(),
+        (256000) as u64
     );
     assert_eq!(
         stored_conversation_balance["locked_for_ongoing_request"],

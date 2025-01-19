@@ -21,6 +21,7 @@ workdir = "openai-proxy"
 watch = ["src/**/*.rs", "Cargo.toml"]
 
 [variables]
+openai_api_key_method = { default = "authorization" }
 openai_api_key = { required = true }
 refund_signing_key = { required = true }
 openai_completions_endpoint = { required = true }
@@ -28,6 +29,7 @@ ft_contract_id = { required = true }
 rpc_url = {required = true }
 
 [component.openai-proxy.variables]
+openai_api_key_method = "{{ openai_api_key_method }}"
 openai_api_key = "{{ openai_api_key }}"
 refund_signing_key = "{{ refund_signing_key }}"
 openai_completions_endpoint =  "{{ openai_completions_endpoint }}"

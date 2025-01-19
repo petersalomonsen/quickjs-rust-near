@@ -247,6 +247,19 @@ async fn handle_request(request: Request, response_out: ResponseOutparam) {
 
             match proxy_openai(messages).await {
                 Ok(incoming_response) => {
+                    if incoming_response.status() != 200 {
+                        conversation_balance.locked_for_ongoing_request = false;
+                        conversation_balance_store
+                            .set_json(conversation_id, &conversation_balance)
+                            .unwrap();
+                        let response_data = incoming_response.into_body().await.unwrap();
+                        let response_string = String::from_utf8(response_data).unwrap();
+                        eprintln!(
+                            "error in response from OpenAI endpoint: {:?}",
+                            response_string
+                        );
+                        return server_error(response_out);
+                    }
                     let mut incoming_response_body = incoming_response.take_body_stream();
                     let outgoing_response = OutgoingResponse::new(headers);
                     let mut outgoing_response_body = outgoing_response.take_body();
@@ -458,18 +471,24 @@ async fn proxy_openai(messages: Value) -> anyhow::Result<IncomingResponse> {
     });
 
     let openai_completions_endpoint = variables::get("openai_completions_endpoint")?;
-    let outgoing_request = Request::builder()
+    let api_key = variables::get("openai_api_key").unwrap();
+    let api_key_method =
+        variables::get("openai_api_key_method").unwrap_or_else(|_| "authorization".to_string());
+
+    let mut openai_request_builder = Request::builder();
+    openai_request_builder
         .method(Method::Post)
         .uri(openai_completions_endpoint)
-        .header(
-            "Authorization",
-            format!("Bearer {}", variables::get("openai_api_key").unwrap()),
-        )
-        .header("Content-Type", "application/json")
-        .body(request_body.to_string())
-        .build();
+        .header("Content-Type", "application/json");
 
-    let response = match http::send::<_, IncomingResponse>(outgoing_request).await {
+    let openai_request = match api_key_method.as_str() {
+        "api-key" => openai_request_builder.header("Api-Key", api_key),
+        _ => openai_request_builder.header("Authorization", format!("Bearer {}", api_key)),
+    }
+    .body(request_body.to_string())
+    .build();
+
+    let response = match http::send::<_, IncomingResponse>(openai_request).await {
         Ok(resp) => resp,
         Err(e) => {
             eprintln!("Error sending request to OpenAI: {e}");

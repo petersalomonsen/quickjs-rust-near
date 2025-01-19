@@ -34,6 +34,7 @@ echo 'export PATH="$(pwd)/wabt-1.0.35/bin:$PATH"' >> ~/.bashrc
 # Install Emscripten
 git clone https://github.com/emscripten-core/emsdk.git
 cd emsdk
+git checkout 3.1.74 
 ./emsdk install latest
 ./emsdk activate latest
 cd ..
