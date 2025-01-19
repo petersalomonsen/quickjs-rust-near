@@ -4,7 +4,7 @@ This folder contains a [Spin](https://www.fermyon.com/spin) application, based o
 
 There is a simple example of a web client in the [web](./web/) folder.
 
-The application will keep track of of token usage per conversation in the built-in key-value storage of Spin. The initial balance for a conversation is retrieved from the Fungible Token smart contract.
+The application will keep track of token usage per conversation in the built-in key-value storage of Spin. The initial balance for a conversation is retrieved from the Fungible Token smart contract.
 
 To launch the application, make sure to have the Spin SDK installed.
 
@@ -15,6 +15,7 @@ You also need to set some environment variables:
 - `SPIN_VARIABLE_FT_CONTRACT_ID` the NEAR contract account id. e.g `aitoken.test.near`
 - `SPIN_VARIABLE_OPENAI_COMPLETIONS_ENDPOINT` OpenAI API completions endpoint. E.g. https://api.openai.com/v1/chat/completions
 - `SPIN_VARIABLE_RPC_URL` The NEAR RPC node URL. E.g. https://rpc.mainnet.near.org
+- `SPIN_VARIABLE_API_KEY_METHOD` specifies the method to provide the API key. Use `authorization` for OpenAI (default) and `api-key` for Azure OpenAI.
 
 Then run the following commands:
 

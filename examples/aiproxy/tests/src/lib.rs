@@ -14,12 +14,6 @@ use spin_test_sdk::{
 
 const SIGNING_PUBLIC_KEY: &str = "63LxSTBisoUfp3Gu7eGY8kAVcRAmZacZjceJ2jNeGZLH";
 
-fn hash_string(conversation_id: &str) -> String {
-    let mut hasher = Sha256::new();
-    hasher.update(conversation_id.as_bytes());
-    hex::encode(hasher.finalize())
-}
-
 fn handle_openai_request() {
     let openai_response = http::types::OutgoingResponse::new(http::types::Headers::new());
     openai_response.write_body("data: {\"id\":\"chatcmpl-AMaFCyZmtLWFTUrXg0ZyEI9gz0wbj\",\"object\":\"chat.completion.chunk\",\"created\":1729945902,\"model\":\"gpt-4o-2024-08-06\",\"system_fingerprint\":\"fp_72bbfa6014\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"\",\"refusal\":null},\"logprobs\":null,\"finish_reason\":null}],\"usage\":null}\n\ndata: {\"id\":\"chatcmpl-AMaFCyZmtLWFTUrXg0ZyEI9gz0wbj\",\"object\":\"chat.completion.chunk\",\"created\":1729945902,\"model\":\"gpt-4o-2024-08-06\",\"system_fingerprint\":\"fp_72bbfa6014\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"Hello\"},\"logprobs\":null,\"finish_reason\":null}],\"usage\":null}\n\n
