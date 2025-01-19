@@ -1,4 +1,18 @@
 import { defineConfig, devices } from '@playwright/test';
+import fs from 'fs';
+import path from 'path';
+import dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const envFilePath = path.resolve(__dirname, '.test.env');
+const envConfig = dotenv.parse(fs.readFileSync(envFilePath));
+
+for (const k in envConfig) {
+  process.env[k] = envConfig[k];
+}
 
 /**
  * @see https://playwright.dev/docs/test-configuration
@@ -64,25 +78,27 @@ export default defineConfig({
   ],
 
   /* Run your local dev server before starting the tests */
-  webServer: [{
-    command: 'static-web-server -p 8080 -d web',
-    url: 'http://127.0.0.1:8080',
-    reuseExistingServer: !process.env.CI,
-  },
-  {
-    command: "export $(grep -v '^#' .test.env | xargs) && spin build && spin up",
-    url: 'http://127.0.0.1:3000',
-    reuseExistingServer: !process.env.CI,
-  },
-  {
-    command: "export $(grep -v '^#' .test.env | xargs) && node playwright-tests/openaimockserver.js",
-    url: 'http://127.0.0.1:3001',
-    reuseExistingServer: !process.env.CI,
-  },
-  {
-    command: "export $(grep -v '^#' .test.env | xargs) && node playwright-tests/near_rpc.js",
-    url: 'http://127.0.0.1:14501',
-    reuseExistingServer: !process.env.CI,
-  }],
+  webServer: [
+    {
+      command: "spin build && spin up",
+      url: 'http://127.0.0.1:3000',
+      reuseExistingServer: !process.env.CI,
+    },
+    {
+      command: "node playwright-tests/openaimockserver.js",
+      url: 'http://127.0.0.1:3001',
+      reuseExistingServer: !process.env.CI,
+    },
+    {
+      command: "node playwright-tests/near_rpc.js",
+      url: 'http://127.0.0.1:14501',
+      reuseExistingServer: !process.env.CI,
+    },
+    {
+      command: "npx http-server ./web -p 8080",
+      url: 'http://127.0.0.1:8080',
+      reuseExistingServer: !process.env.CI,
+    }
+  ],
 });
 
