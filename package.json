@@ -29,7 +29,7 @@
     "dotenv": "^16.4.7",
     "http-server": "^14.1.1",
     "near-workspaces": "4.0.0",
-    "rollup": "^4.29.1",
+    "rollup": "^4.31.0",
     "rollup-plugin-terser": "^7.0.2"
   },
   "dependencies": {}

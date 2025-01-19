@@ -71,11 +71,11 @@ The first command `yarn aiproxy:web4bundle` takes the `index.html` and `main.js`
 Note when creating the `JSON_ARGS`, that the `aiconversation.js` and `web4.js` files are concatenated and inserted into the `javascript` property of the function call args. In the file [aiconversation.js](../fungibletoken/e2e/aiconversation.js), there is the placeholder `REPLACE_REFUND_SIGNATURE_PUBLIC_KEY`, which needs to be replaced with the public key corresponding to the signing key passed to the AI proxy above. This replacement is also done in the command snippet below.
 
 ```bash
-export NETWORK_ID=testnet
-export RPC_URL=https://rpc.testnet.near.org
+export NETWORK_ID=mainnet
+export RPC_URL=https://rpc.mainnet.near.org
 export AI_PROXY_BASEURL=https://openai-proxy-zoukmtuw.fermyon.app
 yarn aiproxy:web4bundle
 export JSON_ARGS=$(cat ../fungibletoken/e2e/aiconversation.js web4.js | sed "s/REPLACE_REFUND_SIGNATURE_PUBLIC_KEY/${REPLACE_REFUND_SIGNATURE_PUBLIC_KEY}/g" | jq -Rs '{javascript: .}')
-near contract call-function as-transaction arizcredits.testnet post_javascript json-args $JSON_ARGS prepaid-gas '100.0 Tgas' attached-deposit '0 NEAR' sign-as arizcredits.testnet network-config testnet sign-with-keychain send
+near contract call-function as-transaction arizcredits.near post_javascript json-args $JSON_ARGS prepaid-gas '100.0 Tgas' attached-deposit '0 NEAR' sign-as arizcredits.near network-config mainnet sign-with-keychain send
 ```
 
