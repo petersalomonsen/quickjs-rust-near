@@ -37,7 +37,7 @@ await aiuser.call(aiTokenAccount.accountId, 'storage_deposit', {
 
 await aiTokenAccount.call(aiTokenAccount.accountId, 'ft_transfer', {
     receiver_id: aiuser.accountId,
-    amount: 128_000_000n.toString(),
+    amount: (100n*128_000_000n).toString(),
 }, {
     attachedDeposit: 1n.toString()
 });

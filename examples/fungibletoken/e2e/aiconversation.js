@@ -31,7 +31,7 @@ export function refund_unspent() {
 
         const conversation_data = JSON.parse(env.get_data(conversation_id));
 
-        if (BigInt(conversation_data.amount) > BigInt(refund_amount)) {
+        if (BigInt(conversation_data.amount) >= BigInt(refund_amount)) {
             env.clear_data(conversation_id);
             env.ft_transfer_internal(env.current_account_id(), receiver_id, refund_amount);
             print(`refunded ${refund_amount} to ${receiver_id}`);

@@ -473,7 +473,7 @@ async fn proxy_openai(messages: Value) -> anyhow::Result<IncomingResponse> {
     let openai_completions_endpoint = variables::get("openai_completions_endpoint")?;
     let api_key = variables::get("openai_api_key").unwrap();
     let api_key_method =
-        variables::get("api_key_method").unwrap_or_else(|_| "authorization".to_string());
+        variables::get("openai_api_key_method").unwrap_or_else(|_| "authorization".to_string());
 
     let mut openai_request_builder = Request::builder();
     openai_request_builder

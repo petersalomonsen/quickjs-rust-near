@@ -11,11 +11,11 @@ To launch the application, make sure to have the Spin SDK installed.
 You also need to set some environment variables:
 
 - `SPIN_VARIABLE_OPENAI_API_KEY` your OpenAI API key.
+- `SPIN_VARIABLE_OPENAI_API_KEY_METHOD` specifies the method to provide the API key. Use `authorization` for OpenAI (default) and `api-key` for Azure OpenAI.
 - `SPIN_VARIABLE_REFUND_SIGNING_KEY` an ed21159 secret key that will be used to sign refund requests. You can run the [create-refund-signing-keypair.js](./create-refund-signing-keypair.js) script to create the keypair. Run it using the command `$(node create-refund-signing-keypair.js)` and it will set the environment variable for you.
 - `SPIN_VARIABLE_FT_CONTRACT_ID` the NEAR contract account id. e.g `aitoken.test.near`
 - `SPIN_VARIABLE_OPENAI_COMPLETIONS_ENDPOINT` OpenAI API completions endpoint. E.g. https://api.openai.com/v1/chat/completions
 - `SPIN_VARIABLE_RPC_URL` The NEAR RPC node URL. E.g. https://rpc.mainnet.near.org
-- `SPIN_VARIABLE_API_KEY_METHOD` specifies the method to provide the API key. Use `authorization` for OpenAI (default) and `api-key` for Azure OpenAI.
 
 Then run the following commands:
 
