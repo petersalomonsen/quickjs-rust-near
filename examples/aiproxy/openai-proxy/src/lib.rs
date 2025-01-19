@@ -247,6 +247,19 @@ async fn handle_request(request: Request, response_out: ResponseOutparam) {
 
             match proxy_openai(messages).await {
                 Ok(incoming_response) => {
+                    if incoming_response.status() != 200 {
+                        conversation_balance.locked_for_ongoing_request = false;
+                        conversation_balance_store
+                            .set_json(conversation_id, &conversation_balance)
+                            .unwrap();
+                        let response_data = incoming_response.into_body().await.unwrap();
+                        let response_string = String::from_utf8(response_data).unwrap();
+                        eprintln!(
+                            "error in response from OpenAI endpoint: {:?}",
+                            response_string
+                        );
+                        return server_error(response_out);
+                    }
                     let mut incoming_response_body = incoming_response.take_body_stream();
                     let outgoing_response = OutgoingResponse::new(headers);
                     let mut outgoing_response_body = outgoing_response.take_body();

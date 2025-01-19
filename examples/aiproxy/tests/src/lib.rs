@@ -35,6 +35,18 @@ data: {\"id\":\"chatcmpl-AMaFCyZmtLWFTUrXg0ZyEI9gz0wbj\",\"object\":\"chat.compl
     );
 }
 
+fn handle_openai_request_with_error() {
+    let openai_response = http::types::OutgoingResponse::new(http::types::Headers::new());
+    openai_response.set_status_code(401).unwrap();
+
+    openai_response.write_body("{ \"statusCode\": 401, \"message\": \"Unauthorized. Access token is missing, invalid, audience is incorrect (https://cognitiveservices.azure.com), or have expired.\" }".as_bytes());
+
+    http_handler::set_response(
+        "https://api.openai.com/v1/chat/completions",
+        http_handler::ResponseHandler::Response(openai_response),
+    );
+}
+
 fn set_variables() {
     spin_test_virt::variables::set(
         "refund_signing_key",
@@ -112,6 +124,60 @@ fn openai_request() {
     assert_eq!(
         u64::from_str_radix(stored_conversation_balance["amount"].as_str().unwrap(), 10).unwrap(),
         (256000 - 27) as u64
+    );
+    assert_eq!(
+        stored_conversation_balance["locked_for_ongoing_request"],
+        false
+    );
+}
+
+#[spin_test]
+fn handle_openai_request_error() {
+    set_variables();
+    handle_openai_request_with_error();
+
+    let conversation_info = json!({"receiver_id":"aiuser.testnet","amount":"256000"})
+        .to_string()
+        .as_bytes()
+        .to_vec();
+    let response = http::types::OutgoingResponse::new(http::types::Headers::new());
+    response.write_body(
+        json!({
+          "jsonrpc": "2.0",
+          "result": {
+            "result": conversation_info,
+            "logs": [],
+            "block_height": 17817336,
+            "block_hash": "4qkA4sUUG8opjH5Q9bL5mWJTnfR4ech879Db1BZXbx6P"
+          },
+          "id": "dontcare"
+        })
+        .to_string()
+        .as_bytes(),
+    );
+    http_handler::set_response(
+        "https://rpc.mainnet.near.org",
+        http_handler::ResponseHandler::Response(response),
+    );
+
+    let request = http::types::OutgoingRequest::new(http::types::Headers::new());
+    request.set_method(&http::types::Method::Post).unwrap();
+    request.set_path_with_query(Some("/proxy-openai")).unwrap();
+    request.body().unwrap().write_bytes(json!(
+        {
+            "conversation_id": "aiuser.testnet_1729432017818",
+            "messages":[{"role":"system","content":"You are a helpful assistant."},{"role":"user","content":"hello"}]
+    }).to_string().as_bytes());
+    let response = spin_test_sdk::perform_request(request);
+
+    assert_ne!(response.status(), 200);
+    let store = spin_test_virt::key_value::Store::open("default");
+    let stored_conversation_balance: serde_json::Value =
+        serde_json::from_slice(&store.get("aiuser.testnet_1729432017818").unwrap()[..]).unwrap();
+
+    assert_eq!(
+        u64::from_str_radix(stored_conversation_balance["amount"].as_str().unwrap(), 10).unwrap(),
+        (256000) as u64
     );
     assert_eq!(
         stored_conversation_balance["locked_for_ongoing_request"],
