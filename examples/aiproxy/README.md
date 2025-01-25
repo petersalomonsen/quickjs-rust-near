@@ -74,8 +74,16 @@ Note when creating the `JSON_ARGS`, that the `aiconversation.js` and `web4.js` f
 export NETWORK_ID=mainnet
 export RPC_URL=https://rpc.mainnet.near.org
 export AI_PROXY_BASEURL=https://openai-proxy-zoukmtuw.fermyon.app
+export FUNGIBLE_TOKEN_CONTRACT_ID=arizcredits.near
 yarn aiproxy:web4bundle
 export JSON_ARGS=$(cat ../fungibletoken/e2e/aiconversation.js web4.js | sed "s/REPLACE_REFUND_SIGNATURE_PUBLIC_KEY/${REPLACE_REFUND_SIGNATURE_PUBLIC_KEY}/g" | jq -Rs '{javascript: .}')
 near contract call-function as-transaction arizcredits.near post_javascript json-args $JSON_ARGS prepaid-gas '100.0 Tgas' attached-deposit '0 NEAR' sign-as arizcredits.near network-config mainnet sign-with-keychain send
 ```
 
+### Updating spin cloud variables
+
+If you need to update e.g. the signing key for refunding, you can update the variable in the spin cloud app like below. Here is an example with a signing key with the value `Atw4nUxRCFimiQ8W6cnHEj8zWWjb8iTKaPuomw18XFxb`.
+
+```bash
+spin cloud variables set --app openai-proxy refund_signing_key=Atw4nUxRCFimiQ8W6cnHEj8zWWjb8iTKaPuomw18XFxb
+```

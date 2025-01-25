@@ -18,10 +18,10 @@ const walletSelector = await setupWalletSelector({
     network: "mainnet",
     modules: walletSelectorModules
 });
-console.log('2',localStorage.getItem('near-wallet-selector:selectedWalletId'), localStorage.getItem('near-wallet-selector:contract'));
   
 const walletSelectorModal = setupModal(walletSelector, {
     contractId: localStorage.getItem('contractId'),
+    methodNames: ['call_js_func']
 });
 
 
