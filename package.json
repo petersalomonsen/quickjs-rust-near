@@ -22,6 +22,10 @@
     "transform": {}
   },
   "devDependencies": {
+    "@near-wallet-selector/core": "^8.9.15",
+    "@near-wallet-selector/ledger": "^8.9.15",
+    "@near-wallet-selector/modal-ui-js": "^8.9.15",
+    "@near-wallet-selector/my-near-wallet": "^8.9.15",
     "@playwright/test": "^1.49.1",
     "@types/node": "^22.10.2",
     "@web/rollup-plugin-html": "^2.3.0",
@@ -31,6 +35,5 @@
     "near-workspaces": "4.0.0",
     "rollup": "^4.31.0",
     "rollup-plugin-terser": "^7.0.2"
-  },
-  "dependencies": {}
+  }
 }

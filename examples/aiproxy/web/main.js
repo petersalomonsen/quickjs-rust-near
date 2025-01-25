@@ -1,14 +1,28 @@
-import { connect, keyStores, WalletConnection} from 'near-api-js';
+import { setupWalletSelector } from '@near-wallet-selector/core';
+import { setupMyNearWallet } from "@near-wallet-selector/my-near-wallet";
+import { setupModal } from "@near-wallet-selector/modal-ui-js";
 
-const keyStore = new keyStores.BrowserLocalStorageKeyStore();
-const contractId = localStorage.getItem('contractId');
+let setupLedger;
+const walletSelectorModules =  [setupMyNearWallet()];
+try {
+    //setupLedger = (await import( "@near-wallet-selector/ledger")).setupLedger;
+    //walletSelectorModules.push(setupLedger());
+} catch(e) {
+    console.warn('not able to setup ledger', e);
+}
 
-const near = await connect({
-    networkId: "sandbox",
-    nodeUrl: "http://localhost:14500",
-    keyStore
+const walletSelector = await setupWalletSelector({
+    network: "mainnet",
+    modules: walletSelectorModules
 });
-const walletConnection = new WalletConnection(near, "aiproxy");
+console.log('2',localStorage.getItem('near-wallet-selector:selectedWalletId'), localStorage.getItem('near-wallet-selector:contract'));
+  
+const walletSelectorModal = setupModal(walletSelector, {
+    contractId: localStorage.getItem('contractId'),
+});
+
+
+document.getElementById('openWalletSelectorButton').addEventListener('click', () => walletSelectorModal.show());
 
 const baseUrl = 'http://localhost:3000'; // Replace with your actual Spin proxy URL
 const proxyUrl = `${baseUrl}/proxy-openai`;  
@@ -31,36 +45,58 @@ async function refund() {
     });
     const refundMessage = await response.json();
 
-    const account = walletConnection.account();
-    const result = await account.functionCall({
-        contractId: contractId,
-        methodName: 'call_js_func',
-        args: {
-            function_name: "refund_unspent",
-            ...refundMessage
-        }
-    });
+    const selectedWallet = await walletSelector.wallet();
+
+    const result = await selectedWallet.signAndSendTransaction(
+        {
+            actions: [
+              {
+                type: "FunctionCall",
+                params: {
+                  methodName: "call_js_func",
+                  args: {
+                    function_name: "refund_unspent",
+                    ...refundMessage
+                  },
+                  gas: "30000000000000",
+                  deposit: "0"
+                }
+              },
+            ],
+          });
     refund_message.innerHTML = result.receipts_outcome[0].outcome.logs.join("\n");
 }
 
 async function startConversation() {
-    const conversation_id = `${walletConnection.getAccountId()}_${new Date().getTime()}`;
+    const selectedWallet = await walletSelector.wallet();
+    console.log(selectedWallet);
+    const accountId = (await selectedWallet.getAccounts())[0];
+
+    const conversation_id = `${accountId.accountId}_${new Date().getTime()}`;
     const conversation_id_hash = Array.from(new Uint8Array(
                             await window.crypto.subtle.digest("SHA-256", new TextEncoder().encode(conversation_id))
                         ))
                         .map((b) => b.toString(16).padStart(2, "0"))
                         .join("");
 
-    const account = walletConnection.account();
 
-    const result = await account.functionCall({
-        contractId: contractId,
-        methodName: 'call_js_func',
-        args: {
-            function_name: "start_ai_conversation",
-            conversation_id: conversation_id_hash
-        }
-    });
+    const result = await selectedWallet.signAndSendTransaction(
+        {
+            actions: [
+              {
+                type: "FunctionCall",
+                params: {
+                  methodName: "call_js_func",
+                  args: {
+                    function_name: "start_ai_conversation",
+                    conversation_id: conversation_id_hash
+                  },
+                  gas: "30000000000000",
+                  deposit: "0"
+                }
+              },
+            ],
+          });
     localStorage.setItem('conversation_id', conversation_id);
     checkExistingConversationId();
 }

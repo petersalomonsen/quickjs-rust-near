@@ -58,18 +58,36 @@ test.afterEach(async () => {
   }
 });
 
+/**
+ * Tests the conversation flow in the AI proxy application.
+ *
+ * @param {Object} params - The parameters for the test.
+ * @param {import('playwright').Page} params.page - The Playwright page object.
+ * @param {string} [params.expectedRefundAmount="127999973"] - The expected refund amount.
+ * @param {string} [params.expectedOpenAIResponse="Hello! How can I assist you today?"] - The expected response from OpenAI.
+ */
 async function testConversation({page, expectedRefundAmount = "127999973", expectedOpenAIResponse = "Hello! How can I assist you today?"}) {
   const { functionAccessKeyPair, publicKey, accountId, contractId } = await fetch('http://localhost:14501').then(r => r.json());
 
+  await page.route("https://rpc.mainnet.near.org/", async(route) => {
+    console.log('route');
+    const response = await route.fetch({url: "http://localhost:14500"});
+    
+    await route.fulfill({ response });
+  });
   await page.goto('/');
   await page.evaluate(({ accountId, publicKey, functionAccessKeyPair, contractId }) => {
-    localStorage.setItem("aiproxy_wallet_auth_key", JSON.stringify({ accountId, allKeys: [publicKey] }));
-    localStorage.setItem(`near-api-js:keystore:${accountId}:sandbox`, functionAccessKeyPair);
+    localStorage.setItem("near_app_wallet_auth_key", JSON.stringify({ accountId, allKeys: [publicKey] }));
+    localStorage.setItem(`near-api-js:keystore:${accountId}:mainnet`, functionAccessKeyPair);
     localStorage.setItem(`contractId`, contractId);
+    localStorage.setItem('near-wallet-selector:selectedWalletId', JSON.stringify('my-near-wallet'));
+    localStorage.setItem('near-wallet-selector:recentlySignedInWallets', JSON.stringify(['my-near-wallet']));
+    localStorage.setItem('near-wallet-selector:contract', JSON.stringify({contractId,"methodNames":["call_js_func"]}));
   }, { accountId, publicKey, functionAccessKeyPair, contractId });
-
+  
   await page.reload();
 
+  await page.waitForTimeout(1000);
   await page.getByRole('button', { name: 'Start conversation' }).click();
 
   const questionArea = await page.getByPlaceholder('Type your question here...');
@@ -89,8 +107,6 @@ test('start conversation, ask question and refund (using OpenAI authorization he
   await startMockServer('authorization');
   await testConversation({page});
 });
-
-
 
 test('start conversation, ask question and refund (using Azure OpenAI Api-Key header)', async ({ page }) => {
   await startMockServer('api-key');
