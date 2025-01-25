@@ -1,21 +1,24 @@
-import html from '@web/rollup-plugin-html';
+import { rollupPluginHTML as html } from '@web/rollup-plugin-html';
 import { terser } from 'rollup-plugin-terser';
 import { readFileSync, writeFileSync } from 'fs';
 
 const { AI_PROXY_BASEURL, RPC_URL, NETWORK_ID } = process.env;
 
 if (!AI_PROXY_BASEURL) {
-  throw ('Environment variable AI_PROXY_BASEURL not set. Must be set to the base URL of where the AI proxy is hosted');
+  console.error('Environment variable AI_PROXY_BASEURL not set. Must be set to the base URL of where the AI proxy is hosted');
+  process.exit(1);
 }
 if (!RPC_URL) {
-  throw ('Environment variable RPC_URL not set. Must be set to the NEAR RPC node URL');
+  console.error('Environment variable RPC_URL not set. Must be set to the NEAR RPC node URL');
+  process.exit(1);
 }
 if (!NETWORK_ID) {
-  throw ('Environment variable NETWORK_ID not set. Must be set to the NEAR protocol network id ( e.g. mainnet, testnet )');
+  console.error('Environment variable NETWORK_ID not set. Must be set to the NEAR protocol network id ( e.g. mainnet, testnet )');
+  process.exit(1);
 }
 
 export default {
-  input: ['./web/index.html'],
+  input: './web/index.html',
   output: { dir: 'dist' },
   plugins: [html({ minify: true }), terser(), {
     name: 'inline-js',
