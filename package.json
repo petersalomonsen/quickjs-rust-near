@@ -29,6 +29,7 @@
     "@playwright/test": "^1.49.1",
     "@types/node": "^22.10.2",
     "@web/rollup-plugin-html": "^2.3.0",
+    "buffer": "^6.0.3",
     "chai": "^5.1.1",
     "dotenv": "^16.4.7",
     "http-server": "^14.1.1",

@@ -1,12 +1,15 @@
 import { setupWalletSelector } from '@near-wallet-selector/core';
 import { setupMyNearWallet } from "@near-wallet-selector/my-near-wallet";
 import { setupModal } from "@near-wallet-selector/modal-ui-js";
+import { Buffer } from 'buffer';
+
+window.Buffer = Buffer;
 
 let setupLedger;
 const walletSelectorModules =  [setupMyNearWallet()];
 try {
-    //setupLedger = (await import( "@near-wallet-selector/ledger")).setupLedger;
-    //walletSelectorModules.push(setupLedger());
+    setupLedger = (await import( "@near-wallet-selector/ledger")).setupLedger;
+    walletSelectorModules.push(setupLedger());
 } catch(e) {
     console.warn('not able to setup ledger', e);
 }

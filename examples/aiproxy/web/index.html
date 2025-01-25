@@ -42,6 +42,7 @@
       "@near-wallet-selector/ledger": "https://ga.jspm.io/npm:@near-wallet-selector/ledger@8.9.15/index.js",
       "@near-wallet-selector/modal-ui-js": "https://ga.jspm.io/npm:@near-wallet-selector/modal-ui-js@8.9.15/index.js",
       "@near-wallet-selector/my-near-wallet": "https://ga.jspm.io/npm:@near-wallet-selector/my-near-wallet@8.9.15/index.js",
+      "buffer": "https://ga.jspm.io/npm:buffer@6.0.3/index.js",
       "near-api-js": "https://ga.jspm.io/npm:near-api-js@4.0.1/lib/browser-index.js"
     },
     "scopes": {
@@ -64,12 +65,13 @@
         "@near-js/wallet-account": "https://ga.jspm.io/npm:@near-js/wallet-account@1.2.1/lib/index.js",
         "@near-wallet-selector/wallet-utils": "https://ga.jspm.io/npm:@near-wallet-selector/wallet-utils@8.9.15/index.js",
         "@noble/curves/ed25519": "https://ga.jspm.io/npm:@noble/curves@1.2.0/ed25519.js",
-        "@noble/hashes/crypto": "https://ga.jspm.io/npm:@noble/hashes@1.3.3/crypto.js",
+        "@noble/hashes/crypto": "https://ga.jspm.io/npm:@noble/hashes@1.3.2/crypto.js",
         "@noble/hashes/sha256": "https://ga.jspm.io/npm:@noble/hashes@1.3.3/sha256.js",
         "@noble/hashes/sha512": "https://ga.jspm.io/npm:@noble/hashes@1.3.2/sha512.js",
         "@noble/hashes/utils": "https://ga.jspm.io/npm:@noble/hashes@1.3.2/utils.js",
         "base-x": "https://ga.jspm.io/npm:base-x@2.0.6/index.js",
-        "borsh": "https://ga.jspm.io/npm:borsh@1.0.0/lib/esm/index.js",
+        "base64-js": "https://ga.jspm.io/npm:base64-js@1.5.1/index.js",
+        "borsh": "https://ga.jspm.io/npm:borsh@1.0.0/lib/cjs/index.js",
         "bs58": "https://ga.jspm.io/npm:bs58@4.0.0/index.js",
         "buffer": "https://ga.jspm.io/npm:@jspm/core@2.1.0/nodelibs/browser/buffer.js",
         "copy-to-clipboard": "https://ga.jspm.io/npm:copy-to-clipboard@3.3.3/index.js",
@@ -82,6 +84,7 @@
         "http": "https://ga.jspm.io/npm:@jspm/core@2.1.0/nodelibs/browser/http.js",
         "http-errors": "https://ga.jspm.io/npm:http-errors@1.7.2/index.js",
         "https": "https://ga.jspm.io/npm:@jspm/core@2.1.0/nodelibs/browser/https.js",
+        "ieee754": "https://ga.jspm.io/npm:ieee754@1.2.1/index.js",
         "inherits": "https://ga.jspm.io/npm:inherits@2.0.3/inherits_browser.js",
         "is-mobile": "https://ga.jspm.io/npm:is-mobile@4.0.0/index.js",
         "is-my-ip-valid": "https://ga.jspm.io/npm:is-my-ip-valid@1.0.1/index.js",
@@ -149,32 +152,24 @@
         "@near-js/crypto": "https://ga.jspm.io/npm:@near-js/crypto@1.2.4/lib/index.js",
         "@near-js/keystores": "https://ga.jspm.io/npm:@near-js/keystores@0.0.12/lib/index.js"
       },
-      "https://ga.jspm.io/npm:@near-js/transactions@1.2.1/": {
-        "borsh": "https://ga.jspm.io/npm:borsh@1.0.0/lib/cjs/index.js"
-      },
       "https://ga.jspm.io/npm:@near-js/transactions@1.2.2/": {
-        "@near-js/types": "https://ga.jspm.io/npm:@near-js/types@0.2.1/lib/index.js",
-        "borsh": "https://ga.jspm.io/npm:borsh@1.0.0/lib/cjs/index.js"
+        "@near-js/types": "https://ga.jspm.io/npm:@near-js/types@0.2.1/lib/index.js"
       },
       "https://ga.jspm.io/npm:@near-js/utils@0.2.2/": {
         "@near-js/types": "https://ga.jspm.io/npm:@near-js/types@0.2.1/lib/index.js"
-      },
-      "https://ga.jspm.io/npm:@near-js/wallet-account@1.2.1/": {
-        "borsh": "https://ga.jspm.io/npm:borsh@1.0.0/lib/cjs/index.js"
       },
       "https://ga.jspm.io/npm:@near-js/wallet-account@1.2.2/": {
         "@near-js/accounts": "https://ga.jspm.io/npm:@near-js/accounts@1.2.1/lib/index.js",
         "@near-js/crypto": "https://ga.jspm.io/npm:@near-js/crypto@1.2.4/lib/index.js",
         "@near-js/transactions": "https://ga.jspm.io/npm:@near-js/transactions@1.2.2/lib/index.js",
-        "@near-js/utils": "https://ga.jspm.io/npm:@near-js/utils@0.2.2/lib/index.js",
-        "borsh": "https://ga.jspm.io/npm:borsh@1.0.0/lib/cjs/index.js"
+        "@near-js/utils": "https://ga.jspm.io/npm:@near-js/utils@0.2.2/lib/index.js"
+      },
+      "https://ga.jspm.io/npm:@near-wallet-selector/core@8.9.15/": {
+        "borsh": "https://ga.jspm.io/npm:borsh@1.0.0/lib/esm/index.js"
       },
       "https://ga.jspm.io/npm:@noble/curves@1.2.0/esm/ed25519.js": {
         "@noble/hashes/sha512": "https://ga.jspm.io/npm:@noble/hashes@1.3.2/esm/sha512.js",
         "@noble/hashes/utils": "https://ga.jspm.io/npm:@noble/hashes@1.3.2/esm/utils.js"
-      },
-      "https://ga.jspm.io/npm:@noble/hashes@1.3.2/": {
-        "@noble/hashes/crypto": "https://ga.jspm.io/npm:@noble/hashes@1.3.2/crypto.js"
       },
       "https://ga.jspm.io/npm:@noble/hashes@1.3.2/esm/_sha2.js": {
         "@noble/hashes/crypto": "https://ga.jspm.io/npm:@noble/hashes@1.3.2/esm/crypto.js"
@@ -185,11 +180,11 @@
       "https://ga.jspm.io/npm:@noble/hashes@1.3.2/esm/utils.js": {
         "@noble/hashes/crypto": "https://ga.jspm.io/npm:@noble/hashes@1.3.2/esm/crypto.js"
       },
+      "https://ga.jspm.io/npm:@noble/hashes@1.3.3/": {
+        "@noble/hashes/crypto": "https://ga.jspm.io/npm:@noble/hashes@1.3.3/crypto.js"
+      },
       "https://ga.jspm.io/npm:http-errors@1.7.2/": {
         "depd": "https://ga.jspm.io/npm:depd@1.1.2/lib/browser/index.js"
-      },
-      "https://ga.jspm.io/npm:near-api-js@4.0.1/": {
-        "borsh": "https://ga.jspm.io/npm:borsh@1.0.0/lib/cjs/index.js"
       },
       "https://ga.jspm.io/npm:near-api-js@4.0.3/": {
         "@near-js/accounts": "https://ga.jspm.io/npm:@near-js/accounts@1.2.1/lib/index.js",
@@ -201,8 +196,7 @@
         "@near-js/transactions": "https://ga.jspm.io/npm:@near-js/transactions@1.2.2/lib/index.js",
         "@near-js/types": "https://ga.jspm.io/npm:@near-js/types@0.2.1/lib/index.js",
         "@near-js/utils": "https://ga.jspm.io/npm:@near-js/utils@0.2.2/lib/index.js",
-        "@near-js/wallet-account": "https://ga.jspm.io/npm:@near-js/wallet-account@1.2.2/lib/index.js",
-        "borsh": "https://ga.jspm.io/npm:borsh@1.0.0/lib/cjs/index.js"
+        "@near-js/wallet-account": "https://ga.jspm.io/npm:@near-js/wallet-account@1.2.2/lib/index.js"
       }
     }
   }
