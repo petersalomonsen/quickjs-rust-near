@@ -4,6 +4,8 @@ import { fileURLToPath } from 'url';
 import path from 'path';
 import http from 'http';
 
+test.describe.configure({ mode: 'serial' });
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const mockServerPath = path.resolve(__dirname, 'openaimockserver.js');
@@ -11,13 +13,6 @@ const mockServerPath = path.resolve(__dirname, 'openaimockserver.js');
 let mockServerProcess;
 
 async function startMockServer(apiKeyMethod, apikey = 'abcd') {
-  if (mockServerProcess) {
-    await new Promise((resolve) => {
-      mockServerProcess.on('close', resolve);
-      mockServerProcess.kill();
-    });
-  }
-
   mockServerProcess = spawn('node', [mockServerPath], {
     env: {
       ...process.env,
@@ -51,10 +46,13 @@ async function startMockServer(apiKeyMethod, apikey = 'abcd') {
 
 test.afterEach(async () => {
   if (mockServerProcess) {
+    console.log('waiting for mockserver to stop');
     await new Promise((resolve) => {
       mockServerProcess.on('close', resolve);
       mockServerProcess.kill();
     });
+    console.log('mockserver stopped');
+    mockServerProcess = null;
   }
 });
 
@@ -70,7 +68,6 @@ async function testConversation({page, expectedRefundAmount = "127999973", expec
   const { functionAccessKeyPair, publicKey, accountId, contractId } = await fetch('http://localhost:14501').then(r => r.json());
 
   await page.route("https://rpc.mainnet.near.org/", async(route) => {
-    console.log('route');
     const response = await route.fetch({url: "http://localhost:14500"});
     
     await route.fulfill({ response });
