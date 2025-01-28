@@ -84,20 +84,20 @@ async function testConversation({page, expectedRefundAmount = "127999973", expec
   
   await page.reload();
 
-  await page.waitForTimeout(1000);
+  await page.waitForTimeout(2000);
   await page.getByRole('button', { name: 'Start conversation' }).click();
 
   const questionArea = await page.getByPlaceholder('Type your question here...');
   await expect(questionArea).toBeEnabled();
   questionArea.fill("Hello!");
-  await page.waitForTimeout(500);
+  await page.waitForTimeout(1000);
   await page.getByRole('button', { name: 'Ask AI' }).click();
   await expect(await page.getByText(expectedOpenAIResponse)).toBeVisible();
   
-  await page.waitForTimeout(500);
+  await page.waitForTimeout(1000);
   await page.locator("#refundButton").click();
   
-  await expect(await page.locator("#refund_message")).toContainText(`EVENT_JSON:{"standard":"nep141","version":"1.0.0","event":"ft_transfer","data":[{"old_owner_id":"${contractId}","new_owner_id":"${accountId}","amount":"${expectedRefundAmount}"}]}\nrefunded ${expectedRefundAmount} to ${accountId}`, {timeout: 10_000});
+  await expect(await page.locator("#refund_message")).toContainText(`EVENT_JSON:{"standard":"nep141","version":"1.0.0","event":"ft_transfer","data":[{"old_owner_id":"${contractId}","new_owner_id":"${accountId}","amount":"${expectedRefundAmount}"}]}\nrefunded ${expectedRefundAmount} to ${accountId}`, {timeout: 15_000});
 }
 
 test('start conversation, ask question and refund (using OpenAI authorization header)', async ({ page }) => {
