@@ -44,7 +44,8 @@ async function startMockServer(apiKeyMethod, apikey = 'abcd') {
   });
 }
 
-test.afterEach(async () => {
+test.afterEach(async ({ page }) => {
+  await page.unrouteAll({ behavior: 'wait' });
   if (mockServerProcess) {
     console.log('waiting for mockserver to stop');
     await new Promise((resolve) => {
@@ -64,14 +65,9 @@ test.afterEach(async () => {
  * @param {string} [params.expectedRefundAmount="127999973"] - The expected refund amount.
  * @param {string} [params.expectedOpenAIResponse="Hello! How can I assist you today?"] - The expected response from OpenAI.
  */
-async function testConversation({page, expectedRefundAmount = "127999973", expectedOpenAIResponse = "Hello! How can I assist you today?"}) {
+async function testConversation({ page, expectedRefundAmount = "127999973", expectedOpenAIResponse = "Hello! How can I assist you today?" }) {
   const { functionAccessKeyPair, publicKey, accountId, contractId } = await fetch('http://localhost:14501').then(r => r.json());
 
-  await page.route("https://rpc.mainnet.near.org/", async(route) => {
-    const response = await route.fetch({url: "http://localhost:14500"});
-    
-    await route.fulfill({ response });
-  });
   await page.goto('/');
   await page.evaluate(({ accountId, publicKey, functionAccessKeyPair, contractId }) => {
     localStorage.setItem("near_app_wallet_auth_key", JSON.stringify({ accountId, allKeys: [publicKey] }));
@@ -79,10 +75,15 @@ async function testConversation({page, expectedRefundAmount = "127999973", expec
     localStorage.setItem(`contractId`, contractId);
     localStorage.setItem('near-wallet-selector:selectedWalletId', JSON.stringify('my-near-wallet'));
     localStorage.setItem('near-wallet-selector:recentlySignedInWallets', JSON.stringify(['my-near-wallet']));
-    localStorage.setItem('near-wallet-selector:contract', JSON.stringify({contractId,"methodNames":["call_js_func"]}));
+    localStorage.setItem('near-wallet-selector:contract', JSON.stringify({ contractId, "methodNames": ["call_js_func"] }));
   }, { accountId, publicKey, functionAccessKeyPair, contractId });
-  
+
   await page.reload();
+  await page.route("https://rpc.mainnet.near.org/", async (route) => {
+    const response = await route.fetch({ url: "http://localhost:14500" });
+    await route.fulfill({ response });
+  });
+
 
   await page.waitForTimeout(2000);
   await page.getByRole('button', { name: 'Start conversation' }).click();
@@ -93,25 +94,28 @@ async function testConversation({page, expectedRefundAmount = "127999973", expec
   await page.waitForTimeout(1000);
   await page.getByRole('button', { name: 'Ask AI' }).click();
   await expect(await page.getByText(expectedOpenAIResponse)).toBeVisible();
-  
+
   await page.waitForTimeout(1000);
   await page.locator("#refundButton").click();
-  
-  await expect(await page.locator("#refund_message")).toContainText(`EVENT_JSON:{"standard":"nep141","version":"1.0.0","event":"ft_transfer","data":[{"old_owner_id":"${contractId}","new_owner_id":"${accountId}","amount":"${expectedRefundAmount}"}]}\nrefunded ${expectedRefundAmount} to ${accountId}`, {timeout: 15_000});
+
+  await expect(await page.locator("#refund_message_area")).toHaveValue(
+    `EVENT_JSON:{"standard":"nep141","version":"1.0.0","event":"ft_transfer","data":[{"old_owner_id":"${contractId}","new_owner_id":"${accountId}","amount":"${expectedRefundAmount}"}]}\nrefunded ${expectedRefundAmount} to ${accountId}`,
+    { timeout: 10_000 }
+  );
 }
 
 test('start conversation, ask question and refund (using OpenAI authorization header)', async ({ page }) => {
   await startMockServer('authorization');
-  await testConversation({page});
+  await testConversation({ page });
 });
 
 test('start conversation, ask question and refund (using Azure OpenAI Api-Key header)', async ({ page }) => {
   await startMockServer('api-key');
-  await testConversation({page});
+  await testConversation({ page });
 });
 
 test('start conversation, ask question, where openai API fails, and refund (using wrong OpenAI API key)', async ({ page }) => {
   await startMockServer('api-key', "1234ffff");
-  
-  await testConversation({page, expectedRefundAmount: "128000000", expectedOpenAIResponse: "Failed to fetch from proxy: Internal Server Error"});
+
+  await testConversation({ page, expectedRefundAmount: "128000000", expectedOpenAIResponse: "Failed to fetch from proxy: Internal Server Error" });
 });

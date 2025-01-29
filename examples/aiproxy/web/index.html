@@ -12,6 +12,21 @@
 </head>
 
 <body>
+  <div class="modal fade" id="progressmodal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="staticBackdropLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h1 class="modal-title fs-5" id="progressModalLabel">Modal title</h1>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="progress">
+            <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 100%"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
   <div class="container">
     <button id="openWalletSelectorButton" class="btn btn-primary">Open wallet</button>
     <div class="mb-3">
@@ -28,11 +43,7 @@
       <button id="askAIButton" class="btn btn-primary" disabled>Ask AI</button>
     </div>
     <button id="refundButton" class="btn btn-primary">Stop conversation and refund tokens</button><br />
-    <div style="width: 100%">
-      <pre>
-            <code id="refund_message" style="white-space: wrap;"></code>
-        </pre>
-    </div>
+    <textarea id="refund_message_area" readonly style="width: 100%; height: 200px;"></textarea>
   </div>
   <script async src="https://ga.jspm.io/npm:es-module-shims@2.0.5/dist/es-module-shims.js" crossorigin="anonymous"></script>
   <script type="importmap">
