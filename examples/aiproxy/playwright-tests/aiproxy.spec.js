@@ -58,14 +58,9 @@ test.afterEach(async ({ page }) => {
 });
 
 /**
- * Tests the conversation flow in the AI proxy application.
- *
- * @param {Object} params - The parameters for the test.
- * @param {import('playwright').Page} params.page - The Playwright page object.
- * @param {string} [params.expectedRefundAmount="127999973"] - The expected refund amount.
- * @param {string} [params.expectedOpenAIResponse="Hello! How can I assist you today?"] - The expected response from OpenAI.
- */
-async function testConversation({ page, expectedRefundAmount = "127999973", expectedOpenAIResponse = "Hello! How can I assist you today?" }) {
+* @param {import('playwright').Page} params.page - The Playwright page object.
+*/
+async function setupStorageAndRoute({ page }) {
   const { functionAccessKeyPair, publicKey, accountId, contractId } = await fetch('http://localhost:14501').then(r => r.json());
 
   await page.goto('/');
@@ -83,7 +78,19 @@ async function testConversation({ page, expectedRefundAmount = "127999973", expe
     const response = await route.fetch({ url: "http://localhost:14500" });
     await route.fulfill({ response });
   });
+  return { contractId, accountId, publicKey, functionAccessKeyPair };
+}
 
+/**
+ * Tests the conversation flow in the AI proxy application.
+ *
+ * @param {Object} params - The parameters for the test.
+ * @param {import('playwright').Page} params.page - The Playwright page object.
+ * @param {string} [params.expectedRefundAmount="127999973"] - The expected refund amount.
+ * @param {string} [params.expectedOpenAIResponse="Hello! How can I assist you today?"] - The expected response from OpenAI.
+ */
+async function testConversation({ page, expectedRefundAmount = "127999973", expectedOpenAIResponse = "Hello! How can I assist you today?" }) {
+  const { contractId, accountId } = await setupStorageAndRoute({ page });
 
   await page.waitForTimeout(2000);
   await page.getByRole('button', { name: 'Start conversation' }).click();
@@ -118,4 +125,30 @@ test('start conversation, ask question, where openai API fails, and refund (usin
   await startMockServer('api-key', "1234ffff");
 
   await testConversation({ page, expectedRefundAmount: "128000000", expectedOpenAIResponse: "Failed to fetch from proxy: Internal Server Error" });
+});
+
+test('start conversation, try refund without asking AI', async ({ page }) => {
+  await setupStorageAndRoute({ page });
+
+  await page.waitForTimeout(2000);
+  await page.getByRole('button', { name: 'Start conversation' }).click();
+
+  await page.waitForTimeout(1000);
+  await page.locator("#refundButton").click();
+
+  await expect(await page.locator('.modal.show')).toBeVisible();
+
+  await expect(await page.locator("#refund_message_area")).toHaveValue(
+    ``,
+    { timeout: 10_000 }
+  );
+  await expect(await page.locator('#progressErrorAlert')).toContainText("SyntaxError: Unexpected token");
+});
+
+test('start conversation without login', async ({ page }) => {
+  await page.goto('/');
+  await page.waitForTimeout(1000);
+  await page.getByRole('button', { name: 'Start conversation' }).click();
+
+  await expect(await page.locator('#progressErrorAlert')).toContainText("Error: No wallet selected");
 });

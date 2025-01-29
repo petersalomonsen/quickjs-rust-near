@@ -38,6 +38,15 @@ const progressModal = new bootstrap.Modal(progressModalElement);
 
 function setProgressModalText(progressModalText) {
     document.getElementById('progressModalLabel').innerHTML = progressModalText;
+    document.getElementById('progressbar').style.display = null;
+    document.getElementById('progressErrorAlert').style.display = 'none';
+    document.getElementById('progressErrorAlert').innerText = '';
+}
+
+function setProgressErrorText(progressErrorText) {
+    document.getElementById('progressbar').style.display = 'none';
+    document.getElementById('progressErrorAlert').style.display = 'block';
+    document.getElementById('progressErrorAlert').innerText = progressErrorText;
 }
 
 async function getRefundMessageFromAiProxy() {
@@ -87,40 +96,44 @@ async function postRefundMessage() {
 }
 
 async function startConversation() {
-    setProgressModalText('Starting conversation');
-    progressModal.show();
-    const selectedWallet = await walletSelector.wallet();
-    console.log(selectedWallet);
-    const accountId = (await selectedWallet.getAccounts())[0];
+    try {
+        setProgressModalText('Starting conversation');
+        progressModal.show();
+        const selectedWallet = await walletSelector.wallet();
+        console.log(selectedWallet);
+        const accountId = (await selectedWallet.getAccounts())[0];
 
-    const conversation_id = `${accountId.accountId}_${new Date().getTime()}`;
-    const conversation_id_hash = Array.from(new Uint8Array(
-        await window.crypto.subtle.digest("SHA-256", new TextEncoder().encode(conversation_id))
-    ))
-        .map((b) => b.toString(16).padStart(2, "0"))
-        .join("");
+        const conversation_id = `${accountId.accountId}_${new Date().getTime()}`;
+        const conversation_id_hash = Array.from(new Uint8Array(
+            await window.crypto.subtle.digest("SHA-256", new TextEncoder().encode(conversation_id))
+        ))
+            .map((b) => b.toString(16).padStart(2, "0"))
+            .join("");
 
 
-    const result = await selectedWallet.signAndSendTransaction(
-        {
-            actions: [
-                {
-                    type: "FunctionCall",
-                    params: {
-                        methodName: "call_js_func",
-                        args: {
-                            function_name: "start_ai_conversation",
-                            conversation_id: conversation_id_hash
-                        },
-                        gas: "30000000000000",
-                        deposit: "0"
-                    }
-                },
-            ],
-        });
-    localStorage.setItem('conversation_id', conversation_id);
-    checkExistingConversationId();
-    progressModal.hide();
+        const result = await selectedWallet.signAndSendTransaction(
+            {
+                actions: [
+                    {
+                        type: "FunctionCall",
+                        params: {
+                            methodName: "call_js_func",
+                            args: {
+                                function_name: "start_ai_conversation",
+                                conversation_id: conversation_id_hash
+                            },
+                            gas: "30000000000000",
+                            deposit: "0"
+                        }
+                    },
+                ],
+            });
+        localStorage.setItem('conversation_id', conversation_id);
+        checkExistingConversationId();
+        progressModal.hide();
+    } catch(e) {
+        setProgressErrorText(e);
+    }
 }
 
 function checkExistingConversationId() {
@@ -221,8 +234,12 @@ async function sendQuestion() {
 
 document.getElementById('startConversationButton').addEventListener('click', () => startConversation());
 document.getElementById('refundButton').addEventListener('click', async () => {
-    await getRefundMessageFromAiProxy();
-    await postRefundMessage();
+    try {
+        await getRefundMessageFromAiProxy();
+        await postRefundMessage();
+    } catch(e) {
+        setProgressErrorText(e.toString());
+    }
 });
 document.getElementById('askAIButton').addEventListener('click', () => sendQuestion());
 checkExistingConversationId();
