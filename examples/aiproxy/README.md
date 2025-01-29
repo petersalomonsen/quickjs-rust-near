@@ -82,8 +82,8 @@ near contract call-function as-transaction arizcredits.near post_javascript json
 
 ### Updating spin cloud variables
 
-If you need to update e.g. the signing key for refunding, you can update the variable in the spin cloud app like below. Here is an example with a signing key with the value `Atw4nUxRCFimiQ8W6cnHEj8zWWjb8iTKaPuomw18XFxb`.
+If you need to update e.g. the signing key for refunding, you can update the variable in the spin cloud app like below. Here is an example with a signing key with the contents of the environment variable `SPIN_VARIABLE_REFUND_SIGNING_KEY`.
 
 ```bash
-spin cloud variables set --app openai-proxy refund_signing_key=Atw4nUxRCFimiQ8W6cnHEj8zWWjb8iTKaPuomw18XFxb
+spin cloud variables set --app openai-proxy refund_signing_key=$SPIN_VARIABLE_REFUND_SIGNING_KEY
 ```
