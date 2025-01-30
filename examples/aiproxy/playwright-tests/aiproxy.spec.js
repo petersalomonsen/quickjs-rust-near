@@ -111,6 +111,16 @@ async function testConversation({ page, expectedRefundAmount = "127999973", expe
   );
 }
 
+test('start conversation without login', async ({ page }) => {
+  await page.goto('/');
+  await page.waitForTimeout(1000);
+  await page.getByRole('button', { name: 'Start conversation' }).click();
+
+  await expect(await page.locator('#progressErrorAlert')).toBeVisible();
+  await expect(await page.locator('#progressErrorAlert')).toContainText("Error: No wallet selected");
+  await expect(await page.getByLabel('Close')).toBeVisible();
+});
+
 test('start conversation, ask question and refund (using OpenAI authorization header)', async ({ page }) => {
   await startMockServer('authorization');
   await testConversation({ page });
@@ -143,12 +153,4 @@ test('start conversation, try refund without asking AI', async ({ page }) => {
     { timeout: 10_000 }
   );
   await expect(await page.locator('#progressErrorAlert')).toContainText("SyntaxError: Unexpected token");
-});
-
-test('start conversation without login', async ({ page }) => {
-  await page.goto('/');
-  await page.waitForTimeout(1000);
-  await page.getByRole('button', { name: 'Start conversation' }).click();
-
-  await expect(await page.locator('#progressErrorAlert')).toContainText("Error: No wallet selected");
 });
