@@ -428,7 +428,11 @@ async fn get_initial_token_balance_for_conversation(
                         match result {
                             Ok(result) => Ok(result),
                             Err(e) => {
-                                eprintln!("Error getting initial balance for conversation: {e}");
+                                eprintln!(
+                                    "Error getting initial balance for conversation: {:?} {:?}",
+                                    e,
+                                    json_response.to_string()
+                                );
                                 return Err(anyhow::anyhow!(
                                     "Error getting initial balance for conversation: {e}"
                                 ));

@@ -4,6 +4,8 @@ import { fileURLToPath } from 'url';
 import path from 'path';
 import http from 'http';
 
+test.describe.configure({ mode: 'serial' });
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const mockServerPath = path.resolve(__dirname, 'openaimockserver.js');
@@ -11,13 +13,6 @@ const mockServerPath = path.resolve(__dirname, 'openaimockserver.js');
 let mockServerProcess;
 
 async function startMockServer(apiKeyMethod, apikey = 'abcd') {
-  if (mockServerProcess) {
-    await new Promise((resolve) => {
-      mockServerProcess.on('close', resolve);
-      mockServerProcess.kill();
-    });
-  }
-
   mockServerProcess = spawn('node', [mockServerPath], {
     env: {
       ...process.env,
@@ -49,56 +44,113 @@ async function startMockServer(apiKeyMethod, apikey = 'abcd') {
   });
 }
 
-test.afterEach(async () => {
+test.afterEach(async ({ page }) => {
+  await page.unrouteAll({ behavior: 'wait' });
   if (mockServerProcess) {
+    console.log('waiting for mockserver to stop');
     await new Promise((resolve) => {
       mockServerProcess.on('close', resolve);
       mockServerProcess.kill();
     });
+    console.log('mockserver stopped');
+    mockServerProcess = null;
   }
 });
 
-async function testConversation({page, expectedRefundAmount = "127999973", expectedOpenAIResponse = "Hello! How can I assist you today?"}) {
+/**
+* @param {import('playwright').Page} params.page - The Playwright page object.
+*/
+async function setupStorageAndRoute({ page }) {
   const { functionAccessKeyPair, publicKey, accountId, contractId } = await fetch('http://localhost:14501').then(r => r.json());
 
   await page.goto('/');
   await page.evaluate(({ accountId, publicKey, functionAccessKeyPair, contractId }) => {
-    localStorage.setItem("aiproxy_wallet_auth_key", JSON.stringify({ accountId, allKeys: [publicKey] }));
-    localStorage.setItem(`near-api-js:keystore:${accountId}:sandbox`, functionAccessKeyPair);
+    localStorage.setItem("near_app_wallet_auth_key", JSON.stringify({ accountId, allKeys: [publicKey] }));
+    localStorage.setItem(`near-api-js:keystore:${accountId}:mainnet`, functionAccessKeyPair);
     localStorage.setItem(`contractId`, contractId);
+    localStorage.setItem('near-wallet-selector:selectedWalletId', JSON.stringify('my-near-wallet'));
+    localStorage.setItem('near-wallet-selector:recentlySignedInWallets', JSON.stringify(['my-near-wallet']));
+    localStorage.setItem('near-wallet-selector:contract', JSON.stringify({ contractId, "methodNames": ["call_js_func"] }));
   }, { accountId, publicKey, functionAccessKeyPair, contractId });
 
   await page.reload();
+  await page.route("https://rpc.mainnet.near.org/", async (route) => {
+    const response = await route.fetch({ url: "http://localhost:14500" });
+    await route.fulfill({ response });
+  });
+  return { contractId, accountId, publicKey, functionAccessKeyPair };
+}
 
+/**
+ * Tests the conversation flow in the AI proxy application.
+ *
+ * @param {Object} params - The parameters for the test.
+ * @param {import('playwright').Page} params.page - The Playwright page object.
+ * @param {string} [params.expectedRefundAmount="127999973"] - The expected refund amount.
+ * @param {string} [params.expectedOpenAIResponse="Hello! How can I assist you today?"] - The expected response from OpenAI.
+ */
+async function testConversation({ page, expectedRefundAmount = "127999973", expectedOpenAIResponse = "Hello! How can I assist you today?" }) {
+  const { contractId, accountId } = await setupStorageAndRoute({ page });
+
+  await page.waitForTimeout(2000);
   await page.getByRole('button', { name: 'Start conversation' }).click();
 
   const questionArea = await page.getByPlaceholder('Type your question here...');
   await expect(questionArea).toBeEnabled();
   questionArea.fill("Hello!");
-  await page.waitForTimeout(500);
+  await page.waitForTimeout(1000);
   await page.getByRole('button', { name: 'Ask AI' }).click();
   await expect(await page.getByText(expectedOpenAIResponse)).toBeVisible();
-  
-  await page.waitForTimeout(500);
+
+  await page.waitForTimeout(1000);
   await page.locator("#refundButton").click();
-  
-  await expect(await page.locator("#refund_message")).toContainText(`EVENT_JSON:{"standard":"nep141","version":"1.0.0","event":"ft_transfer","data":[{"old_owner_id":"${contractId}","new_owner_id":"${accountId}","amount":"${expectedRefundAmount}"}]}\nrefunded ${expectedRefundAmount} to ${accountId}`, {timeout: 10_000});
+
+  await expect(await page.locator("#refund_message_area")).toHaveValue(
+    `EVENT_JSON:{"standard":"nep141","version":"1.0.0","event":"ft_transfer","data":[{"old_owner_id":"${contractId}","new_owner_id":"${accountId}","amount":"${expectedRefundAmount}"}]}\nrefunded ${expectedRefundAmount} to ${accountId}`,
+    { timeout: 10_000 }
+  );
 }
+
+test('start conversation without login', async ({ page }) => {
+  await page.goto('/');
+  await page.waitForTimeout(1000);
+  await page.getByRole('button', { name: 'Start conversation' }).click();
+
+  await expect(await page.locator('#progressErrorAlert')).toBeVisible();
+  await expect(await page.locator('#progressErrorAlert')).toContainText("Error: No wallet selected");
+  await expect(await page.getByLabel('Close')).toBeVisible();
+});
 
 test('start conversation, ask question and refund (using OpenAI authorization header)', async ({ page }) => {
   await startMockServer('authorization');
-  await testConversation({page});
+  await testConversation({ page });
 });
-
-
 
 test('start conversation, ask question and refund (using Azure OpenAI Api-Key header)', async ({ page }) => {
   await startMockServer('api-key');
-  await testConversation({page});
+  await testConversation({ page });
 });
 
 test('start conversation, ask question, where openai API fails, and refund (using wrong OpenAI API key)', async ({ page }) => {
   await startMockServer('api-key', "1234ffff");
-  
-  await testConversation({page, expectedRefundAmount: "128000000", expectedOpenAIResponse: "Failed to fetch from proxy: Internal Server Error"});
+
+  await testConversation({ page, expectedRefundAmount: "128000000", expectedOpenAIResponse: "Failed to fetch from proxy: Internal Server Error" });
+});
+
+test('start conversation, try refund without asking AI', async ({ page }) => {
+  await setupStorageAndRoute({ page });
+
+  await page.waitForTimeout(2000);
+  await page.getByRole('button', { name: 'Start conversation' }).click();
+
+  await page.waitForTimeout(1000);
+  await page.locator("#refundButton").click();
+
+  await expect(await page.locator('.modal.show')).toBeVisible();
+
+  await expect(await page.locator("#refund_message_area")).toHaveValue(
+    ``,
+    { timeout: 10_000 }
+  );
+  await expect(await page.locator('#progressErrorAlert')).toContainText("SyntaxError: Unexpected token");
 });

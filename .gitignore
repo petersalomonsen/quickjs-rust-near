@@ -15,3 +15,5 @@ emsdk
 /playwright/.cache/
 bin
 *.mp4
+file_list.txt
+freeze_frames
