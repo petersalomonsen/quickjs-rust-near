@@ -31,7 +31,6 @@ export function reconstructToolCalls(chunks) {
     return Object.values(toolCalls);
 }
 
-
 export async function sendStreamingRequest({
     messages,
     conversation_id,
@@ -59,7 +58,7 @@ export async function sendStreamingRequest({
                 status: response.status,
                 statusText: response.statusText,
                 responseText: await response.text()
-            })
+            });
             return;
         }
 
@@ -67,6 +66,7 @@ export async function sendStreamingRequest({
         const reader = response.body.getReader();
         const decoder = new TextDecoder('utf-8');
         let assistantResponse = '';
+        const chunks = [];
 
         // Continuously read data from the stream
         while (true) {
@@ -78,16 +78,23 @@ export async function sendStreamingRequest({
             // Decode the streamed chunk and parse it as JSON
             const chunk = decoder.decode(value, { stream: true });
             const lines = chunk.split('\n').filter(line => line.trim() !== '');
+            chunks.push(...lines);
+
             for (const line of lines) {
                 if (line.startsWith('data: ')) {
                     const json = line.substring(6);
                     if (json !== '[DONE]') {
                         try {
                             const parsed = JSON.parse(json);
-                            if (parsed.choices && parsed.choices[0].delta && parsed.choices[0].delta.content) {
-                                const newContent = parsed.choices[0].delta.content;
-                                assistantResponse += newContent;
-                                onChunk({ newContent, assistantResponse });
+                            if (parsed.choices && parsed.choices[0].delta) {
+                                const delta = parsed.choices[0].delta;
+                                
+                                // Append text response
+                                if (delta.content) {
+                                    const newContent = delta.content;
+                                    assistantResponse += newContent;
+                                    onChunk({ newContent, assistantResponse });
+                                }
                             }
                         } catch (e) {
                             console.error('Error parsing JSON chunk:', e);
@@ -97,8 +104,22 @@ export async function sendStreamingRequest({
             }
         }
 
-        // Add assistant response to the conversation
-        conversation.push({ role: 'assistant', content: assistantResponse });
+        // Reconstruct tool calls
+        const tool_calls = reconstructToolCalls(chunks);
+        
+        // Create the assistant message with either content or tool_calls
+        const assistantMessage = { role: 'assistant' };
+        if (assistantResponse) {
+            assistantMessage.content = assistantResponse;
+        }
+        if (tool_calls.length > 0) {
+            assistantMessage.tool_calls = tool_calls;
+        }
+
+        // Add assistant response to the message history
+        messages.push(assistantMessage);
+
+        return messages; // Return updated message history
     } catch (error) {
         onError({ error });
     }
