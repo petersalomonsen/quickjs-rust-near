@@ -154,3 +154,18 @@ test('start conversation, try refund without asking AI', async ({ page }) => {
   );
   await expect(await page.locator('#progressErrorAlert')).toContainText("SyntaxError: Unexpected token");
 });
+
+test('conversation with tool calls', async ({ page }) => {
+  await startMockServer('authorization');
+  const { contractId, accountId } = await setupStorageAndRoute({ page });
+
+  await page.waitForTimeout(2000);
+  await page.getByRole('button', { name: 'Start conversation' }).click();
+
+  const questionArea = await page.getByPlaceholder('Type your question here...');
+  await expect(questionArea).toBeEnabled();
+  questionArea.fill("show me the current date and the natural logarithm of 22");
+
+  await page.getByRole('button', { name: 'Ask AI' }).click();
+  
+});
