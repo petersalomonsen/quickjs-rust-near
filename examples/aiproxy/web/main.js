@@ -3,7 +3,7 @@ import { setupMyNearWallet } from "@near-wallet-selector/my-near-wallet";
 import { setupModal } from "@near-wallet-selector/modal-ui-js";
 import { Buffer } from 'buffer';
 import { sendStreamingRequest } from './openai/chat-completion.js';
-import { tools } from './openai/tools.js';
+import { tools, toolImplementations } from './openai/tools.js';
 
 window.Buffer = Buffer;
 
@@ -179,6 +179,7 @@ async function sendQuestion() {
             proxyUrl,
             conversation_id,messages,
             tools,
+            toolImplementations,
             onError: (err) => {
                 messagesDiv.innerHTML += '<strong>Assistant:</strong> ' + err + '<br>';
             },

@@ -1,6 +1,6 @@
-export const toolImplemenations = {
+export const toolImplementations = {
     "run_javascript": async function(source) {    
-        return "will not run";
+        return JSON.stringify(await eval(source));
     }
 }
 

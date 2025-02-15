@@ -2,6 +2,7 @@ export async function sendStreamingRequest({
   proxyUrl,
   messages,
   tools = [],
+  toolImplementations = {},
   conversation_id,
   onError,
   onChunk,
@@ -112,7 +113,23 @@ export async function sendStreamingRequest({
   // Add assistant response to the message history
   messages.push(assistantMessage);
 
+  if (assistantMessage.tool_calls) {
+    messages = await hanleToolCalls(tool_calls, toolImplementations, messages);
+    messages = await sendStreamingRequest({ proxyUrl, messages, tools, toolImplementations, conversation_id, onError, onChunk})
+  }
   return messages; // Return updated message history
+}
+
+export async function hanleToolCalls(toolCalls, toolImplementations, messages) {
+  for (const toolCall of toolCalls) {
+    const toolResult = await toolImplementations[toolCall.function.name](JSON.parse(toolCall.function.arguments));
+    messages.push({
+      role: 'tool',
+      "tool_call_id": toolCall.id,
+      "content": toolResult
+    });
+  }
+  return messages;
 }
 
 export async function nearAiChatCompletionRequest({
