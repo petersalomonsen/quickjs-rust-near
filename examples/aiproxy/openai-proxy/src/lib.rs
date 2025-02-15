@@ -190,6 +190,7 @@ async fn handle_request(request: Request, response_out: ResponseOutparam) {
                 serde_json::from_slice(&request.into_body()[..]).unwrap();
             let conversation_id = incoming_request_body["conversation_id"].as_str().unwrap();
             let messages = incoming_request_body["messages"].clone();
+            let tools = incoming_request_body["tools"].clone();
 
             let conversation_balance_store = Store::open_default().unwrap();
             let mut conversation_balance: ConversationBalance =
@@ -245,7 +246,7 @@ async fn handle_request(request: Request, response_out: ResponseOutparam) {
                 .await;
             }
 
-            match proxy_openai(messages).await {
+            match proxy_openai(messages, tools).await {
                 Ok(incoming_response) => {
                     if incoming_response.status() != 200 {
                         conversation_balance.locked_for_ongoing_request = false;
@@ -464,10 +465,11 @@ async fn get_initial_token_balance_for_conversation(
 }
 
 // Function to handle the actual proxy logic
-async fn proxy_openai(messages: Value) -> anyhow::Result<IncomingResponse> {
+async fn proxy_openai(messages: Value, tools: Value) -> anyhow::Result<IncomingResponse> {
     let request_body = serde_json::json!({
         "model": "gpt-4o",
         "messages": messages,
+        "tools": tools,
         "stream": true,
         "stream_options": {
             "include_usage": true

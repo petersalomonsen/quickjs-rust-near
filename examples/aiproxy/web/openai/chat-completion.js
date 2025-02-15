@@ -1,6 +1,7 @@
 export async function sendStreamingRequest({
   proxyUrl,
   messages,
+  tools = [],
   conversation_id,
   onError,
   onChunk,
@@ -8,6 +9,7 @@ export async function sendStreamingRequest({
   const requestBody = JSON.stringify({
     conversation_id,
     messages,
+    tools
   });
 
   const headers = {

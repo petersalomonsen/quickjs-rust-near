@@ -2,6 +2,8 @@ import { setupWalletSelector } from '@near-wallet-selector/core';
 import { setupMyNearWallet } from "@near-wallet-selector/my-near-wallet";
 import { setupModal } from "@near-wallet-selector/modal-ui-js";
 import { Buffer } from 'buffer';
+import { sendStreamingRequest } from './openai/chat-completion.js';
+import { tools } from './openai/tools.js';
 
 window.Buffer = Buffer;
 
@@ -163,70 +165,32 @@ async function sendQuestion() {
     conversation.push({ role: 'user', content: question });
     messagesDiv.innerHTML += `<strong>User:</strong> ${escapeHtml(question)}<br>`;
 
-    const requestBody = JSON.stringify({
-        conversation_id: document.getElementById('conversation_id').value,
-        messages: conversation
-    });
-
-    const headers = {
-        'Content-Type': 'application/json'
-    };
+    const conversation_id = document.getElementById('conversation_id').value;
+    const messages = conversation;
 
     try {
-        // Fetch the proxy endpoint with a POST request
-        const response = await fetch(proxyUrl, {
-            method: 'POST',
-            headers: headers,
-            body: requestBody
-        });
-
-        // Check if the response is OK
-        if (!response.ok) {
-            messagesDiv.innerHTML += '<strong>Assistant:</strong> Failed to fetch from proxy: ' + response.statusText + '<br>' + (await response.text()) + '<br>';
-            return;
-        }
-
-        // Read the streaming response using a ReadableStream
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder('utf-8');
-        let assistantResponse = '';
-
         // Add placeholder for the assistant's response
         let assistantResponseElement = document.createElement('div');
         assistantResponseElement.innerHTML = '<strong>Assistant:</strong> ';
         messagesDiv.appendChild(assistantResponseElement);
-
-        // Continuously read data from the stream
-        while (true) {
-            const { done, value } = await reader.read();
-            if (done) {
-                break;
+        
+        // Fetch the proxy endpoint with a POST request
+        const newMessages = await sendStreamingRequest({
+            proxyUrl,
+            conversation_id,messages,
+            tools,
+            onError: (err) => {
+                messagesDiv.innerHTML += '<strong>Assistant:</strong> ' + err + '<br>';
+            },
+            onChunk: (chunk) => {
+                assistantResponseElement.innerHTML = `<strong>Assistant:</strong> ${chunk.assistantResponse}`;
             }
+        });
 
-            // Decode the streamed chunk and parse it as JSON
-            const chunk = decoder.decode(value, { stream: true });
-            const lines = chunk.split('\n').filter(line => line.trim() !== '');
-            for (const line of lines) {
-                if (line.startsWith('data: ')) {
-                    const json = line.substring(6);
-                    if (json !== '[DONE]') {
-                        try {
-                            const parsed = JSON.parse(json);
-                            if (parsed.choices && parsed.choices[0].delta && parsed.choices[0].delta.content) {
-                                const newContent = parsed.choices[0].delta.content;
-                                assistantResponse += newContent;
-                                assistantResponseElement.innerHTML = `<strong>Assistant:</strong> ${assistantResponse}`;
-                            }
-                        } catch (e) {
-                            console.error('Error parsing JSON chunk:', e);
-                        }
-                    }
-                }
-            }
+        if ( newMessages ) {
+            conversation = newMessages;
         }
-
-        // Add assistant response to the conversation
-        conversation.push({ role: 'assistant', content: assistantResponse });
+        console.log(conversation);
     } catch (error) {
         messagesDiv.innerHTML += '<strong>Assistant:</strong> Error: ' + error + '<br>';
     }
