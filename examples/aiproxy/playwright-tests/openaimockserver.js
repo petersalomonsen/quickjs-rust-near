@@ -1,56 +1,42 @@
 import { createServer } from "http";
 import { Readable } from "stream";
+import { readFile } from 'fs/promises';
 
 const PORT = 3001;
 const API_KEY = process.env.SPIN_VARIABLE_OPENAI_API_KEY;
 const API_KEY_METHOD = process.env.SPIN_VARIABLE_API_KEY_METHOD || "authorization";
 
-const toolcallPayload = {"messages":[{"role":"user","content":[{"type":"text","text":"show me the current date and the natural logarithm of 22"}]}],"temperature":1,"max_completion_tokens":2048,"top_p":1,"frequency_penalty":0,"presence_penalty":0,"model":"gpt-4o","response_format":{"type":"text"},"tools":[{"type":"function","function":{"name":"get_current_datetime","description":"Returns the current date and time","parameters":{"type":"object","properties":{},"additionalProperties":false,"required":[]},"strict":true}},{"type":"function","function":{"name":"calculate_natural_log","description":"Get natural logarithm of any number","parameters":{"type":"object","required":["number"],"properties":{"number":{"type":"number","description":"The number to calculate the natural logarithm for"}},"additionalProperties":false},"strict":true}}],"parallel_tool_calls":true,"stream":true,"stream_options":{"include_usage":true}};
+const defaultResponseChunks = `data: {"choices":[],"created":0,"id":"","model":"","object":"","prompt_filter_results":[{"prompt_index":0,"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"jailbreak":{"filtered":false,"detected":false},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}}}]}
 
-const defaultResponseChunks = [
-  JSON.stringify({
-    choices: [
-      {
-        delta: {
-          content: "Hello! How can I assist you today?\n",
-        },
-      },
-    ],
-    usage: null
-  }),
-  JSON.stringify({
-    choices: [
-      {
-        delta: {
-          content: "...\n",
-        },
-      },
-    ],
-    usage:
-    {
-      "prompt_tokens": 18,
-        "completion_tokens": 9,
-        "total_tokens": 27,
-        "prompt_tokens_details":
-          { "cached_tokens": 0 }, 
-          "completion_tokens_details": { "reasoning_tokens": 0 }
-    }
-  }),
-  "[DONE]",
-];
+data: {"choices":[{"content_filter_results":{},"delta":{"content":"","refusal":null,"role":"assistant"},"finish_reason":null,"index":0,"logprobs":null}],"created":1739732755,"id":"chatcmpl-B1eFf135hgAWyKJT6ry5iFMcwAf4D","model":"gpt-4o-2024-11-20","object":"chat.completion.chunk","system_fingerprint":"fp_f3927aa00d","usage":null}
 
-const responseChunksWithToolCall = [
-  JSON.stringify({"id":"chatcmpl-Az7d55bmKWB0gR3e1A0b1AdOQ9FsQ","object":"chat.completion.chunk","created":1739130699,"model":"gpt-4o-2024-08-06","service_tier":"default","system_fingerprint":"fp_50cad350e4","usage":null,"choices":[{"index":0,"delta":{"role":"assistant","content":null},"logprobs":null,"finish_reason":null}]}),
-  JSON.stringify({"id":"chatcmpl-Az7d55bmKWB0gR3e1A0b1AdOQ9FsQ","object":"chat.completion.chunk","created":1739130699,"model":"gpt-4o-2024-08-06","service_tier":"default","system_fingerprint":"fp_50cad350e4","usage":null,"choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"id":"call_nsnhJgZZaqiKyMvwxW9NnptH","type":"function","function":{"name":"get_current_datetime","arguments":""}}]},"logprobs":null,"finish_reason":null}]}),
-  JSON.stringify({"id":"chatcmpl-Az7d55bmKWB0gR3e1A0b1AdOQ9FsQ","object":"chat.completion.chunk","created":1739130699,"model":"gpt-4o-2024-08-06","service_tier":"default","system_fingerprint":"fp_50cad350e4","usage":null,"choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"{}"}}]},"logprobs":null,"finish_reason":null}]}),
-  JSON.stringify({"id":"chatcmpl-Az7d55bmKWB0gR3e1A0b1AdOQ9FsQ","object":"chat.completion.chunk","created":1739130699,"model":"gpt-4o-2024-08-06","service_tier":"default","system_fingerprint":"fp_50cad350e4","usage":null,"choices":[{"index":0,"delta":{"tool_calls":[{"index":1,"id":"call_vjuVr21HSbTGbVGYtv7oAZQS","type":"function","function":{"name":"calculate_natural_log","arguments":""}}]},"logprobs":null,"finish_reason":null}]}),
-  JSON.stringify({"id":"chatcmpl-Az7d55bmKWB0gR3e1A0b1AdOQ9FsQ","object":"chat.completion.chunk","created":1739130699,"model":"gpt-4o-2024-08-06","service_tier":"default","system_fingerprint":"fp_50cad350e4","usage":null,"choices":[{"index":0,"delta":{"tool_calls":[{"index":1,"function":{"arguments":"{\"nu"}}]},"logprobs":null,"finish_reason":null}]}),
-  JSON.stringify({"id":"chatcmpl-Az7d55bmKWB0gR3e1A0b1AdOQ9FsQ","object":"chat.completion.chunk","created":1739130699,"model":"gpt-4o-2024-08-06","service_tier":"default","system_fingerprint":"fp_50cad350e4","usage":null,"choices":[{"index":0,"delta":{"tool_calls":[{"index":1,"function":{"arguments":"mber\""}}]},"logprobs":null,"finish_reason":null}]}),
-  JSON.stringify({"id":"chatcmpl-Az7d55bmKWB0gR3e1A0b1AdOQ9FsQ","object":"chat.completion.chunk","created":1739130699,"model":"gpt-4o-2024-08-06","service_tier":"default","system_fingerprint":"fp_50cad350e4","usage":null,"choices":[{"index":0,"delta":{"tool_calls":[{"index":1,"function":{"arguments":": 22}"}}]},"logprobs":null,"finish_reason":null}]}),
-  JSON.stringify({"id":"chatcmpl-Az7d55bmKWB0gR3e1A0b1AdOQ9FsQ","object":"chat.completion.chunk","created":1739130699,"model":"gpt-4o-2024-08-06","service_tier":"default","system_fingerprint":"fp_50cad350e4","choices":[{"index":0,"delta":{},"logprobs":null,"finish_reason":"tool_calls"}],"usage":null}),
-  JSON.stringify({"id":"chatcmpl-Az7d55bmKWB0gR3e1A0b1AdOQ9FsQ","object":"chat.completion.chunk","created":1739130699,"model":"gpt-4o-2024-08-06","service_tier":"default","system_fingerprint":"fp_50cad350e4","choices":[],"usage":{"prompt_tokens":87,"completion_tokens":45,"total_tokens":132,"prompt_tokens_details":{"cached_tokens":0,"audio_tokens":0},"completion_tokens_details":{"reasoning_tokens":0,"audio_tokens":0,"accepted_prediction_tokens":0,"rejected_prediction_tokens":0}}}),
-"[DONE]"
-];
+data: {"choices":[{"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}},"delta":{"content":"Hello"},"finish_reason":null,"index":0,"logprobs":null}],"created":1739732755,"id":"chatcmpl-B1eFf135hgAWyKJT6ry5iFMcwAf4D","model":"gpt-4o-2024-11-20","object":"chat.completion.chunk","system_fingerprint":"fp_f3927aa00d","usage":null}
+
+data: {"choices":[{"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}},"delta":{"content":"!"},"finish_reason":null,"index":0,"logprobs":null}],"created":1739732755,"id":"chatcmpl-B1eFf135hgAWyKJT6ry5iFMcwAf4D","model":"gpt-4o-2024-11-20","object":"chat.completion.chunk","system_fingerprint":"fp_f3927aa00d","usage":null}
+
+data: {"choices":[{"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}},"delta":{"content":" How"},"finish_reason":null,"index":0,"logprobs":null}],"created":1739732755,"id":"chatcmpl-B1eFf135hgAWyKJT6ry5iFMcwAf4D","model":"gpt-4o-2024-11-20","object":"chat.completion.chunk","system_fingerprint":"fp_f3927aa00d","usage":null}
+
+data: {"choices":[{"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}},"delta":{"content":" can"},"finish_reason":null,"index":0,"logprobs":null}],"created":1739732755,"id":"chatcmpl-B1eFf135hgAWyKJT6ry5iFMcwAf4D","model":"gpt-4o-2024-11-20","object":"chat.completion.chunk","system_fingerprint":"fp_f3927aa00d","usage":null}
+
+data: {"choices":[{"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}},"delta":{"content":" I"},"finish_reason":null,"index":0,"logprobs":null}],"created":1739732755,"id":"chatcmpl-B1eFf135hgAWyKJT6ry5iFMcwAf4D","model":"gpt-4o-2024-11-20","object":"chat.completion.chunk","system_fingerprint":"fp_f3927aa00d","usage":null}
+
+data: {"choices":[{"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}},"delta":{"content":" assist"},"finish_reason":null,"index":0,"logprobs":null}],"created":1739732755,"id":"chatcmpl-B1eFf135hgAWyKJT6ry5iFMcwAf4D","model":"gpt-4o-2024-11-20","object":"chat.completion.chunk","system_fingerprint":"fp_f3927aa00d","usage":null}
+
+data: {"choices":[{"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}},"delta":{"content":" you"},"finish_reason":null,"index":0,"logprobs":null}],"created":1739732755,"id":"chatcmpl-B1eFf135hgAWyKJT6ry5iFMcwAf4D","model":"gpt-4o-2024-11-20","object":"chat.completion.chunk","system_fingerprint":"fp_f3927aa00d","usage":null}
+
+data: {"choices":[{"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}},"delta":{"content":" today"},"finish_reason":null,"index":0,"logprobs":null}],"created":1739732755,"id":"chatcmpl-B1eFf135hgAWyKJT6ry5iFMcwAf4D","model":"gpt-4o-2024-11-20","object":"chat.completion.chunk","system_fingerprint":"fp_f3927aa00d","usage":null}
+
+data: {"choices":[{"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}},"delta":{"content":"?"},"finish_reason":null,"index":0,"logprobs":null}],"created":1739732755,"id":"chatcmpl-B1eFf135hgAWyKJT6ry5iFMcwAf4D","model":"gpt-4o-2024-11-20","object":"chat.completion.chunk","system_fingerprint":"fp_f3927aa00d","usage":null}
+
+data: {"choices":[{"content_filter_results":{},"delta":{},"finish_reason":"stop","index":0,"logprobs":null}],"created":1739732755,"id":"chatcmpl-B1eFf135hgAWyKJT6ry5iFMcwAf4D","model":"gpt-4o-2024-11-20","object":"chat.completion.chunk","system_fingerprint":"fp_f3927aa00d","usage":null}
+
+data: {"choices":[],"created":1739732755,"id":"chatcmpl-B1eFf135hgAWyKJT6ry5iFMcwAf4D","model":"gpt-4o-2024-11-20","object":"chat.completion.chunk","system_fingerprint":"fp_f3927aa00d","usage":{"completion_tokens":10,"completion_tokens_details":{"accepted_prediction_tokens":0,"audio_tokens":0,"reasoning_tokens":0,"rejected_prediction_tokens":0},"prompt_tokens":96,"prompt_tokens_details":{"audio_tokens":0,"cached_tokens":0},"total_tokens":106}}
+
+data: [DONE]
+`.split('\n\n');
+
+const responseChunksWithToolCall = (await readFile(new URL('./openairesponsechunks/toolcall.txt', import.meta.url))).toString().split('\n\n');
+const responseChunksHandleToolCall = (await readFile(new URL('./openairesponsechunks/handletoolcalll.txt', import.meta.url))).toString().split('\n\n');
 
 const server = createServer((req, res) => {
   if (req.method === "POST" && req.url.startsWith("/v1/chat/completions")) {
@@ -77,11 +63,20 @@ const server = createServer((req, res) => {
       }
 
       const payload = JSON.parse(requestBody);
-      const responseChunks = payload.messages.findLast(message => message.role === 'user' && message.content[0].text === "show me the current date and the natural logarithm of 22") ? responseChunksWithToolCall : defaultResponseChunks;
+      const lastMessage = payload.messages[payload.messages.length - 1];
+      console.log(JSON.stringify(lastMessage));
+      let responseChunks;
+      if(lastMessage.content === "run a script that shows the fibonacci numbers up to 100") {
+        responseChunks = responseChunksWithToolCall;
+      } else if (lastMessage.role === "tool" && lastMessage.tool_call_id === "call_9Qho04353vraQ92HfH5i1aDZ") {
+        responseChunks = responseChunksHandleToolCall;
+      } else {
+        responseChunks = defaultResponseChunks;
+      }
 
       const readable = new Readable({
         read() {
-          responseChunks.forEach((chunk) => this.push(`data: ${chunk}\n\n`));
+          responseChunks.forEach((chunk) => this.push(`${chunk}\n\n`));
           this.push(null);
         },
       });

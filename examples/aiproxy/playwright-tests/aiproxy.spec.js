@@ -86,10 +86,10 @@ async function setupStorageAndRoute({ page }) {
  *
  * @param {Object} params - The parameters for the test.
  * @param {import('playwright').Page} params.page - The Playwright page object.
- * @param {string} [params.expectedRefundAmount="127999973"] - The expected refund amount.
+ * @param {string} [params.expectedRefundAmount="127999894"] - The expected refund amount.
  * @param {string} [params.expectedOpenAIResponse="Hello! How can I assist you today?"] - The expected response from OpenAI.
  */
-async function testConversation({ page, expectedRefundAmount = "127999973", expectedOpenAIResponse = "Hello! How can I assist you today?" }) {
+async function testConversation({ page, expectedRefundAmount = "127999894", expectedOpenAIResponse = "Hello! How can I assist you today?" }) {
   const { contractId, accountId } = await setupStorageAndRoute({ page });
 
   await page.waitForTimeout(2000);
@@ -156,16 +156,17 @@ test('start conversation, try refund without asking AI', async ({ page }) => {
 });
 
 test('conversation with tool calls', async ({ page }) => {
-  await startMockServer('authorization');
-  const { contractId, accountId } = await setupStorageAndRoute({ page });
-
+  await startMockServer('api-key');
+  await setupStorageAndRoute({ page });
+  
   await page.waitForTimeout(2000);
   await page.getByRole('button', { name: 'Start conversation' }).click();
 
   const questionArea = await page.getByPlaceholder('Type your question here...');
   await expect(questionArea).toBeEnabled();
-  questionArea.fill("show me the current date and the natural logarithm of 22");
+  questionArea.fill("run a script that shows the fibonacci numbers up to 100");
+  await page.waitForTimeout(1000);
 
   await page.getByRole('button', { name: 'Ask AI' }).click();
-  
+  await expect(await page.getByText("[0, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89]")).toBeVisible();
 });

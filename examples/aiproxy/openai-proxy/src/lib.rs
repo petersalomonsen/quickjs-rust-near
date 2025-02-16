@@ -262,6 +262,7 @@ async fn handle_request(request: Request, response_out: ResponseOutparam) {
                         return server_error(response_out);
                     }
                     let mut incoming_response_body = incoming_response.take_body_stream();
+                    headers.set(&String::from("content-type"), &vec!["text/event-stream; charset=utf-8".as_bytes().to_vec()]).unwrap();
                     let outgoing_response = OutgoingResponse::new(headers);
                     let mut outgoing_response_body = outgoing_response.take_body();
 
