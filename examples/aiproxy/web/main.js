@@ -4,6 +4,7 @@ import { setupModal } from "@near-wallet-selector/modal-ui-js";
 import { Buffer } from 'buffer';
 import { sendStreamingRequest } from './openai/chat-completion.js';
 import { tools, toolImplementations } from './openai/tools.js';
+import { marked } from 'marked';
 
 window.Buffer = Buffer;
 
@@ -184,7 +185,7 @@ async function sendQuestion() {
                 messagesDiv.innerHTML += '<strong>Assistant:</strong> ' + err + '<br>';
             },
             onChunk: (chunk) => {
-                assistantResponseElement.innerHTML = `<strong>Assistant:</strong> ${chunk.assistantResponse}`;
+                assistantResponseElement.innerHTML = `<strong>Assistant:</strong> ${marked(chunk.assistantResponse)}`;
             }
         });
 
