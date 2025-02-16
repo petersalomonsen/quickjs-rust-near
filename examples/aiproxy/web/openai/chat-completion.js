@@ -127,15 +127,13 @@ export async function sendStreamingRequest({
 export async function hanleToolCalls({toolCalls, toolImplementations, messages, onChunk, onError}) {
   let assistantResponse = "";
   for (const toolCall of toolCalls) {
-    assistantResponse += `Calling function \`${toolCall.function.name}\` with arguments \`${toolCall.function.arguments}\`\n\n`;
+    assistantResponse += `*Calling function* \`${toolCall.function.name}\` *with arguments* \`${toolCall.function.arguments}\`\n\n`;
 
     onChunk({assistantResponse});
 
     const toolResult = await toolImplementations[toolCall.function.name](JSON.parse(toolCall.function.arguments));
-    assistantResponse +=  `Function call result:
-\`\`\`
-${toolResult}
-\`\`\`
+    assistantResponse +=  `*Function call result is* \`${toolResult}\`
+
 `;
 
     onChunk({assistantResponse});
