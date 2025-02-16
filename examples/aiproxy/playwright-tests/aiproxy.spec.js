@@ -168,5 +168,7 @@ test('conversation with tool calls', async ({ page }) => {
   await page.waitForTimeout(1000);
 
   await page.getByRole('button', { name: 'Ask AI' }).click();
-  await expect(await page.getByText("[0, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89]")).toBeVisible();
+  await expect(await page.getByText(`Calling function run_javascript with arguments`)).toBeVisible();
+  await expect(await page.getByText(`Function call result is [0,1,1,2,3,5,8,13,21,34,55,89]`)).toBeVisible();
+  await expect(await page.getByText("The Fibonacci numbers up to 100 are:\n\n[0, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89]")).toBeVisible();
 });
