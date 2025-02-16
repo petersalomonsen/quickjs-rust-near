@@ -182,7 +182,7 @@ async function sendQuestion() {
             tools,
             toolImplementations,
             onError: (err) => {
-                messagesDiv.innerHTML += '<strong>Assistant:</strong> ' + err + '<br>';
+                messagesDiv.innerHTML += `<strong>Assistant:</strong> Failed to fetch from proxy: ${err.statusText} ${err.responText ?? ''} <br>`;
             },
             onChunk: (chunk) => {
                 assistantResponseElement.innerHTML = `<strong>Assistant:</strong> ${marked(chunk.assistantResponse)}`;
