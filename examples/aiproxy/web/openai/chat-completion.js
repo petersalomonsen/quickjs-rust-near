@@ -174,12 +174,18 @@ export async function hanleToolCalls({
 
 export async function nearAiChatCompletionRequest({
   model = "fireworks::accounts/fireworks/models/qwen2p5-72b-instruct",
-  messages,
+  messages = [],
   authorizationObject,
+  assistantResponse = "",
+  tools = [],
+  toolImplementations = {},
+  onChunk,
+  onError,
 }) {
   const body = JSON.stringify({
     model,
     messages,
+    tools,
     /*
         // Unable to get streaming to work
         "stream": true,
@@ -194,9 +200,43 @@ export async function nearAiChatCompletionRequest({
     Authorization: `Bearer ${JSON.stringify(authorizationObject)}`,
   };
 
-  return await fetch("https://api.near.ai/v1/chat/completions", {
+  const result = await fetch("https://api.near.ai/v1/chat/completions", {
     method: "POST",
     headers,
     body,
-  }).then((r) => r.json());
+  }).then(async (r) => {
+    if (r.status === 200) {
+      return await r.json();
+    } else {
+      onError(`${r.status}, ${r.statusText} ${await r.text()}`);
+    }
+  });
+
+  // Add assistant response to the message history
+  const message = result.choices[0].message;
+  messages.push(message);
+  assistantResponse += message.content;
+  onChunk({ assistantResponse });
+
+  const toolCalls = message.tool_calls;
+  if (toolCalls) {
+    const { messages: newMessages, assistantResponse } = await hanleToolCalls({
+      toolCalls,
+      toolImplementations,
+      messages,
+      onChunk,
+      onError,
+    });
+    messages = newMessages;
+    messages = await nearAiChatCompletionRequest({
+      messages,
+      tools,
+      toolImplementations,
+      authorizationObject,
+      assistantResponse,
+      onError,
+      onChunk,
+    });
+  }
+  return messages;
 }

@@ -4,7 +4,7 @@ export const toolImplementations = {
   run_javascript: async function ({ script }) {
     const wasmbinary = new Uint8Array(
       await fetch(
-        "https://ipfs.web4.near.page/ipfs/bafkreigjjyocek3mdqk6rilzaxleg2swuka2nhzfx2gq4u7yicgdmvlh2a?filename=minimum_web4.wasm",
+        "https://ipfs.web4.near.page/ipfs/bafybeihtj6sxfflbxpoq3lr2l3llxberlqah7pfc36cr5dpij2pen6pfs4/minimumweb4/out/minimum_web4.wasm",
       ).then((r) => r.arrayBuffer()),
     );
 
@@ -45,7 +45,6 @@ export const tools = [
         additionalProperties: false,
         required: ["script"],
       },
-      strict: true,
     },
   },
 ];
