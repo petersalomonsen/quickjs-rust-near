@@ -42,9 +42,13 @@ cd ..
 cargo install static-web-server
 yarn playwright install --with-deps
 
-curl -fsSL https://developer.fermyon.com/downloads/install.sh | bash
-
-sudo mv ./spin ./usr/local/bin
-
 cargo install cargo-component
-(cd ~ && spin plugin install -y -u https://github.com/fermyon/spin-test/releases/download/canary/spin-test.json)
+
+WORKING_DIRECTORY=$(pwd)
+
+cd $HOME
+curl -fsSL https://developer.fermyon.com/downloads/install.sh | bash
+sudo mv ./spin /usr/local/bin
+spin plugin install -y -u https://github.com/fermyon/spin-test/releases/download/canary/spin-test.json
+
+cd $WORKING_DIRECTORY
