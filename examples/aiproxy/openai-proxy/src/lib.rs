@@ -2,7 +2,7 @@ use base64::prelude::*;
 use ed25519_dalek::{ed25519::signature::SignerMut, SigningKey};
 use futures::{SinkExt, StreamExt};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use serde_json::{json, Value};
+use serde_json::Value;
 use sha2::{Digest, Sha256};
 use spin_sdk::{
     http::{self, Headers, IncomingResponse, Method, OutgoingResponse, Request, ResponseOutparam},
@@ -90,8 +90,8 @@ fn get_signing_key(b58_key: &str) -> SigningKey {
     SigningKey::from_bytes(&key_bytes)
 }
 
-fn cors_headers() -> Headers {
-    Headers::from_list(&[
+fn cors_headers_entries() -> Vec<(String, Vec<u8>)> {
+    vec![
         (
             "Access-Control-Allow-Origin".to_string(),
             "*".to_string().into_bytes(),
@@ -104,16 +104,17 @@ fn cors_headers() -> Headers {
             "Access-Control-Allow-Headers".to_string(),
             "Content-Type, Authorization".to_string().into_bytes(),
         ),
-    ])
-    .unwrap()
+    ]
+}
+fn cors_headers() -> Headers {
+    Headers::from_list(&cors_headers_entries()).unwrap()
 }
 
 #[http_component]
 async fn handle_request(request: Request, response_out: ResponseOutparam) {
-    let headers = cors_headers();
     match (request.method(), request.path_and_query().as_deref()) {
         (Method::Options, Some("/refund-conversation")) => {
-            let response = OutgoingResponse::new(headers);
+            let response = OutgoingResponse::new(cors_headers());
             response.set_status_code(200).unwrap();
             response_out.set(response);
         }
@@ -153,7 +154,7 @@ async fn handle_request(request: Request, response_out: ResponseOutparam) {
                 receiver_id: conversation_balance.receiver_id.clone(),
                 refund_amount: conversation_balance.amount,
             };
-            let response = OutgoingResponse::new(headers);
+            let response = OutgoingResponse::new(cors_headers());
             response.set_status_code(200).unwrap();
 
             let refund_message_str = serde_json::to_string(&refund_message).unwrap();
@@ -181,7 +182,7 @@ async fn handle_request(request: Request, response_out: ResponseOutparam) {
                 .unwrap();
         }
         (Method::Options, Some("/proxy-openai")) => {
-            let response = OutgoingResponse::new(headers);
+            let response = OutgoingResponse::new(cors_headers());
             response.set_status_code(200).unwrap();
             response_out.set(response);
         }
@@ -262,12 +263,13 @@ async fn handle_request(request: Request, response_out: ResponseOutparam) {
                         return server_error(response_out);
                     }
                     let mut incoming_response_body = incoming_response.take_body_stream();
-                    headers
-                        .set(
-                            &String::from("content-type"),
-                            &vec!["text/event-stream; charset=utf-8".as_bytes().to_vec()],
-                        )
-                        .unwrap();
+                    let mut headers_entries = cors_headers_entries().clone();
+                    headers_entries.push((
+                        String::from("content-type"),
+                        "text/event-stream; charset=utf-8".as_bytes().to_vec(),
+                    ));
+
+                    let headers = Headers::from_list(&headers_entries).unwrap();
                     let outgoing_response = OutgoingResponse::new(headers);
                     let mut outgoing_response_body = outgoing_response.take_body();
 
