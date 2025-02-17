@@ -18,7 +18,9 @@
     "examples-nft-web4bundle": "cd examples/nft/web4 && rollup -c rollup.config.js",
     "serve-examples-nft": "http-server -p 8085 examples/nft/web4",
     "test-playwright-aiproxy": "yarn playwright test -c examples/aiproxy/playwright.config.js",
-    "aiproxy:web4bundle": "cd examples/aiproxy && rollup -c rollup.config.js"
+    "aiproxy:web4bundle": "cd examples/aiproxy && rollup -c rollup.config.js",
+    "example-contracts:create:car": "ipfs-car pack examples/fungibletoken/out/fungible_token.wasm examples/nft/out/nft.wasm examples/minimumweb4/out/minimum_web4.wasm --output example-contracts.car",
+    "example-contracts:upload:car": "NODE_ENV=mainnet node ./node_modules/nearfs/scripts/upload-car.js example-contracts.car"
   },
   "jest": {
     "transform": {}
@@ -30,7 +32,9 @@
     "chai": "^5.1.1",
     "dotenv": "^16.4.7",
     "http-server": "^14.1.1",
+    "ipfs-car": "^2.0.0",
     "near-workspaces": "4.0.0",
+    "nearfs": "https://github.com/vgrichina/nearfs",
     "prettier": "^3.5.1",
     "rollup": "^4.31.0",
     "rollup-plugin-terser": "^7.0.2"
