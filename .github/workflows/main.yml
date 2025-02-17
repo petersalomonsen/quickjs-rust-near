@@ -242,12 +242,23 @@ jobs:
         run: |
           cd examples/fungibletoken
           ./build.sh
+      - name: Check AI proxy formatting
+        working-directory: examples/aiproxy
+        run: |
+          (cd openai-proxy && cargo fmt --check)
+          (cd tests && cargo fmt --check)
+          yarn fmt:check
       - name: Run AI proxy spin test
         run: |
           spin plugin install -y -u https://github.com/fermyon/spin-test/releases/download/canary/spin-test.json
           cd examples/aiproxy
           spin build
           spin test
+      - name: Run AI proxy Playwright test
+        run: |
+          cd examples/aiproxy
+          yarn playwright install --with-deps
+          yarn test-playwright-aiproxy  
       - name: Run AI proxy Playwright test
         run: |
           cd examples/aiproxy

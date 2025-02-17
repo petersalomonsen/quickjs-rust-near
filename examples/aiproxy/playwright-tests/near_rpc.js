@@ -1,69 +1,100 @@
-import { KeyPairEd25519, KeyPair, parseNEAR, Worker } from 'near-workspaces';
+import { KeyPairEd25519, KeyPair, parseNEAR, Worker } from "near-workspaces";
 
-import { readFile } from 'fs/promises';
+import { readFile } from "fs/promises";
 import { createServer } from "http";
-import { createHash } from 'crypto';
+import { createHash } from "crypto";
 
-
-const worker = await Worker.init({ port: 14500, rpcAddr: "http://localhost:14500" });
-
-process.on('exit', () => {
-    console.log('Tearing down sandbox worker');
-    worker.tearDown();
+const worker = await Worker.init({
+  port: 14500,
+  rpcAddr: "http://localhost:14500",
 });
 
-const aiTokenAccount = await worker.rootAccount.createAccount('aitoken.test.near');
-await aiTokenAccount.deploy(await readFile('../fungibletoken/out/fungible_token.wasm'));
-await aiTokenAccount.call(aiTokenAccount.accountId, 'new_default_meta', { owner_id: aiTokenAccount.accountId, total_supply: 1_000_000_000_000n.toString() });
+process.on("exit", () => {
+  console.log("Tearing down sandbox worker");
+  worker.tearDown();
+});
 
-const publicKeyBytes = KeyPair.fromString('ed25519:'+process.env.SPIN_VARIABLE_REFUND_SIGNING_KEY).getPublicKey().data;
-
-const javascript = (await readFile(new URL('../../fungibletoken/e2e/aiconversation.js', import.meta.url))).toString()
-    .replace("REPLACE_REFUND_SIGNATURE_PUBLIC_KEY", JSON.stringify(Array.from(publicKeyBytes)));
-
-await aiTokenAccount.call(
-    aiTokenAccount.accountId,
-    'post_javascript',
-    { javascript }
+const aiTokenAccount =
+  await worker.rootAccount.createAccount("aitoken.test.near");
+await aiTokenAccount.deploy(
+  await readFile("../fungibletoken/out/fungible_token.wasm"),
 );
+await aiTokenAccount.call(aiTokenAccount.accountId, "new_default_meta", {
+  owner_id: aiTokenAccount.accountId,
+  total_supply: 1_000_000_000_000n.toString(),
+});
 
-const aiuser = await worker.rootAccount.createAccount('aiuser.test.near');
-await aiuser.call(aiTokenAccount.accountId, 'storage_deposit', {
+const publicKeyBytes = KeyPair.fromString(
+  "ed25519:" + process.env.SPIN_VARIABLE_REFUND_SIGNING_KEY,
+).getPublicKey().data;
+
+const javascript = (
+  await readFile(
+    new URL("../../fungibletoken/e2e/aiconversation.js", import.meta.url),
+  )
+)
+  .toString()
+  .replace(
+    "REPLACE_REFUND_SIGNATURE_PUBLIC_KEY",
+    JSON.stringify(Array.from(publicKeyBytes)),
+  );
+
+await aiTokenAccount.call(aiTokenAccount.accountId, "post_javascript", {
+  javascript,
+});
+
+const aiuser = await worker.rootAccount.createAccount("aiuser.test.near");
+await aiuser.call(
+  aiTokenAccount.accountId,
+  "storage_deposit",
+  {
     account_id: aiuser.accountId,
     registration_only: true,
-}, {
-    attachedDeposit: 1_0000_0000000000_0000000000n.toString()
-});
+  },
+  {
+    attachedDeposit: 1_0000_0000000000_0000000000n.toString(),
+  },
+);
 
-await aiTokenAccount.call(aiTokenAccount.accountId, 'ft_transfer', {
+await aiTokenAccount.call(
+  aiTokenAccount.accountId,
+  "ft_transfer",
+  {
     receiver_id: aiuser.accountId,
-    amount: (100n*128_000_000n).toString(),
-}, {
-    attachedDeposit: 1n.toString()
-});
+    amount: (100n * 128_000_000n).toString(),
+  },
+  {
+    attachedDeposit: 1n.toString(),
+  },
+);
 
 const functionAccessKeyPair = KeyPairEd25519.fromRandom();
 
 await aiuser.updateAccessKey(functionAccessKeyPair, {
-    permission: {
-        FunctionCall: {
-            method_names: ["call_js_func"], receiver_id: aiTokenAccount.accountId, allowance: parseNEAR("0.25").toString(),
-        }
-    }, nonce: 0
+  permission: {
+    FunctionCall: {
+      method_names: ["call_js_func"],
+      receiver_id: aiTokenAccount.accountId,
+      allowance: parseNEAR("0.25").toString(),
+    },
+  },
+  nonce: 0,
 });
 
 const publicKey = (await aiuser.getKey()).getPublicKey().toString();
 
 const server = createServer((req, res) => {
-    res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({
-        publicKey,
-        functionAccessKeyPair: functionAccessKeyPair.toString(),
-        accountId: aiuser.accountId,
-        contractId: aiTokenAccount.accountId
-    }));
+  res.writeHead(200, { "Content-Type": "application/json" });
+  res.end(
+    JSON.stringify({
+      publicKey,
+      functionAccessKeyPair: functionAccessKeyPair.toString(),
+      accountId: aiuser.accountId,
+      contractId: aiTokenAccount.accountId,
+    }),
+  );
 });
 
 server.listen(14501, () => {
-    console.log(`Sandbox RPC up and running`);
+  console.log(`Sandbox RPC up and running`);
 });
