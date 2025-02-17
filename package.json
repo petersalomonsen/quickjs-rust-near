@@ -3,6 +3,7 @@
   "type": "module",
   "license": "MIT",
   "scripts": {
+    "fmt:check": "prettier --check examples/aiproxy",
     "fmt": "prettier --write examples/aiproxy",
     "serve": "http-server -p 8085 web4",
     "serve-dist": "http-server -p 8085 web4/dist",
