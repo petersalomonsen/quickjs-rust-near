@@ -13,7 +13,8 @@
                 "github.vscode-github-actions",
                 "vadimcn.vscode-lldb",
                 "ms-vscode.cpptools-extension-pack",
-                "ms-vscode.makefile-tools"
+                "ms-vscode.makefile-tools",
+                "ms-playwright.playwright"
             ]
         }
     },
