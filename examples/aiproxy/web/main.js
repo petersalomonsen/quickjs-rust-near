@@ -107,9 +107,9 @@ async function startConversation() {
     progressModal.show();
     const selectedWallet = await walletSelector.wallet();
     console.log(selectedWallet);
-    const accountId = (await selectedWallet.getAccounts())[0];
+    const account = (await selectedWallet.getAccounts())[0];
 
-    const conversation_id = `${accountId.accountId}_${new Date().getTime()}`;
+    const conversation_id = `${account.accountId}_${new Date().getTime()}`;
     const conversation_id_hash = Array.from(
       new Uint8Array(
         await window.crypto.subtle.digest(
@@ -137,6 +137,29 @@ async function startConversation() {
         },
       ],
     });
+
+    const transactionStatus = await fetch('http://localhost:14500', {
+        method: 'POST',
+        headers: {
+            "content-type": "application/json"
+        },
+        body: JSON.stringify({
+            "jsonrpc": "2.0",
+            "id": "dontcare",
+            "method": "tx",
+            "params": {
+              "tx_hash": result.transaction.hash,
+              "sender_account_id": account.accountId,
+              "wait_until": "FINAL"
+            }
+          })
+    }).then(r => r.json());
+
+    console.log(transactionStatus);
+
+    if (!transactionStatus.result.final_execution_status === 'FINAL') {
+        throw new Error(`Unable to query start converstation transaction status ${JSON.stringify(transactionStatus)}`);
+    }
     localStorage.setItem("conversation_id", conversation_id);
     checkExistingConversationId();
     progressModal.hide();
