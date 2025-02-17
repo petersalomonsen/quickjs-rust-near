@@ -138,27 +138,29 @@ async function startConversation() {
       ],
     });
 
-    const transactionStatus = await fetch('http://localhost:14500', {
-        method: 'POST',
-        headers: {
-            "content-type": "application/json"
+    const transactionStatus = await fetch("http://localhost:14500", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: "dontcare",
+        method: "tx",
+        params: {
+          tx_hash: result.transaction.hash,
+          sender_account_id: account.accountId,
+          wait_until: "FINAL",
         },
-        body: JSON.stringify({
-            "jsonrpc": "2.0",
-            "id": "dontcare",
-            "method": "tx",
-            "params": {
-              "tx_hash": result.transaction.hash,
-              "sender_account_id": account.accountId,
-              "wait_until": "FINAL"
-            }
-          })
-    }).then(r => r.json());
+      }),
+    }).then((r) => r.json());
 
     console.log(transactionStatus);
 
-    if (!transactionStatus.result.final_execution_status === 'FINAL') {
-        throw new Error(`Unable to query start converstation transaction status ${JSON.stringify(transactionStatus)}`);
+    if (!transactionStatus.result.final_execution_status === "FINAL") {
+      throw new Error(
+        `Unable to query start converstation transaction status ${JSON.stringify(transactionStatus)}`,
+      );
     }
     localStorage.setItem("conversation_id", conversation_id);
     checkExistingConversationId();
