@@ -1496,6 +1496,11 @@ portfinder@^1.0.28:
     debug "^3.2.7"
     mkdirp "^0.5.6"
 
+prettier@^3.5.1:
+  version "3.5.1"
+  resolved "https://registry.yarnpkg.com/prettier/-/prettier-3.5.1.tgz#22fac9d0b18c0b92055ac8fb619ac1c7bef02fb7"
+  integrity sha512-hPpFQvHwL3Qv5AdRvBFMhnKo4tYxp0ReXiPn2bxkiohEX6mBeBwEpBSQTkD458RaaDKQMYSp4hX4UtfUTA5wDw==
+
 promisify-child-process@^4.1.1:
   version "4.1.2"
   resolved "https://registry.yarnpkg.com/promisify-child-process/-/promisify-child-process-4.1.2.tgz#83638088b67f8093d14323e2aaa28b5424d3a7e5"

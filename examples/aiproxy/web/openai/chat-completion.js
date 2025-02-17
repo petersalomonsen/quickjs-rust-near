@@ -11,7 +11,7 @@ export async function sendStreamingRequest({
   const requestBody = JSON.stringify({
     conversation_id,
     messages,
-    tools
+    tools,
   });
 
   const headers = {
@@ -90,7 +90,9 @@ export async function sendStreamingRequest({
                   if (func.arguments)
                     toolCalls[index].function.arguments += func.arguments;
 
-                  onChunk({assistantResponse: `Receiving tool call ${id} ${JSON.stringify(func)}`});
+                  onChunk({
+                    assistantResponse: `Receiving tool call ${id} ${JSON.stringify(func)}`,
+                  });
                 }
               }
             }
@@ -117,31 +119,54 @@ export async function sendStreamingRequest({
   messages.push(assistantMessage);
 
   if (assistantMessage.tool_calls) {
-    const { messages: newMessages, assistantResponse} = await hanleToolCalls({toolCalls: tool_calls, toolImplementations, messages, onChunk, onError});
+    const { messages: newMessages, assistantResponse } = await hanleToolCalls({
+      toolCalls: tool_calls,
+      toolImplementations,
+      messages,
+      onChunk,
+      onError,
+    });
     messages = newMessages;
-    messages = await sendStreamingRequest({ proxyUrl, messages, tools, toolImplementations, conversation_id, assistantResponse, onError, onChunk})
+    messages = await sendStreamingRequest({
+      proxyUrl,
+      messages,
+      tools,
+      toolImplementations,
+      conversation_id,
+      assistantResponse,
+      onError,
+      onChunk,
+    });
   }
   return messages; // Return updated message history
 }
 
-export async function hanleToolCalls({toolCalls, toolImplementations, messages, onChunk, onError}) {
+export async function hanleToolCalls({
+  toolCalls,
+  toolImplementations,
+  messages,
+  onChunk,
+  onError,
+}) {
   let assistantResponse = "";
   for (const toolCall of toolCalls) {
     assistantResponse += `*Calling function* \`${toolCall.function.name}\` *with arguments* \`${toolCall.function.arguments}\`\n\n`;
 
-    onChunk({assistantResponse});
+    onChunk({ assistantResponse });
 
-    const toolResult = await toolImplementations[toolCall.function.name](JSON.parse(toolCall.function.arguments));
-    assistantResponse +=  `*Function call result is* \`${toolResult}\`
+    const toolResult = await toolImplementations[toolCall.function.name](
+      JSON.parse(toolCall.function.arguments),
+    );
+    assistantResponse += `*Function call result is* \`${toolResult}\`
 
 `;
 
-    onChunk({assistantResponse});
+    onChunk({ assistantResponse });
 
     messages.push({
-      role: 'tool',
-      "tool_call_id": toolCall.id,
-      "content": toolResult
+      role: "tool",
+      tool_call_id: toolCall.id,
+      content: toolResult,
     });
   }
   return { messages, assistantResponse };
