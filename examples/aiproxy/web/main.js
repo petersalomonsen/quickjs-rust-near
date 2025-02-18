@@ -2,9 +2,13 @@ import { setupWalletSelector } from "@near-wallet-selector/core";
 import { setupMyNearWallet } from "@near-wallet-selector/my-near-wallet";
 import { setupModal } from "@near-wallet-selector/modal-ui-js";
 import { Buffer } from "buffer";
-import { sendStreamingRequest } from "./openai/chat-completion.js";
+import {
+  nearAiChatCompletionRequest,
+  sendStreamingRequest,
+} from "./openai/chat-completion.js";
 import { tools, toolImplementations } from "./openai/tools.js";
 import { marked } from "marked";
+import { handleNearAILoginCallback, nearAIlogin, NEAR_AI_AUTH_OBJECT_STORAGE_KEY } from "./nearai/login.js";
 
 window.Buffer = Buffer;
 
@@ -232,6 +236,56 @@ async function sendQuestion() {
 }
 
 document
+  .getElementById("askNearAIButton")
+  .addEventListener("click", async () => {
+    const auth = localStorage.getItem(NEAR_AI_AUTH_OBJECT_STORAGE_KEY);
+    if (auth === null) {
+      await nearAIlogin(await walletSelector.wallet(), "Login to NEAR AI");
+    }
+    const question = document.getElementById("question").value;
+    const messagesDiv = document.getElementById("messages");
+    document.getElementById("question").value = ""; // Clear input field
+
+    // Add user question to the conversation
+    conversation.push({ role: "user", content: question });
+    messagesDiv.innerHTML += `<strong>User:</strong> ${escapeHtml(question)}<br>`;
+
+    const conversation_id = document.getElementById("conversation_id").value;
+    const messages = conversation;
+
+    try {
+      // Add placeholder for the assistant's response
+      let assistantResponseElement = document.createElement("div");
+      assistantResponseElement.innerHTML = "<strong>Assistant:</strong> ";
+      messagesDiv.appendChild(assistantResponseElement);
+
+      const authorizationObject = JSON.parse(auth);
+      // Fetch the proxy endpoint with a POST request
+      const newMessages = await nearAiChatCompletionRequest({
+        authorizationObject: authorizationObject,
+        proxyUrl,
+        conversation_id,
+        messages,
+        tools,
+        toolImplementations,
+        onError: (err) => {
+          messagesDiv.innerHTML += `<strong>Assistant:</strong> Failed to fetch from proxy: ${err.statusText} ${err.responText ?? ""} <br>`;
+        },
+        onChunk: (chunk) => {
+          assistantResponseElement.innerHTML = `<strong>Assistant:</strong> ${marked(chunk.assistantResponse)}`;
+        },
+      });
+
+      if (newMessages) {
+        conversation = newMessages;
+      }
+      console.log(conversation);
+    } catch (error) {
+      messagesDiv.innerHTML +=
+        "<strong>Assistant:</strong> Error: " + error + "<br>";
+    }
+  });
+document
   .getElementById("startConversationButton")
   .addEventListener("click", () => startConversation());
 document.getElementById("refundButton").addEventListener("click", async () => {
@@ -242,7 +296,10 @@ document.getElementById("refundButton").addEventListener("click", async () => {
     setProgressErrorText(e.toString());
   }
 });
+
 document
   .getElementById("askAIButton")
   .addEventListener("click", () => sendQuestion());
+
 checkExistingConversationId();
+handleNearAILoginCallback();

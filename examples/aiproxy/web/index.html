@@ -68,7 +68,7 @@
         <input id="conversation_id" class="form-control" readonly />
       </div>
       <button id="startConversationButton" class="btn btn-primary">
-        Start conversation
+        Start ChatGPT conversation
       </button>
 
       <div id="messages"></div>
@@ -81,12 +81,15 @@
           rows="4"
           placeholder="Type your question here..."
         ></textarea>
+        <button id="askNearAIButton" class="btn btn-primary">
+          Ask NEAR AI
+        </button>
         <button id="askAIButton" class="btn btn-primary" disabled>
-          Ask AI
+          Ask ChatGPT
         </button>
       </div>
       <button id="refundButton" class="btn btn-primary">
-        Stop conversation and refund tokens</button
+        Stop ChatGPT conversation and refund tokens</button
       ><br />
       <textarea
         id="refund_message_area"
