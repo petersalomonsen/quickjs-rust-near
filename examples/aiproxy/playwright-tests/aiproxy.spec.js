@@ -118,7 +118,9 @@ async function testConversation({
   const { contractId, accountId } = await setupStorageAndRoute({ page });
 
   await page.waitForTimeout(2000);
-  await page.getByRole("button", { name: "Start conversation" }).click();
+  await page
+    .getByRole("button", { name: "Start ChatGPT conversation" })
+    .click();
 
   const questionArea = await page.getByPlaceholder(
     "Type your question here...",
@@ -126,7 +128,7 @@ async function testConversation({
   await expect(questionArea).toBeEnabled();
   questionArea.fill("Hello!");
   await page.waitForTimeout(1000);
-  await page.getByRole("button", { name: "Ask AI" }).click();
+  await page.getByRole("button", { name: "Ask ChatGPT" }).click();
   await expect(await page.getByText(expectedOpenAIResponse)).toBeVisible();
 
   await page.waitForTimeout(1000);
@@ -141,7 +143,9 @@ async function testConversation({
 test("start conversation without login", async ({ page }) => {
   await page.goto("/");
   await page.waitForTimeout(1000);
-  await page.getByRole("button", { name: "Start conversation" }).click();
+  await page
+    .getByRole("button", { name: "Start ChatGPT conversation" })
+    .click();
 
   await expect(await page.locator("#progressErrorAlert")).toBeVisible();
   await expect(await page.locator("#progressErrorAlert")).toContainText(
@@ -180,7 +184,9 @@ test("start conversation, try refund without asking AI", async ({ page }) => {
   await setupStorageAndRoute({ page });
 
   await page.waitForTimeout(2000);
-  await page.getByRole("button", { name: "Start conversation" }).click();
+  await page
+    .getByRole("button", { name: "Start ChatGPT conversation" })
+    .click();
 
   await page.waitForTimeout(1000);
   await page.locator("#refundButton").click();
@@ -200,7 +206,9 @@ test("conversation with tool calls", async ({ page }) => {
   await setupStorageAndRoute({ page });
 
   await page.waitForTimeout(2000);
-  await page.getByRole("button", { name: "Start conversation" }).click();
+  await page
+    .getByRole("button", { name: "Start ChatGPT conversation" })
+    .click();
 
   const questionArea = await page.getByPlaceholder(
     "Type your question here...",

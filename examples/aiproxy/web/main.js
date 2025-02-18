@@ -8,7 +8,11 @@ import {
 } from "./openai/chat-completion.js";
 import { tools, toolImplementations } from "./openai/tools.js";
 import { marked } from "marked";
-import { handleNearAILoginCallback, nearAIlogin, NEAR_AI_AUTH_OBJECT_STORAGE_KEY } from "./nearai/login.js";
+import {
+  handleNearAILoginCallback,
+  nearAIlogin,
+  NEAR_AI_AUTH_OBJECT_STORAGE_KEY,
+} from "./nearai/login.js";
 
 window.Buffer = Buffer;
 
