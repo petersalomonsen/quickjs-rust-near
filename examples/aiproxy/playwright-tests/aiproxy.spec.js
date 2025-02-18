@@ -217,7 +217,7 @@ test("conversation with tool calls", async ({ page }) => {
   questionArea.fill("run a script that shows the fibonacci numbers up to 100");
   await page.waitForTimeout(1000);
 
-  await page.getByRole("button", { name: "Ask AI" }).click();
+  await page.getByRole("button", { name: "Ask ChatGPT" }).click();
   await expect(
     await page.getByText(`Calling function run_javascript with arguments`),
   ).toBeVisible();
