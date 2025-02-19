@@ -82,7 +82,7 @@ describe('Fungible token contract', { only: true }, () => {
 
         await contract.call(accountId, 'ft_transfer', {
             receiver_id: 'alice.test.near',
-            amount: 128_000_000n.toString(),
+            amount: 1_000_000n.toString(),
         }, {
             attachedDeposit: 1n.toString()
         });
@@ -96,7 +96,7 @@ describe('Fungible token contract', { only: true }, () => {
         const conversation_data = await contract.view('view_js_func', { function_name: "view_ai_conversation", conversation_id });
 
         expect(conversation_data.receiver_id).to.equal('alice.test.near');
-        expect(conversation_data.amount).to.equal(128_000_000n.toString());
+        expect(conversation_data.amount).to.equal(1_000_000n.toString());
 
         const refund_message = JSON.stringify({ receiver_id: 'alice.test.near', refund_amount: 1000n.toString(), conversation_id });
         const refund_message_hashed = createHash('sha256').update(Buffer.from(refund_message, 'utf8')).digest();

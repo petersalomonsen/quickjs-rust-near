@@ -1,5 +1,5 @@
 export function start_ai_conversation() {
-    const amount = 128_000_000n;
+    const amount = 1_000_000n;
     const { conversation_id } = JSON.parse(env.input());
     if (!conversation_id) {
         env.panic(`must provide conversation_id`);
