@@ -107,12 +107,12 @@ async function setupStorageAndRoute({ page }) {
  *
  * @param {Object} params - The parameters for the test.
  * @param {import('playwright').Page} params.page - The Playwright page object.
- * @param {string} [params.expectedRefundAmount="127999894"] - The expected refund amount.
+ * @param {string} [params.expectedRefundAmount="999894"] - The expected refund amount.
  * @param {string} [params.expectedOpenAIResponse="Hello! How can I assist you today?"] - The expected response from OpenAI.
  */
 async function testConversation({
   page,
-  expectedRefundAmount = "127999894",
+  expectedRefundAmount = "999894",
   expectedOpenAIResponse = "Hello! How can I assist you today?",
 }) {
   const { contractId, accountId } = await setupStorageAndRoute({ page });
@@ -175,7 +175,7 @@ test("start conversation, ask question, where openai API fails, and refund (usin
 
   await testConversation({
     page,
-    expectedRefundAmount: "128000000",
+    expectedRefundAmount: "1000000",
     expectedOpenAIResponse: "Failed to fetch from proxy: Internal Server Error",
   });
 });
