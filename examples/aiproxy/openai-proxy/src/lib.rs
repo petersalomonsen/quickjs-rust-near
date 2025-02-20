@@ -2,7 +2,7 @@ use base64::prelude::*;
 use ed25519_dalek::{ed25519::signature::SignerMut, SigningKey};
 use futures::{SinkExt, StreamExt};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use serde_json::{json, Value};
+use serde_json::Value;
 use sha2::{Digest, Sha256};
 use spin_sdk::{
     http::{self, Headers, IncomingResponse, Method, OutgoingResponse, Request, ResponseOutparam},
@@ -18,10 +18,6 @@ struct ConversationBalance {
     receiver_id: String,
     #[serde(deserialize_with = "string_to_u64", serialize_with = "u64_to_string")]
     amount: u64,
-    #[serde(default)]
-    locked_for_ongoing_request: bool,
-    #[serde(default)]
-    refund_requested: bool,
 }
 
 impl Default for ConversationBalance {
@@ -29,8 +25,6 @@ impl Default for ConversationBalance {
         Self {
             receiver_id: Default::default(),
             amount: 0,
-            locked_for_ongoing_request: true,
-            refund_requested: false,
         }
     }
 }
@@ -90,8 +84,8 @@ fn get_signing_key(b58_key: &str) -> SigningKey {
     SigningKey::from_bytes(&key_bytes)
 }
 
-fn cors_headers() -> Headers {
-    Headers::from_list(&[
+fn cors_headers_entries() -> Vec<(String, Vec<u8>)> {
+    vec![
         (
             "Access-Control-Allow-Origin".to_string(),
             "*".to_string().into_bytes(),
@@ -104,15 +98,23 @@ fn cors_headers() -> Headers {
             "Access-Control-Allow-Headers".to_string(),
             "Content-Type, Authorization".to_string().into_bytes(),
         ),
-    ])
-    .unwrap()
+    ]
+}
+fn cors_headers() -> Headers {
+    Headers::from_list(&cors_headers_entries()).unwrap()
 }
 
 #[http_component]
 async fn handle_request(request: Request, response_out: ResponseOutparam) {
-    let headers = cors_headers();
     match (request.method(), request.path_and_query().as_deref()) {
         (Method::Options, Some("/refund-conversation")) => {
+            let mut headers_entries = cors_headers_entries().clone();
+            headers_entries.push((
+                String::from("content-type"),
+                "application/json; charset=utf-8".as_bytes().to_vec(),
+            ));
+
+            let headers = Headers::from_list(&headers_entries).unwrap();
             let response = OutgoingResponse::new(headers);
             response.set_status_code(200).unwrap();
             response_out.set(response);
@@ -122,7 +124,7 @@ async fn handle_request(request: Request, response_out: ResponseOutparam) {
                 serde_json::from_slice(&request.into_body()[..]).unwrap();
             let conversation_id = incoming_request_body["conversation_id"].as_str().unwrap();
             let conversation_balance_store = Store::open_default().unwrap();
-            let mut conversation_balance: ConversationBalance =
+            let conversation_balance: ConversationBalance =
                 match conversation_balance_store.get_json(conversation_id) {
                     Ok(None) => {
                         return forbidden(response_out, "Conversation does not exist").await;
@@ -134,26 +136,12 @@ async fn handle_request(request: Request, response_out: ResponseOutparam) {
                     }
                 };
 
-            if conversation_balance.locked_for_ongoing_request {
-                return forbidden(
-                    response_out,
-                    "There is already an ongoing request for this conversation",
-                )
-                .await;
-            }
-            if conversation_balance.refund_requested {
-                return forbidden(
-                    response_out,
-                    "Refund has already been requested for this conversation",
-                )
-                .await;
-            }
             let refund_message = RefundMessage {
                 conversation_id: conversation_id_to_hash_string(conversation_id),
                 receiver_id: conversation_balance.receiver_id.clone(),
                 refund_amount: conversation_balance.amount,
             };
-            let response = OutgoingResponse::new(headers);
+            let response = OutgoingResponse::new(cors_headers());
             response.set_status_code(200).unwrap();
 
             let refund_message_str = serde_json::to_string(&refund_message).unwrap();
@@ -175,13 +163,12 @@ async fn handle_request(request: Request, response_out: ResponseOutparam) {
                 .await
                 .unwrap();
 
-            conversation_balance.refund_requested = true;
             conversation_balance_store
                 .set_json(conversation_id, &conversation_balance)
                 .unwrap();
         }
         (Method::Options, Some("/proxy-openai")) => {
-            let response = OutgoingResponse::new(headers);
+            let response = OutgoingResponse::new(cors_headers());
             response.set_status_code(200).unwrap();
             response_out.set(response);
         }
@@ -190,6 +177,7 @@ async fn handle_request(request: Request, response_out: ResponseOutparam) {
                 serde_json::from_slice(&request.into_body()[..]).unwrap();
             let conversation_id = incoming_request_body["conversation_id"].as_str().unwrap();
             let messages = incoming_request_body["messages"].clone();
+            let tools = incoming_request_body["tools"].clone();
 
             let conversation_balance_store = Store::open_default().unwrap();
             let mut conversation_balance: ConversationBalance =
@@ -213,22 +201,6 @@ async fn handle_request(request: Request, response_out: ResponseOutparam) {
                     }
                 };
 
-            if conversation_balance.locked_for_ongoing_request {
-                return forbidden(
-                    response_out,
-                    "There is already an ongoing request for this conversation",
-                )
-                .await;
-            }
-
-            if conversation_balance.refund_requested {
-                return forbidden(
-                    response_out,
-                    "Refund has been requested for this conversation",
-                )
-                .await;
-            }
-            conversation_balance.locked_for_ongoing_request = true;
             conversation_balance_store
                 .set_json(conversation_id, &conversation_balance)
                 .unwrap();
@@ -245,10 +217,9 @@ async fn handle_request(request: Request, response_out: ResponseOutparam) {
                 .await;
             }
 
-            match proxy_openai(messages).await {
+            match proxy_openai(messages, tools).await {
                 Ok(incoming_response) => {
                     if incoming_response.status() != 200 {
-                        conversation_balance.locked_for_ongoing_request = false;
                         conversation_balance_store
                             .set_json(conversation_id, &conversation_balance)
                             .unwrap();
@@ -261,6 +232,13 @@ async fn handle_request(request: Request, response_out: ResponseOutparam) {
                         return server_error(response_out);
                     }
                     let mut incoming_response_body = incoming_response.take_body_stream();
+                    let mut headers_entries = cors_headers_entries().clone();
+                    headers_entries.push((
+                        String::from("content-type"),
+                        "text/event-stream; charset=utf-8".as_bytes().to_vec(),
+                    ));
+
+                    let headers = Headers::from_list(&headers_entries).unwrap();
                     let outgoing_response = OutgoingResponse::new(headers);
                     let mut outgoing_response_body = outgoing_response.take_body();
 
@@ -335,7 +313,7 @@ async fn handle_request(request: Request, response_out: ResponseOutparam) {
                             let model = usage
                                 .get("model")
                                 .and_then(Value::as_str)
-                                .unwrap_or("gpt-3.5-turbo");
+                                .unwrap_or("gpt-4-o");
 
                             // Calculate the cost based on the model used
                             let cost_per_1k_tokens = match model {
@@ -345,7 +323,7 @@ async fn handle_request(request: Request, response_out: ResponseOutparam) {
                             let cost = (total_tokens as f64 / 1000.0) * cost_per_1k_tokens;
 
                             conversation_balance.amount -= total_tokens;
-                            conversation_balance.locked_for_ongoing_request = false;
+
                             conversation_balance_store
                                 .set_json(conversation_id, &conversation_balance)
                                 .unwrap();
@@ -464,10 +442,11 @@ async fn get_initial_token_balance_for_conversation(
 }
 
 // Function to handle the actual proxy logic
-async fn proxy_openai(messages: Value) -> anyhow::Result<IncomingResponse> {
+async fn proxy_openai(messages: Value, tools: Value) -> anyhow::Result<IncomingResponse> {
     let request_body = serde_json::json!({
         "model": "gpt-4o",
         "messages": messages,
+        "tools": tools,
         "stream": true,
         "stream_options": {
             "include_usage": true

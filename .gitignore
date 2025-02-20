@@ -17,3 +17,5 @@ bin
 *.mp4
 file_list.txt
 freeze_frames
+example-contracts.car
+yarn-error.log

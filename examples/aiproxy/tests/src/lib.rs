@@ -119,10 +119,6 @@ fn openai_request() {
         u64::from_str_radix(stored_conversation_balance["amount"].as_str().unwrap(), 10).unwrap(),
         (256000 - 27) as u64
     );
-    assert_eq!(
-        stored_conversation_balance["locked_for_ongoing_request"],
-        false
-    );
 }
 
 #[spin_test]
@@ -172,10 +168,6 @@ fn handle_openai_request_error() {
     assert_eq!(
         u64::from_str_radix(stored_conversation_balance["amount"].as_str().unwrap(), 10).unwrap(),
         (256000) as u64
-    );
-    assert_eq!(
-        stored_conversation_balance["locked_for_ongoing_request"],
-        false
     );
 }
 
@@ -281,46 +273,6 @@ fn openai_request_insufficient_funds_ongoing_conversation() {
         .body_as_string()
         .unwrap()
         .contains("Insufficient tokens"));
-
-    let stored_conversation_balance: serde_json::Value =
-        serde_json::from_slice(&store.get("aiuser.testnet_1729432017818").unwrap()[..]).unwrap();
-    assert_eq!(stored_conversation_balance["amount"], "128000");
-}
-
-#[spin_test]
-fn concurrent_requests_should_throw_error() {
-    set_variables();
-
-    handle_openai_request();
-
-    let store = spin_test_virt::key_value::Store::open("default");
-
-    store.set(
-        "aiuser.testnet_1729432017818",
-        json!({
-            "receiver_id": "aiuser.testnet",
-            "amount": "128000",
-            "locked_for_ongoing_request": true
-        })
-        .to_string()
-        .as_bytes(),
-    );
-
-    let request = http::types::OutgoingRequest::new(http::types::Headers::new());
-    request.set_method(&http::types::Method::Post).unwrap();
-    request.set_path_with_query(Some("/proxy-openai")).unwrap();
-    request.body().unwrap().write_bytes(json!(
-        {
-            "conversation_id": "aiuser.testnet_1729432017818",
-            "messages":[{"role":"system","content":"You are a helpful assistant."},{"role":"user","content":"hello"}]
-    }).to_string().as_bytes());
-    let response = spin_test_sdk::perform_request(request);
-
-    assert_eq!(response.status(), 403);
-    assert!(response
-        .body_as_string()
-        .unwrap()
-        .contains("There is already an ongoing request for this conversation"));
 
     let stored_conversation_balance: serde_json::Value =
         serde_json::from_slice(&store.get("aiuser.testnet_1729432017818").unwrap()[..]).unwrap();
