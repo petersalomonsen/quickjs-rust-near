@@ -60,7 +60,11 @@ test.afterEach(async ({ page }) => {
 });
 
 /**
+ * Sets up the local storage and routes for the Playwright page.
+ *
+ * @param {Object} params - The parameters for the setup.
  * @param {import('playwright').Page} params.page - The Playwright page object.
+ * @returns {Promise<Object>} The setup data including contractId, accountId, and publicKey.
  */
 async function setupStorageAndRoute({ page }) {
   const { functionAccessKeyPair, publicKey, accountId, contractId } =
@@ -117,24 +121,24 @@ async function testConversation({
 }) {
   const { contractId, accountId } = await setupStorageAndRoute({ page });
 
-  await page.waitForTimeout(2000);
-  await page
-    .getByRole("button", { name: "Start ChatGPT conversation" })
-    .click();
+  await page.waitForTimeout(1000);
 
   const questionArea = await page.getByPlaceholder(
     "Type your question here...",
   );
-  await expect(questionArea).toBeEnabled();
+
   questionArea.fill("Hello!");
   await page.waitForTimeout(1000);
   await page.getByRole("button", { name: "Ask ChatGPT" }).click();
+  await expect(
+    await page.getByText("Starting conversation via AI proxy"),
+  ).toBeVisible();
   await expect(await page.getByText(expectedOpenAIResponse)).toBeVisible();
 
   await page.waitForTimeout(1000);
   await page.locator("#refundButton").click();
 
-  await expect(await page.locator("#refund_message_area")).toHaveValue(
+  await expect(await page.locator("#refund_message_area")).toContainText(
     `EVENT_JSON:{"standard":"nep141","version":"1.0.0","event":"ft_transfer","data":[{"old_owner_id":"${contractId}","new_owner_id":"${accountId}","amount":"${expectedRefundAmount}"}]}\nrefunded ${expectedRefundAmount} to ${accountId}`,
     { timeout: 10_000 },
   );
@@ -143,9 +147,14 @@ async function testConversation({
 test("start conversation without login", async ({ page }) => {
   await page.goto("/");
   await page.waitForTimeout(1000);
-  await page
-    .getByRole("button", { name: "Start ChatGPT conversation" })
-    .click();
+  const questionArea = await page.getByPlaceholder(
+    "Type your question here...",
+  );
+  await expect(questionArea).toBeEnabled();
+  questionArea.fill("Hello");
+  await page.waitForTimeout(1000);
+
+  await page.getByRole("button", { name: "Ask ChatGPT" }).click();
 
   await expect(await page.locator("#progressErrorAlert")).toBeVisible();
   await expect(await page.locator("#progressErrorAlert")).toContainText(
@@ -180,35 +189,11 @@ test("start conversation, ask question, where openai API fails, and refund (usin
   });
 });
 
-test("start conversation, try refund without asking AI", async ({ page }) => {
-  await setupStorageAndRoute({ page });
-
-  await page.waitForTimeout(2000);
-  await page
-    .getByRole("button", { name: "Start ChatGPT conversation" })
-    .click();
-
-  await page.waitForTimeout(1000);
-  await page.locator("#refundButton").click();
-
-  await expect(await page.locator(".modal.show")).toBeVisible();
-
-  await expect(await page.locator("#refund_message_area")).toHaveValue(``, {
-    timeout: 10_000,
-  });
-  await expect(await page.locator("#progressErrorAlert")).toContainText(
-    "SyntaxError: Unexpected token",
-  );
-});
-
 test("conversation with tool calls", async ({ page }) => {
   await startMockServer("api-key");
   await setupStorageAndRoute({ page });
 
   await page.waitForTimeout(2000);
-  await page
-    .getByRole("button", { name: "Start ChatGPT conversation" })
-    .click();
 
   const questionArea = await page.getByPlaceholder(
     "Type your question here...",

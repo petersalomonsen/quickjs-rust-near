@@ -63,10 +63,14 @@ function setProgressErrorText(progressErrorText) {
 }
 
 async function getRefundMessageFromAiProxy() {
+  const conversation_id = checkExistingConversationId();
+  if (!conversation_id) {
+    return;
+  }
   setProgressModalText("Stopping conversation");
   progressModal.show();
   const requestBody = JSON.stringify({
-    conversation_id: document.getElementById("conversation_id").value,
+    conversation_id: conversation_id,
   });
   const headers = {
     "Content-Type": "application/json",
@@ -78,11 +82,12 @@ async function getRefundMessageFromAiProxy() {
     body: requestBody,
   });
   const refundMessage = await response.json();
-  refundMessageArea.value = JSON.stringify(refundMessage, null, 1);
+  refundMessageArea.innerHTML = JSON.stringify(refundMessage, null, 1);
   progressModal.hide();
+  return refundMessage;
 }
 
-async function postRefundMessage() {
+async function postRefundMessage(refundMessage) {
   setProgressModalText("Posting refund message");
   progressModal.show();
   const selectedWallet = await walletSelector.wallet();
@@ -95,7 +100,7 @@ async function postRefundMessage() {
           methodName: "call_js_func",
           args: {
             function_name: "refund_unspent",
-            ...JSON.parse(refundMessageArea.value),
+            ...refundMessage,
           },
           gas: "30000000000000",
           deposit: "0",
@@ -103,18 +108,18 @@ async function postRefundMessage() {
       },
     ],
   });
-  refundMessageArea.value = result.receipts_outcome[0].outcome.logs
+  refundMessageArea.innerHTML = result.receipts_outcome[0].outcome.logs
     .join("\n")
     .trim();
   progressModal.hide();
 }
 
-async function startConversation() {
+async function startAiProxyConversation() {
   try {
-    setProgressModalText("Starting conversation");
+    setProgressModalText("Starting conversation via AI proxy");
     progressModal.show();
     const selectedWallet = await walletSelector.wallet();
-    console.log(selectedWallet);
+
     const account = (await selectedWallet.getAccounts())[0];
 
     const conversation_id = `${account.accountId}_${new Date().getTime()}`;
@@ -163,16 +168,14 @@ async function startConversation() {
       }),
     }).then((r) => r.json());
 
-    console.log(transactionStatus);
-
     if (!transactionStatus.result.final_execution_status === "FINAL") {
       throw new Error(
         `Unable to query start converstation transaction status ${JSON.stringify(transactionStatus)}`,
       );
     }
     localStorage.setItem("conversation_id", conversation_id);
-    checkExistingConversationId();
     progressModal.hide();
+    return conversation_id;
   } catch (e) {
     setProgressErrorText(e);
   }
@@ -180,11 +183,7 @@ async function startConversation() {
 
 function checkExistingConversationId() {
   const existingConversationId = localStorage.getItem("conversation_id");
-  if (existingConversationId) {
-    document.getElementById("conversation_id").value = existingConversationId;
-    document.getElementById("question").disabled = false;
-    document.getElementById("askAIButton").disabled = false;
-  }
+  return existingConversationId;
 }
 
 function escapeHtml(unsafe) {
@@ -197,6 +196,10 @@ function escapeHtml(unsafe) {
 }
 
 async function sendQuestion() {
+  let conversation_id = checkExistingConversationId();
+  if (conversation_id === null) {
+    conversation_id = await startAiProxyConversation();
+  }
   const question = document.getElementById("question").value;
   const messagesDiv = document.getElementById("messages");
   document.getElementById("question").value = ""; // Clear input field
@@ -205,7 +208,6 @@ async function sendQuestion() {
   conversation.push({ role: "user", content: question });
   messagesDiv.innerHTML += `<strong>User:</strong> ${escapeHtml(question)}<br>`;
 
-  const conversation_id = document.getElementById("conversation_id").value;
   const messages = conversation;
 
   try {
@@ -289,13 +291,12 @@ document
         "<strong>Assistant:</strong> Error: " + error + "<br>";
     }
   });
-document
-  .getElementById("startConversationButton")
-  .addEventListener("click", () => startConversation());
+
 document.getElementById("refundButton").addEventListener("click", async () => {
   try {
-    await getRefundMessageFromAiProxy();
-    await postRefundMessage();
+    const refundMessage = await getRefundMessageFromAiProxy();
+    await postRefundMessage(refundMessage);
+    localStorage.removeItem("conversation_id");
   } catch (e) {
     setProgressErrorText(e.toString());
   }
@@ -305,5 +306,4 @@ document
   .getElementById("askAIButton")
   .addEventListener("click", () => sendQuestion());
 
-checkExistingConversationId();
 handleNearAILoginCallback();

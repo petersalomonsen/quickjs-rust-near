@@ -18,10 +18,6 @@ struct ConversationBalance {
     receiver_id: String,
     #[serde(deserialize_with = "string_to_u64", serialize_with = "u64_to_string")]
     amount: u64,
-    #[serde(default)]
-    locked_for_ongoing_request: bool,
-    #[serde(default)]
-    refund_requested: bool,
 }
 
 impl Default for ConversationBalance {
@@ -29,8 +25,6 @@ impl Default for ConversationBalance {
         Self {
             receiver_id: Default::default(),
             amount: 0,
-            locked_for_ongoing_request: true,
-            refund_requested: false,
         }
     }
 }
@@ -114,7 +108,14 @@ fn cors_headers() -> Headers {
 async fn handle_request(request: Request, response_out: ResponseOutparam) {
     match (request.method(), request.path_and_query().as_deref()) {
         (Method::Options, Some("/refund-conversation")) => {
-            let response = OutgoingResponse::new(cors_headers());
+            let mut headers_entries = cors_headers_entries().clone();
+            headers_entries.push((
+                String::from("content-type"),
+                "application/json; charset=utf-8".as_bytes().to_vec(),
+            ));
+
+            let headers = Headers::from_list(&headers_entries).unwrap();
+            let response = OutgoingResponse::new(headers);
             response.set_status_code(200).unwrap();
             response_out.set(response);
         }
@@ -123,7 +124,7 @@ async fn handle_request(request: Request, response_out: ResponseOutparam) {
                 serde_json::from_slice(&request.into_body()[..]).unwrap();
             let conversation_id = incoming_request_body["conversation_id"].as_str().unwrap();
             let conversation_balance_store = Store::open_default().unwrap();
-            let mut conversation_balance: ConversationBalance =
+            let conversation_balance: ConversationBalance =
                 match conversation_balance_store.get_json(conversation_id) {
                     Ok(None) => {
                         return forbidden(response_out, "Conversation does not exist").await;
@@ -135,20 +136,6 @@ async fn handle_request(request: Request, response_out: ResponseOutparam) {
                     }
                 };
 
-            if conversation_balance.locked_for_ongoing_request {
-                return forbidden(
-                    response_out,
-                    "There is already an ongoing request for this conversation",
-                )
-                .await;
-            }
-            if conversation_balance.refund_requested {
-                return forbidden(
-                    response_out,
-                    "Refund has already been requested for this conversation",
-                )
-                .await;
-            }
             let refund_message = RefundMessage {
                 conversation_id: conversation_id_to_hash_string(conversation_id),
                 receiver_id: conversation_balance.receiver_id.clone(),
@@ -176,7 +163,6 @@ async fn handle_request(request: Request, response_out: ResponseOutparam) {
                 .await
                 .unwrap();
 
-            conversation_balance.refund_requested = true;
             conversation_balance_store
                 .set_json(conversation_id, &conversation_balance)
                 .unwrap();
@@ -215,22 +201,6 @@ async fn handle_request(request: Request, response_out: ResponseOutparam) {
                     }
                 };
 
-            if conversation_balance.locked_for_ongoing_request {
-                return forbidden(
-                    response_out,
-                    "There is already an ongoing request for this conversation",
-                )
-                .await;
-            }
-
-            if conversation_balance.refund_requested {
-                return forbidden(
-                    response_out,
-                    "Refund has been requested for this conversation",
-                )
-                .await;
-            }
-            conversation_balance.locked_for_ongoing_request = true;
             conversation_balance_store
                 .set_json(conversation_id, &conversation_balance)
                 .unwrap();
@@ -250,7 +220,6 @@ async fn handle_request(request: Request, response_out: ResponseOutparam) {
             match proxy_openai(messages, tools).await {
                 Ok(incoming_response) => {
                     if incoming_response.status() != 200 {
-                        conversation_balance.locked_for_ongoing_request = false;
                         conversation_balance_store
                             .set_json(conversation_id, &conversation_balance)
                             .unwrap();
@@ -354,7 +323,7 @@ async fn handle_request(request: Request, response_out: ResponseOutparam) {
                             let cost = (total_tokens as f64 / 1000.0) * cost_per_1k_tokens;
 
                             conversation_balance.amount -= total_tokens;
-                            conversation_balance.locked_for_ongoing_request = false;
+
                             conversation_balance_store
                                 .set_json(conversation_id, &conversation_balance)
                                 .unwrap();

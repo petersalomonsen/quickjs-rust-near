@@ -61,15 +61,6 @@
       <button id="openWalletSelectorButton" class="btn btn-primary">
         Open wallet
       </button>
-      <div class="mb-3">
-        <label for="conversation_id" class="form-label"
-          >Conversation id ( generated )</label
-        >
-        <input id="conversation_id" class="form-control" readonly />
-      </div>
-      <button id="startConversationButton" class="btn btn-primary">
-        Start ChatGPT conversation
-      </button>
 
       <div id="messages"></div>
       <div class="mb-3">
@@ -77,25 +68,24 @@
         <textarea
           id="question"
           class="form-control"
-          disabled
           rows="4"
           placeholder="Type your question here..."
         ></textarea>
         <button id="askNearAIButton" class="btn btn-primary">
           Ask NEAR AI
         </button>
-        <button id="askAIButton" class="btn btn-primary" disabled>
-          Ask ChatGPT
-        </button>
+        <button id="askAIButton" class="btn btn-primary">Ask ChatGPT</button>
       </div>
       <button id="refundButton" class="btn btn-primary">
         Stop ChatGPT conversation and refund tokens</button
       ><br />
-      <textarea
-        id="refund_message_area"
-        readonly
-        style="width: 100%; height: 200px"
-      ></textarea>
+      <pre>
+        <code
+          id="refund_message_area"
+          readonly
+          style="width: 100%; height: 200px; white-space: pre-wrap;"
+        ></code>
+      </pre>
     </div>
     <script
       async
