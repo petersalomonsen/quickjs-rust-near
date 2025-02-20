@@ -256,7 +256,6 @@ document
     conversation.push({ role: "user", content: question });
     messagesDiv.innerHTML += `<strong>User:</strong> ${escapeHtml(question)}<br>`;
 
-    const conversation_id = document.getElementById("conversation_id").value;
     const messages = conversation;
 
     try {
@@ -270,7 +269,6 @@ document
       const newMessages = await nearAiChatCompletionRequest({
         authorizationObject: authorizationObject,
         proxyUrl,
-        conversation_id,
         messages,
         tools,
         toolImplementations,
