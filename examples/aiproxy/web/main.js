@@ -248,59 +248,59 @@ askAIButton.addEventListener("click", async () => {
 
 const askNearAIButton = document.getElementById("askNearAIButton");
 askNearAIButton.addEventListener("click", async () => {
-    const auth = localStorage.getItem(NEAR_AI_AUTH_OBJECT_STORAGE_KEY);
-    if (auth === null) {
-      try {
-        await nearAIlogin(await walletSelector.wallet(), "Login to NEAR AI");
-      }  catch (e) {
-        progressModal.show();
-        setProgressErrorText(e);
-        return;
-      }
-    }
-    const question = document.getElementById("question").value;
-    const messagesDiv = document.getElementById("messages");
-    document.getElementById("question").value = ""; // Clear input field
-
-    // Add user question to the conversation
-    conversation.push({ role: "user", content: question });
-    messagesDiv.innerHTML += `<strong>User:</strong> ${escapeHtml(question)}<br>`;
-
-    const messages = conversation;
-
-    askNearAIButton.disabled = true;
+  const auth = localStorage.getItem(NEAR_AI_AUTH_OBJECT_STORAGE_KEY);
+  if (auth === null) {
     try {
-      // Add placeholder for the assistant's response
-      let assistantResponseElement = document.createElement("div");
-      assistantResponseElement.innerHTML = getProgressBarHTML();
-      messagesDiv.appendChild(assistantResponseElement);
-
-      const authorizationObject = JSON.parse(auth);
-      // Fetch the proxy endpoint with a POST request
-      const newMessages = await nearAiChatCompletionRequest({
-        authorizationObject: authorizationObject,
-        proxyUrl,
-        messages,
-        tools,
-        toolImplementations,
-        onError: (err) => {
-          messagesDiv.innerHTML += `<strong>Assistant:</strong> Failed to fetch from proxy: ${err.statusText} ${err.responText ?? ""} <br>`;
-        },
-        onChunk: (chunk) => {
-          assistantResponseElement.innerHTML = `<strong>Assistant:</strong> ${marked(chunk.assistantResponse)}`;
-        },
-      });
-
-      if (newMessages) {
-        conversation = newMessages;
-      }
-      console.log(conversation);
-    } catch (error) {
-      messagesDiv.innerHTML +=
-        "<strong>Assistant:</strong> Error: " + error + "<br>";
+      await nearAIlogin(await walletSelector.wallet(), "Login to NEAR AI");
+    } catch (e) {
+      progressModal.show();
+      setProgressErrorText(e);
+      return;
     }
-    askNearAIButton.disabled = false;
-  });
+  }
+  const question = document.getElementById("question").value;
+  const messagesDiv = document.getElementById("messages");
+  document.getElementById("question").value = ""; // Clear input field
+
+  // Add user question to the conversation
+  conversation.push({ role: "user", content: question });
+  messagesDiv.innerHTML += `<strong>User:</strong> ${escapeHtml(question)}<br>`;
+
+  const messages = conversation;
+
+  askNearAIButton.disabled = true;
+  try {
+    // Add placeholder for the assistant's response
+    let assistantResponseElement = document.createElement("div");
+    assistantResponseElement.innerHTML = getProgressBarHTML();
+    messagesDiv.appendChild(assistantResponseElement);
+
+    const authorizationObject = JSON.parse(auth);
+    // Fetch the proxy endpoint with a POST request
+    const newMessages = await nearAiChatCompletionRequest({
+      authorizationObject: authorizationObject,
+      proxyUrl,
+      messages,
+      tools,
+      toolImplementations,
+      onError: (err) => {
+        messagesDiv.innerHTML += `<strong>Assistant:</strong> Failed to fetch from proxy: ${err.statusText} ${err.responText ?? ""} <br>`;
+      },
+      onChunk: (chunk) => {
+        assistantResponseElement.innerHTML = `<strong>Assistant:</strong> ${marked(chunk.assistantResponse)}`;
+      },
+    });
+
+    if (newMessages) {
+      conversation = newMessages;
+    }
+    console.log(conversation);
+  } catch (error) {
+    messagesDiv.innerHTML +=
+      "<strong>Assistant:</strong> Error: " + error + "<br>";
+  }
+  askNearAIButton.disabled = false;
+});
 
 document.getElementById("refundButton").addEventListener("click", async () => {
   try {
