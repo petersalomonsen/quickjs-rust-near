@@ -67,7 +67,8 @@ export const tools = [
     type: "function",
     function: {
       name: "run_javascript_in_web4_simulator",
-      description: `Run javascript snippet in a smart contract simulator that serves a web page through the web4_get function where there is no access to NPM libraries, NodeJS APIs or web APIs.
+      description: `Run javascript module in a smart contract simulator that serves a web page through the web4_get function.
+There is no access to NPM libraries, NodeJS APIs or web APIs.
         
 Here is a minimal example of implementing the \`web4_get\` function:
 
@@ -100,7 +101,7 @@ export function web4_get() {
         properties: {
           script: {
             type: "string",
-            description: "Javascript snippet",
+            description: "Javascript module source",
           },
         },
         additionalProperties: false,

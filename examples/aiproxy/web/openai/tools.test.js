@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import { equal } from "assert";
-import { toolImplementations } from "./tools.js";
+import { toolImplementations, tools } from "./tools.js";
 
 test("should run javascript tool", async () => {
   const result = await toolImplementations.run_javascript({
