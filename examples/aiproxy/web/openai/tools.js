@@ -53,6 +53,9 @@ ${nearenv._logs.join("\n")}
   },
   deploy_javascript_to_web4_contract: async function({ contract_id, script }) {
     return `Javascript module code successfully deployed to ${contract_id}. Go to https://${contract_id}.page to see the results`;
+  },
+  create_new_web4_contract_account: async function({account_id}) {
+    return `Created new NEAR account ${account_id} and deployed the web4 contract to it. You may now deploy javascript code for implementing \`web4_get\` to it.`;
   }
 };
 
@@ -141,6 +144,24 @@ export function web4_get() {
         },
         additionalProperties: false,
         required: ["contract_id", "script"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "create_new_web4_contract_account",
+      description: `Create a new NEAR account and deploy a web4 contract to it.`,
+      parameters: {
+        type: "object",
+        properties: {
+          account_id: {
+            type: "string",
+            description: "id of new NEAR account",
+          }
+        },
+        additionalProperties: false,
+        required: ["account_id"],
       },
     },
   }
