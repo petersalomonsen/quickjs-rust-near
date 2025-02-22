@@ -33,14 +33,27 @@ export const toolImplementations = {
     );
 
     const { exports, nearenv } = await getContractInstanceExports(wasmbinary);
+    nearenv.reset_near_env();
     nearenv.set_args({
       javascript: script,
     });
     exports.post_javascript();
     nearenv.set_args({ request: { path: "/" } });
-    exports.web4_get();
-    return atob(JSON.parse(nearenv.latest_return_value).body);
+    try {
+      exports.web4_get();    
+      return atob(JSON.parse(nearenv.latest_return_value).body);
+    } catch(e) {
+      return `There was an error parsing the results: ${e}.
+
+Here are the logs from the Javascript engine:
+
+${nearenv._logs.join("\n")}
+`;
+    }
   },
+  deploy_javascript_to_web4_contract: async function({ contract_id, script }) {
+    return `Javascript module code successfully deployed to ${contract_id}. Go to https://${contract_id}.page to see the results`;
+  }
 };
 
 export const tools = [
@@ -109,4 +122,26 @@ export function web4_get() {
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "deploy_javascript_to_web4_contract",
+      description: `Deploy javascript to web4 contract on chain. Should be verified in the simulator first.`,
+      parameters: {
+        type: "object",
+        properties: {
+          contract_id: {
+            type: "string",
+            description: "NEAR account ID where web4 contract is deployed",
+          },
+          script: {
+            type: "string",
+            description: "Javascript module source to post to the web4 contract",
+          },
+        },
+        additionalProperties: false,
+        required: ["contract_id", "script"],
+      },
+    },
+  }
 ];
