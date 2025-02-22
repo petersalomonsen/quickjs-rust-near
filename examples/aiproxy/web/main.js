@@ -13,6 +13,7 @@ import {
   nearAIlogin,
   NEAR_AI_AUTH_OBJECT_STORAGE_KEY,
 } from "./nearai/login.js";
+import { getProgressBarHTML } from "./ui/progress-bar.js";
 
 window.Buffer = Buffer;
 
@@ -57,6 +58,7 @@ function setProgressModalText(progressModalText) {
 }
 
 function setProgressErrorText(progressErrorText) {
+  document.getElementById("progressModalLabel").innerHTML = "Error";
   document.getElementById("progressbar").style.display = "none";
   document.getElementById("progressErrorAlert").style.display = "block";
   document.getElementById("progressErrorAlert").innerText = progressErrorText;
@@ -195,7 +197,8 @@ function escapeHtml(unsafe) {
     .replace(/'/g, "&#039;");
 }
 
-async function sendQuestion() {
+const askAIButton = document.getElementById("askAIButton");
+askAIButton.addEventListener("click", async () => {
   let conversation_id = checkExistingConversationId();
   if (conversation_id === null) {
     conversation_id = await startAiProxyConversation();
@@ -210,10 +213,11 @@ async function sendQuestion() {
 
   const messages = conversation;
 
+  askAIButton.disabled = true;
   try {
     // Add placeholder for the assistant's response
     let assistantResponseElement = document.createElement("div");
-    assistantResponseElement.innerHTML = "<strong>Assistant:</strong> ";
+    assistantResponseElement.innerHTML = getProgressBarHTML();
     messagesDiv.appendChild(assistantResponseElement);
 
     // Fetch the proxy endpoint with a POST request
@@ -239,14 +243,20 @@ async function sendQuestion() {
     messagesDiv.innerHTML +=
       "<strong>Assistant:</strong> Error: " + error + "<br>";
   }
-}
+  askAIButton.disabled = false;
+});
 
-document
-  .getElementById("askNearAIButton")
-  .addEventListener("click", async () => {
+const askNearAIButton = document.getElementById("askNearAIButton");
+askNearAIButton.addEventListener("click", async () => {
     const auth = localStorage.getItem(NEAR_AI_AUTH_OBJECT_STORAGE_KEY);
     if (auth === null) {
-      await nearAIlogin(await walletSelector.wallet(), "Login to NEAR AI");
+      try {
+        await nearAIlogin(await walletSelector.wallet(), "Login to NEAR AI");
+      }  catch (e) {
+        progressModal.show();
+        setProgressErrorText(e);
+        return;
+      }
     }
     const question = document.getElementById("question").value;
     const messagesDiv = document.getElementById("messages");
@@ -258,10 +268,11 @@ document
 
     const messages = conversation;
 
+    askNearAIButton.disabled = true;
     try {
       // Add placeholder for the assistant's response
       let assistantResponseElement = document.createElement("div");
-      assistantResponseElement.innerHTML = "<strong>Assistant:</strong> ";
+      assistantResponseElement.innerHTML = getProgressBarHTML();
       messagesDiv.appendChild(assistantResponseElement);
 
       const authorizationObject = JSON.parse(auth);
@@ -288,6 +299,7 @@ document
       messagesDiv.innerHTML +=
         "<strong>Assistant:</strong> Error: " + error + "<br>";
     }
+    askNearAIButton.disabled = false;
   });
 
 document.getElementById("refundButton").addEventListener("click", async () => {
@@ -299,9 +311,5 @@ document.getElementById("refundButton").addEventListener("click", async () => {
     setProgressErrorText(e.toString());
   }
 });
-
-document
-  .getElementById("askAIButton")
-  .addEventListener("click", () => sendQuestion());
 
 handleNearAILoginCallback();
