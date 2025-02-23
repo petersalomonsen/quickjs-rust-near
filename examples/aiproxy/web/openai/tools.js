@@ -1,5 +1,6 @@
 import { getContractInstanceExports } from "../contract-runner/contract-runner.js";
 import { InMemorySigner, keyStores, connect } from "near-api-js";
+import { run_javascript_in_web4_simulator } from "./javascriptsimulator.js";
 
 /**
  * @type {import('@near-wallet-selector/core').WalletSelector}
@@ -51,32 +52,39 @@ export const toolImplementations = {
     return nearenv.latest_return_value;
   },
   run_javascript_in_web4_simulator: async function ({ script }) {
-    const wasmbinary = new Uint8Array(
-      await fetch(
-        "https://ipfs.web4.near.page/ipfs/bafybeihtj6sxfflbxpoq3lr2l3llxberlqah7pfc36cr5dpij2pen6pfs4/minimumweb4/out/minimum_web4.wasm",
-      ).then((r) => r.arrayBuffer()),
-    );
-
-    const { exports, nearenv } = await getContractInstanceExports(wasmbinary);
-    nearenv.reset_near_env();
-    nearenv.set_args({
-      javascript: script,
-    });
-    exports.post_javascript();
-    nearenv.set_args({ request: { path: "/" } });
+    const result = await run_javascript_in_web4_simulator({ script });
     try {
-      exports.web4_get();
-      return atob(JSON.parse(nearenv.latest_return_value).body);
+      return atob(JSON.parse(result.result).body);
     } catch (e) {
       return `There was an error parsing the results: ${e}.
 
 Here are the logs from the Javascript engine:
 
-${nearenv._logs.join("\n")}
+${result.logs.join("\n")}
 `;
     }
   },
   deploy_javascript_to_web4_contract: async function ({ contract_id, script }) {
+    const simulationResult = await run_javascript_in_web4_simulator({ script });
+    try {
+      const resultObj = JSON.parse(simulationResult.result);
+      if (resultObj.body === undefined) {
+        return `The web4_get function must return a base64 encoded body string. Here is the result: ${JSON.stringify(simulationResult)} `;
+      }
+      atob(resultObj.body);
+    } catch (e) {
+      return `Will not deploy the javascript code, since there was an error when testing it in the simulator: ${e}.
+
+Here is the result and logs from Javascript engine:
+
+${JSON.stringify(simulationResult)}
+`;
+    }
+    console.log(
+      "will deploy the following script, which was tested successfully locally",
+      script,
+    );
+    console.log("simulation result was", simulationResult);
     const account = await nearConnection.account(contract_id);
     const result = await account.functionCall({
       contractId: contract_id,
