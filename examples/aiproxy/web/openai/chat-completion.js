@@ -119,14 +119,15 @@ export async function sendStreamingRequest({
   messages.push(assistantMessage);
 
   if (assistantMessage.tool_calls) {
-    const { messages: newMessages, assistantResponse: toolsAssistantResponse } = await hanleToolCalls({
-      assistantResponse,
-      toolCalls: tool_calls,
-      toolImplementations,
-      messages,
-      onChunk,
-      onError,
-    });
+    const { messages: newMessages, assistantResponse: toolsAssistantResponse } =
+      await hanleToolCalls({
+        assistantResponse,
+        toolCalls: tool_calls,
+        toolImplementations,
+        messages,
+        onChunk,
+        onError,
+      });
     assistantResponse = toolsAssistantResponse;
     messages = newMessages;
     messages = await sendStreamingRequest({
@@ -229,14 +230,15 @@ export async function nearAiChatCompletionRequest({
 
   const toolCalls = message.tool_calls;
   if (toolCalls) {
-    const { messages: newMessages, assistantResponse: toolsAssistantResponse } = await hanleToolCalls({
-      assistantResponse,
-      toolCalls,
-      toolImplementations,
-      messages,
-      onChunk,
-      onError,
-    });
+    const { messages: newMessages, assistantResponse: toolsAssistantResponse } =
+      await hanleToolCalls({
+        assistantResponse,
+        toolCalls,
+        toolImplementations,
+        messages,
+        onChunk,
+        onError,
+      });
     assistantResponse = toolsAssistantResponse;
     messages = newMessages;
     messages = await nearAiChatCompletionRequest({

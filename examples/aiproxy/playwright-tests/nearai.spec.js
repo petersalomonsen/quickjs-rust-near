@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { responses } from './nearairesponses.js';
+import { responses } from "./nearairesponses.js";
 /**
  * Sets up the local storage and routes for the Playwright page.
  *
@@ -13,7 +13,13 @@ async function setupStorageAndRoute({ page, withAuthObject = false }) {
 
   await page.goto("/");
   await page.evaluate(
-    ({ accountId, publicKey, functionAccessKeyPair, contractId, withAuthObject }) => {
+    ({
+      accountId,
+      publicKey,
+      functionAccessKeyPair,
+      contractId,
+      withAuthObject,
+    }) => {
       localStorage.setItem(
         "near_app_wallet_auth_key",
         JSON.stringify({ accountId, allKeys: [publicKey] }),
@@ -38,8 +44,13 @@ async function setupStorageAndRoute({ page, withAuthObject = false }) {
       if (withAuthObject) {
         localStorage.setItem(
           "NearAIAuthObject",
-          JSON.stringify({"message":"Login to NEAR AI","nonce":"1740337238663","recipient":"ai.near","callback_url":"http://127.0.0.1:8080/"})
-        )
+          JSON.stringify({
+            message: "Login to NEAR AI",
+            nonce: "1740337238663",
+            recipient: "ai.near",
+            callback_url: "http://127.0.0.1:8080/",
+          }),
+        );
       }
     },
     { accountId, publicKey, functionAccessKeyPair, contractId, withAuthObject },
@@ -58,7 +69,7 @@ async function setupStorageAndRoute({ page, withAuthObject = false }) {
   });
   await page.route("https://api.near.ai/v1/chat/completions", async (route) => {
     const postdata = JSON.parse(route.request().postData());
-    const message = postdata.messages[postdata.messages.length-1].content;
+    const message = postdata.messages[postdata.messages.length - 1].content;
     await route.fulfill({
       json: responses[message] ?? responses["Hello"],
     });
@@ -115,7 +126,9 @@ test("Tool call", async ({ page }) => {
     "Type your question here...",
   );
 
-  questionArea.fill("Can you create a web4 javascript code that shows the current account and current date?");
+  questionArea.fill(
+    "Can you create a web4 javascript code that shows the current account and current date?",
+  );
   await page.waitForTimeout(1000);
 
   await page.getByRole("button", { name: "Ask NEAR AI" }).click();
@@ -124,5 +137,3 @@ test("Tool call", async ({ page }) => {
     await page.getByText("How can I assist you today?"),
   ).toBeVisible();
 });
-
-
