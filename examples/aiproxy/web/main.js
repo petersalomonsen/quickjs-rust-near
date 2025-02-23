@@ -6,7 +6,11 @@ import {
   nearAiChatCompletionRequest,
   sendStreamingRequest,
 } from "./openai/chat-completion.js";
-import { tools, toolImplementations } from "./openai/tools.js";
+import {
+  tools,
+  toolImplementations,
+  setWalletSelector,
+} from "./openai/tools.js";
 import { marked } from "marked";
 import {
   handleNearAILoginCallback,
@@ -30,6 +34,8 @@ const walletSelector = await setupWalletSelector({
   network: "mainnet",
   modules: walletSelectorModules,
 });
+
+setWalletSelector(walletSelector);
 
 const walletSelectorModal = setupModal(walletSelector, {
   contractId: localStorage.getItem("contractId"),
