@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-
+import { responses } from './nearairesponses.js';
 /**
  * Sets up the local storage and routes for the Playwright page.
  *
@@ -7,13 +7,13 @@ import { test, expect } from "@playwright/test";
  * @param {import('playwright').Page} params.page - The Playwright page object.
  * @returns {Promise<Object>} The setup data including contractId, accountId, and publicKey.
  */
-async function setupStorageAndRoute({ page }) {
+async function setupStorageAndRoute({ page, withAuthObject = false }) {
   const { functionAccessKeyPair, publicKey, accountId, contractId } =
     await fetch("http://localhost:14501").then((r) => r.json());
 
   await page.goto("/");
   await page.evaluate(
-    ({ accountId, publicKey, functionAccessKeyPair, contractId }) => {
+    ({ accountId, publicKey, functionAccessKeyPair, contractId, withAuthObject }) => {
       localStorage.setItem(
         "near_app_wallet_auth_key",
         JSON.stringify({ accountId, allKeys: [publicKey] }),
@@ -35,8 +35,14 @@ async function setupStorageAndRoute({ page }) {
         "near-wallet-selector:contract",
         JSON.stringify({ contractId, methodNames: ["call_js_func"] }),
       );
+      if (withAuthObject) {
+        localStorage.setItem(
+          "NearAIAuthObject",
+          JSON.stringify({"message":"Login to NEAR AI","nonce":"1740337238663","recipient":"ai.near","callback_url":"http://127.0.0.1:8080/"})
+        )
+      }
     },
-    { accountId, publicKey, functionAccessKeyPair, contractId },
+    { accountId, publicKey, functionAccessKeyPair, contractId, withAuthObject },
   );
 
   await page.reload();
@@ -51,37 +57,10 @@ async function setupStorageAndRoute({ page }) {
     });
   });
   await page.route("https://api.near.ai/v1/chat/completions", async (route) => {
+    const postdata = JSON.parse(route.request().postData());
+    const message = postdata.messages[postdata.messages.length-1].content;
     await route.fulfill({
-      json: {
-        id: "1ab9dc62-95ca-44e9-aa27-d5fbbbb43c08",
-        choices: [
-          {
-            finish_reason: "stop",
-            index: 0,
-            logprobs: null,
-            message: {
-              content: "Hello! How can I assist you today?",
-              refusal: null,
-              role: "assistant",
-              audio: null,
-              function_call: null,
-              tool_calls: null,
-            },
-          },
-        ],
-        created: 1740235568,
-        model: "accounts/fireworks/models/qwen2p5-72b-instruct",
-        object: "chat.completion",
-        service_tier: null,
-        system_fingerprint: null,
-        usage: {
-          completion_tokens: 10,
-          prompt_tokens: 208,
-          total_tokens: 218,
-          completion_tokens_details: null,
-          prompt_tokens_details: null,
-        },
-      },
+      json: responses[message] ?? responses["Hello"],
     });
   });
   return { contractId, accountId, publicKey, functionAccessKeyPair };
@@ -128,3 +107,22 @@ test("login to NEAR AI", async ({ page }) => {
     await page.getByText("How can I assist you today?"),
   ).toBeVisible();
 });
+
+test("Tool call", async ({ page }) => {
+  await setupStorageAndRoute({ page, withAuthObject: true });
+  await page.waitForTimeout(1000);
+  const questionArea = await page.getByPlaceholder(
+    "Type your question here...",
+  );
+
+  questionArea.fill("Can you create a web4 javascript code that shows the current account and current date?");
+  await page.waitForTimeout(1000);
+
+  await page.getByRole("button", { name: "Ask NEAR AI" }).click();
+
+  await expect(
+    await page.getByText("How can I assist you today?"),
+  ).toBeVisible();
+});
+
+
