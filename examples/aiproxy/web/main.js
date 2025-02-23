@@ -246,8 +246,8 @@ askAIButton.addEventListener("click", async () => {
     }
     console.log(conversation);
   } catch (error) {
-    messagesDiv.innerHTML +=
-      "<strong>Assistant:</strong> Error: " + error + "<br>";
+    console.err(error);
+    messagesDiv.innerHTML += "<strong>Assistant:</strong> " + error + "<br>";
   }
   askAIButton.disabled = false;
 });
@@ -302,8 +302,8 @@ askNearAIButton.addEventListener("click", async () => {
     }
     console.log(conversation);
   } catch (error) {
-    messagesDiv.innerHTML +=
-      "<strong>Assistant:</strong> Error: " + error + "<br>";
+    console.error(error);
+    messagesDiv.innerHTML += "<strong>Assistant:</strong> " + error + "<br>";
   }
   askNearAIButton.disabled = false;
 });

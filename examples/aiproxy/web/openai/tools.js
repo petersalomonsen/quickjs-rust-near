@@ -1,9 +1,22 @@
 import { getContractInstanceExports } from "../contract-runner/contract-runner.js";
+import { InMemorySigner, keyStores, connect } from "near-api-js";
 
 /**
  * @type {import('@near-wallet-selector/core').WalletSelector}
  */
 let walletSelector;
+
+const networkId = "mainnet";
+const keyStore = new keyStores.BrowserLocalStorageKeyStore(
+  localStorage,
+  "ai-app",
+);
+const signer = new InMemorySigner(keyStore);
+const nearConnection = await connect({
+  networkId,
+  nodeUrl: "https://rpc.mainnet.near.org",
+  keyStore,
+});
 
 /**
  * @param newWalletSelector {import('@near-wallet-selector/core').WalletSelector}
@@ -64,32 +77,22 @@ ${nearenv._logs.join("\n")}
     }
   },
   deploy_javascript_to_web4_contract: async function ({ contract_id, script }) {
-    const selectedWallet = await walletSelector.wallet();
-    const result = await selectedWallet.signAndSendTransactions({
-      transactions: [
-        {
-          signerId: contract_id,
-          receiverId: contract_id,
-          actions: [
-            {
-              type: "FunctionCall",
-              params: {
-                methodName: "post_javascript",
-                args: {
-                  javascript: script,
-                },
-                gas: 300_000_000_000_000n.toString(),
-                deposit: 0n.toString(),
-              },
-            },
-          ],
-        },
-      ],
+    const account = await nearConnection.account(contract_id);
+    const result = await account.functionCall({
+      contractId: contract_id,
+      methodName: "post_javascript",
+      args: { javascript: script },
     });
-    return `Javascript module code successfully deployed to ${contract_id}. Go to https://${contract_id}.page to see the results`;
+    if (result.status.SuccessValue !== undefined) {
+      return `Javascript module code successfully deployed to ${contract_id}. Go to https://${contract_id}.page to see the results`;
+    } else {
+      return `There was an error deploying the JavaScript module. Here is the full result: ${JSON.stringify(result)}`;
+    }
   },
   create_new_web4_contract_account: async function ({ new_account_id }) {
     const selectedWallet = await walletSelector.wallet();
+    const publicKey = await signer.createKey(new_account_id, networkId);
+
     const result = await selectedWallet.signAndSendTransactions({
       transactions: [
         {
@@ -101,6 +104,7 @@ ${nearenv._logs.join("\n")}
                 methodName: "create",
                 args: {
                   new_account_id,
+                  full_access_key: publicKey.toString(),
                 },
                 gas: 300_000_000_000_000n.toString(),
                 deposit: 9_000_000_000_000_000_000_000_000n.toString(),
@@ -160,8 +164,7 @@ export function web4_get() {
 <body>
 <h1>Hello from \${env.current_account_id()}</h1>
 </body>
-<html>\`)
-        };
+<html>\`)};
     }
     env.value_return(JSON.stringify(response));
 }
