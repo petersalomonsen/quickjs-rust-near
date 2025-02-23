@@ -8,7 +8,7 @@ pub struct Contract {}
 #[near]
 impl Contract {
     #[payable]
-    pub fn create(&mut self, new_account_id: AccountId) {
+    pub fn create(&mut self, new_account_id: AccountId, full_access_key: PublicKey) {
         if env::attached_deposit() != NEW_ACCOUNT_DEPOSIT {
             env::panic_str(
                 format!(
@@ -23,7 +23,7 @@ impl Contract {
             json!({
                 "new_account_id": new_account_id.clone(),
                 "options": {
-                    "full_access_keys": [env::signer_account_pk()],
+                    "full_access_keys": [full_access_key],
                     "contract_bytes_base64": include_str!("../min_self_upgrade_contract.wasm.base64.txt")
                 }
             })

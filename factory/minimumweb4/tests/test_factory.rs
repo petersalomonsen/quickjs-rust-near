@@ -62,7 +62,8 @@ async fn test_factory() -> Result<(), Box<dyn std::error::Error>> {
         .call(factory_contract.id(), "create")
         .args_json(json!(
             {
-                "new_account_id": instance_account_id
+                "new_account_id": instance_account_id,
+                "full_access_key": user_account.secret_key().public_key()
             }
         ))
         .max_gas()
