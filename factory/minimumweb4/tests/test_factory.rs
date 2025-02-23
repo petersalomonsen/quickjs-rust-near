@@ -5,8 +5,7 @@ use near_sdk::base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Eng
 use near_sdk::serde::Deserialize;
 use near_sdk::serde_json::json;
 use near_sdk::NearToken;
-use near_workspaces::types::AccessKeyPermission;
-use near_workspaces::types::PublicKey;
+use near_workspaces::types::{AccessKeyPermission, SecretKey};
 use near_workspaces::Account;
 
 #[derive(Deserialize)]
@@ -54,6 +53,7 @@ async fn test_factory() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let user_account = worker.dev_create_account().await?;
+
     let factory_account_details_before = factory_contract.view_account().await?;
     let user_account_details_before = user_account.view_account().await?;
 
@@ -62,12 +62,11 @@ async fn test_factory() -> Result<(), Box<dyn std::error::Error>> {
         .call(factory_contract.id(), "create")
         .args_json(json!(
             {
-                "new_account_id": instance_account_id,
-                "full_access_key": "ed25519:27fN8hsnFHaJbAFFGAanCNqaRx9VNgVoUxXJnNqJgEne"
+                "new_account_id": instance_account_id
             }
         ))
         .max_gas()
-        .deposit(NearToken::from_near(20))
+        .deposit(NearToken::from_near(9))
         .transact()
         .await?;
 
@@ -161,6 +160,5 @@ export function web4_get() {
         matches!(user_access_key.permission, AccessKeyPermission::FullAccess),
         "Expected FullAccess permission"
     );
-
     Ok(())
 }

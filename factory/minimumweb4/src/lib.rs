@@ -1,8 +1,6 @@
-use near_sdk::{
-    env, near, serde_json::json, AccountId, Gas, GasWeight, NearToken, Promise, PublicKey,
-};
+use near_sdk::{env, near, serde_json::json, AccountId, Gas, NearToken, Promise, PublicKey};
 
-const NEW_ACCOUNT_DEPOSIT: NearToken = NearToken::from_near(20);
+const NEW_ACCOUNT_DEPOSIT: NearToken = NearToken::from_near(9);
 #[near(contract_state)]
 #[derive(Default)]
 pub struct Contract {}
@@ -10,7 +8,7 @@ pub struct Contract {}
 #[near]
 impl Contract {
     #[payable]
-    pub fn create(&mut self, new_account_id: AccountId, full_access_key: PublicKey) {
+    pub fn create(&mut self, new_account_id: AccountId) {
         if env::attached_deposit() != NEW_ACCOUNT_DEPOSIT {
             env::panic_str(
                 format!(
