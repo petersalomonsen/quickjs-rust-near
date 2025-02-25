@@ -1,10 +1,14 @@
 {
   "type": "module",
+  "scripts": {
+    "generateimportmap": "jspm link index.html -o index.html"
+  },
   "dependencies": {
     "@near-wallet-selector/core": "^8.9.15",
     "@near-wallet-selector/modal-ui-js": "^8.9.15",
     "@near-wallet-selector/my-near-wallet": "^8.9.15",
     "buffer": "^6.0.3",
-    "marked": "^15.0.7"
+    "marked": "^15.0.7",
+    "near-api-js": "^4.0.3"
   }
 }

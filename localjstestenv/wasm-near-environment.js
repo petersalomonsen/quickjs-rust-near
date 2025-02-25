@@ -9,11 +9,13 @@ export let _signer_account_id = 'test';
 export let _predecessor_account_id = 'test';
 export let _attached_deposit = 0n;
 export let _input = {};
+export let _logs = [];
 
 export function reset_near_env() {
     storage = {};
     registers = {};
     _args = '{}';
+    _logs = [];
 }
 
 export function set_args(args) {
@@ -167,6 +169,7 @@ export function log(msg) { print(msg) }
 export function log_utf8(len, ptr) {
     const msg = new TextDecoder().decode(memory.buffer.slice(Number(ptr), Number(ptr + len)));
     console.log('log', msg);
+    _logs.push(msg);
 }
 export function log_utf16() { }
 export function promise_create() { }

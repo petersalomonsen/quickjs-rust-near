@@ -1,4 +1,30 @@
 import { getContractInstanceExports } from "../contract-runner/contract-runner.js";
+import { InMemorySigner, keyStores, connect } from "near-api-js";
+import { run_javascript_in_web4_simulator } from "./javascriptsimulator.js";
+
+/**
+ * @type {import('@near-wallet-selector/core').WalletSelector}
+ */
+let walletSelector;
+
+const networkId = "mainnet";
+const keyStore = new keyStores.BrowserLocalStorageKeyStore(
+  localStorage,
+  "ai-app",
+);
+const signer = new InMemorySigner(keyStore);
+const nearConnection = await connect({
+  networkId,
+  nodeUrl: "https://rpc.mainnet.near.org",
+  keyStore,
+});
+
+/**
+ * @param newWalletSelector {import('@near-wallet-selector/core').WalletSelector}
+ */
+export function setWalletSelector(newWalletSelector) {
+  walletSelector = newWalletSelector;
+}
 
 export const toolImplementations = {
   run_javascript: async function ({ script }) {
@@ -25,6 +51,95 @@ export const toolImplementations = {
     exports.call_js_func();
     return nearenv.latest_return_value;
   },
+  run_javascript_in_web4_simulator: async function ({ script }) {
+    const result = await run_javascript_in_web4_simulator({ script });
+    try {
+      return atob(JSON.parse(result.result).body);
+    } catch (e) {
+      return `There was an error parsing the results: ${e}.
+
+Here are the logs from the Javascript engine:
+
+${result.logs.join("\n")}
+`;
+    }
+  },
+  deploy_javascript_to_web4_contract: async function ({ contract_id, script }) {
+    const simulationResult = await run_javascript_in_web4_simulator({ script });
+    try {
+      const resultObj = JSON.parse(simulationResult.result);
+      if (resultObj.body === undefined) {
+        return `The web4_get function must return a base64 encoded body string. Here is the result: ${JSON.stringify(simulationResult)} `;
+      }
+      atob(resultObj.body);
+    } catch (e) {
+      return `Will not deploy the javascript code, since there was an error when testing it in the simulator: ${e}.
+
+Here is the result and logs from Javascript engine:
+
+${JSON.stringify(simulationResult)}
+`;
+    }
+    console.log(
+      "will deploy the following script, which was tested successfully locally",
+      script,
+    );
+    console.log("simulation result was", simulationResult);
+    const account = await nearConnection.account(contract_id);
+    const result = await account.functionCall({
+      contractId: contract_id,
+      methodName: "post_javascript",
+      args: { javascript: script },
+    });
+    if (result.status.SuccessValue !== undefined) {
+      return `Javascript module code successfully deployed to ${contract_id}. Go to https://${contract_id}.page to see the results`;
+    } else {
+      return `There was an error deploying the JavaScript module. Here is the full result: ${JSON.stringify(result)}`;
+    }
+  },
+  create_new_web4_contract_account: async function ({ new_account_id }) {
+    const selectedWallet = await walletSelector.wallet();
+    const existingPublicKey = await signer.getPublicKey(
+      new_account_id,
+      networkId,
+    );
+    if (existingPublicKey) {
+      return `Can not create account ${new_account_id} since there is already an existing public key, which is ${existingPublicKey.toString()}.`;
+    }
+
+    if (
+      !confirm(
+        "Note that 9 NEAR is required for storage. The keys to the new account will be stored in your browsers localstorage for this site.",
+      )
+    ) {
+      return "User cancelled account creation";
+    }
+    const publicKey = await signer.createKey(new_account_id, networkId);
+
+    const result = await selectedWallet.signAndSendTransactions({
+      transactions: [
+        {
+          receiverId: "web4factory.near",
+          actions: [
+            {
+              type: "FunctionCall",
+              params: {
+                methodName: "create",
+                args: {
+                  new_account_id,
+                  full_access_key: publicKey.toString(),
+                },
+                gas: 300_000_000_000_000n.toString(),
+                deposit: 9_000_000_000_000_000_000_000_000n.toString(),
+              },
+            },
+          ],
+        },
+      ],
+    });
+
+    return `Created new NEAR account ${account_id} and deployed the web4 contract to it. You may now deploy javascript code for implementing \`web4_get\` to it.`;
+  },
 };
 
 export const tools = [
@@ -44,6 +159,92 @@ export const tools = [
         },
         additionalProperties: false,
         required: ["script"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "run_javascript_in_web4_simulator",
+      description: `Run javascript module in a smart contract simulator that serves a web page through the web4_get function.
+There is no access to NPM libraries, NodeJS APIs or web APIs.
+        
+Here is a minimal example of implementing the \`web4_get\` function:
+
+\`\`\`javascript
+export function web4_get() {
+    const request = JSON.parse(env.input()).request;
+
+    let response;
+
+    if (request.path === '/') {
+        response = {
+            contentType: "text/html; charset=UTF-8",
+            body: env.base64_encode(\`<!DOCTYPE html>
+<html>
+<head>
+</head>
+<body>
+<h1>Hello from \${env.current_account_id()}</h1>
+</body>
+<html>\`)};
+    }
+    env.value_return(JSON.stringify(response));
+}
+\`\`\`
+        
+`,
+      parameters: {
+        type: "object",
+        properties: {
+          script: {
+            type: "string",
+            description: "Javascript module source",
+          },
+        },
+        additionalProperties: false,
+        required: ["script"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "deploy_javascript_to_web4_contract",
+      description: `Deploy javascript to web4 contract on chain. Should be verified in the simulator first.`,
+      parameters: {
+        type: "object",
+        properties: {
+          contract_id: {
+            type: "string",
+            description: "NEAR account ID where web4 contract is deployed",
+          },
+          script: {
+            type: "string",
+            description:
+              "Javascript module source to post to the web4 contract",
+          },
+        },
+        additionalProperties: false,
+        required: ["contract_id", "script"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "create_new_web4_contract_account",
+      description: `Create a new NEAR account and deploy a web4 contract to it.`,
+      parameters: {
+        type: "object",
+        properties: {
+          new_account_id: {
+            type: "string",
+            description: "id of new NEAR account",
+          },
+        },
+        additionalProperties: false,
+        required: ["new_account_id"],
       },
     },
   },
