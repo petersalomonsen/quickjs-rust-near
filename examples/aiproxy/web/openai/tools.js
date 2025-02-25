@@ -99,12 +99,19 @@ ${JSON.stringify(simulationResult)}
   },
   create_new_web4_contract_account: async function ({ new_account_id }) {
     const selectedWallet = await walletSelector.wallet();
-    const existingPublicKey = await signer.getPublicKey(new_account_id, networkId);
+    const existingPublicKey = await signer.getPublicKey(
+      new_account_id,
+      networkId,
+    );
     if (existingPublicKey) {
       return `Can not create account ${new_account_id} since there is already an existing public key, which is ${existingPublicKey.toString()}.`;
     }
 
-    if (!confirm("Note that 9 NEAR is required for storage. The keys to the new account will be stored in your browsers localstorage for this site.")) {
+    if (
+      !confirm(
+        "Note that 9 NEAR is required for storage. The keys to the new account will be stored in your browsers localstorage for this site.",
+      )
+    ) {
       return "User cancelled account creation";
     }
     const publicKey = await signer.createKey(new_account_id, networkId);
