@@ -1,0 +1,23 @@
+[package]
+name = "jsinrust-web4-factory"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+near-sdk = "5.8.1"
+
+[dev-dependencies]
+near-workspaces = { version = "0.17.0" }
+cargo-near-build = { version="0.4.4"}
+tokio = { version = "1.43.0", features = ["full"] }
+
+[build-dependencies]
+base64 = "0.22.1"
+wabt = "0.10.0"
+
+[workspace]

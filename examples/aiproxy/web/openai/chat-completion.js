@@ -119,13 +119,16 @@ export async function sendStreamingRequest({
   messages.push(assistantMessage);
 
   if (assistantMessage.tool_calls) {
-    const { messages: newMessages, assistantResponse } = await hanleToolCalls({
-      toolCalls: tool_calls,
-      toolImplementations,
-      messages,
-      onChunk,
-      onError,
-    });
+    const { messages: newMessages, assistantResponse: toolsAssistantResponse } =
+      await hanleToolCalls({
+        assistantResponse,
+        toolCalls: tool_calls,
+        toolImplementations,
+        messages,
+        onChunk,
+        onError,
+      });
+    assistantResponse = toolsAssistantResponse;
     messages = newMessages;
     messages = await sendStreamingRequest({
       proxyUrl,
@@ -142,22 +145,29 @@ export async function sendStreamingRequest({
 }
 
 export async function hanleToolCalls({
+  assistantResponse = "",
   toolCalls,
   toolImplementations,
   messages,
   onChunk,
   onError,
 }) {
-  let assistantResponse = "";
   for (const toolCall of toolCalls) {
-    assistantResponse += `*Calling function* \`${toolCall.function.name}\` *with arguments* \`${toolCall.function.arguments}\`\n\n`;
+    assistantResponse += `*Calling function* \`${toolCall.function.name}\` *with arguments*
+  \`\`\`
+  ${toolCall.function.arguments}
+  \`\`\`
+  \n\n`;
 
     onChunk({ assistantResponse });
 
     const toolResult = await toolImplementations[toolCall.function.name](
       JSON.parse(toolCall.function.arguments),
     );
-    assistantResponse += `*Function call result is* \`${toolResult}\`
+    assistantResponse += `*Function call result is*
+\`\`\`
+${toolResult}
+\`\`\`
 
 `;
 
@@ -220,13 +230,16 @@ export async function nearAiChatCompletionRequest({
 
   const toolCalls = message.tool_calls;
   if (toolCalls) {
-    const { messages: newMessages, assistantResponse } = await hanleToolCalls({
-      toolCalls,
-      toolImplementations,
-      messages,
-      onChunk,
-      onError,
-    });
+    const { messages: newMessages, assistantResponse: toolsAssistantResponse } =
+      await hanleToolCalls({
+        assistantResponse,
+        toolCalls,
+        toolImplementations,
+        messages,
+        onChunk,
+        onError,
+      });
+    assistantResponse = toolsAssistantResponse;
     messages = newMessages;
     messages = await nearAiChatCompletionRequest({
       messages,
