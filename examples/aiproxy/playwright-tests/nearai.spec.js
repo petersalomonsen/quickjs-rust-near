@@ -57,16 +57,7 @@ async function setupStorageAndRoute({ page, withAuthObject = false }) {
   );
 
   await page.reload();
-  const baseURL = page.url();
-  await page.route("https://app.mynearwallet.com/*", async (route) => {
-    const redirectUrl = `${baseURL}?accountId=${accountId}&publicKey=${publicKey}&signature=abcd`;
-    await route.fulfill({
-      status: 302,
-      headers: {
-        location: redirectUrl,
-      },
-    });
-  });
+
   await page.route("https://api.near.ai/v1/chat/completions", async (route) => {
     const postdata = JSON.parse(route.request().postData());
     const message = postdata.messages[postdata.messages.length - 1].content;
@@ -97,17 +88,30 @@ test("start conversation without login", async ({ page }) => {
 });
 
 test("login to NEAR AI", async ({ page }) => {
+  const { publicKey, accountId } = await fetch("http://localhost:14501").then(
+    (r) => r.json(),
+  );
+
   await setupStorageAndRoute({ page });
   await page.goto("/");
   await page.waitForTimeout(1000);
-  const questionArea = await page.getByPlaceholder(
-    "Type your question here...",
-  );
+  let questionArea = await page.getByPlaceholder("Type your question here...");
   await expect(questionArea).toBeEnabled();
   questionArea.fill("Hello");
-  await page.waitForTimeout(1000);
 
+  const baseURL = page.url();
   await page.getByRole("button", { name: "Ask NEAR AI" }).click();
+  await expect(
+    page.url().startsWith("https://app.mynearwallet.com"),
+  ).toBeTruthy();
+
+  await page.waitForTimeout(500);
+  const redirectUrl = `${baseURL}#accountId=${accountId}&publicKey=${publicKey}&signature=abcd`;
+  await page.evaluate((redirectUrl) => {
+    location.href = redirectUrl;
+  }, redirectUrl);
+
+  questionArea = await page.getByPlaceholder("Type your question here...");
 
   questionArea.fill("Hello again");
   await page.waitForTimeout(1000);
