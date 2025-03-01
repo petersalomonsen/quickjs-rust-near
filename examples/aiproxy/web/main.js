@@ -319,3 +319,5 @@ document.getElementById("refundButton").addEventListener("click", async () => {
 });
 
 handleNearAILoginCallback();
+askAIButton.disabled = false;
+askNearAIButton.disabled = false;

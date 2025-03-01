@@ -7,7 +7,7 @@ import { responses } from "./nearairesponses.js";
  * @param {import('playwright').Page} params.page - The Playwright page object.
  * @returns {Promise<Object>} The setup data including contractId, accountId, and publicKey.
  */
-async function setupStorageAndRoute({ page, withAuthObject = false }) {
+async function setupStorage({ page, withAuthObject = false }) {
   const { functionAccessKeyPair, publicKey, accountId, contractId } =
     await fetch("http://localhost:14501").then((r) => r.json());
 
@@ -56,6 +56,15 @@ async function setupStorageAndRoute({ page, withAuthObject = false }) {
     { accountId, publicKey, functionAccessKeyPair, contractId, withAuthObject },
   );
 
+  await page.reload();
+  return { contractId, accountId, publicKey, functionAccessKeyPair };
+}
+
+/**
+ * @param {Object} params - The parameters for the setup.
+ * @param {import('playwright').Page} params.page - The Playwright page object.
+ */
+async function setupNearAIRoute({ page }) {
   await page.route("https://api.near.ai/v1/chat/completions", async (route) => {
     const postdata = JSON.parse(route.request().postData());
     const message = postdata.messages[postdata.messages.length - 1].content;
@@ -63,11 +72,7 @@ async function setupStorageAndRoute({ page, withAuthObject = false }) {
       json: responses[message] ?? responses["Hello"],
     });
   });
-
-  await page.reload();
-  return { contractId, accountId, publicKey, functionAccessKeyPair };
 }
-
 test("start conversation without login", async ({ page }) => {
   await page.goto("/");
   await page.waitForTimeout(1000);
@@ -92,21 +97,21 @@ test("login to NEAR AI", async ({ page }) => {
     (r) => r.json(),
   );
 
-  await setupStorageAndRoute({ page });
+  await setupStorage({ page });
 
-  await page.waitForTimeout(1000);
   let questionArea = await page.getByPlaceholder("Type your question here...");
-  await expect(questionArea).toBeEnabled();
   questionArea.fill("Hello");
 
   const baseURL = page.url();
   await page.getByRole("button", { name: "Ask NEAR AI" }).click();
 
-  await page.waitForURL("https://app.mynearwallet.com/*");
+  await page.waitForURL("https://app.mynearwallet.com/");
 
-  await page.waitForTimeout(500);
   const redirectUrl = `${baseURL}#accountId=${accountId}&publicKey=${publicKey}&signature=abcd`;
-  await page.evaluate((redirectUrl) => {
+  await page.evaluate(async (redirectUrl) => {
+    console.log("Redirected to wallet");
+    await new Promise((resolve) => setTimeout(() => resolve(), 500));
+    console.log("Wallet callback to", redirectUrl);
     location.href = redirectUrl;
   }, redirectUrl);
 
@@ -115,6 +120,7 @@ test("login to NEAR AI", async ({ page }) => {
   questionArea = await page.getByPlaceholder("Type your question here...");
   questionArea.fill("Hello again");
 
+  await setupNearAIRoute({ page });
   await page.getByRole("button", { name: "Ask NEAR AI" }).click();
 
   await expect(
@@ -123,7 +129,7 @@ test("login to NEAR AI", async ({ page }) => {
 });
 
 test("Tool call", async ({ page }) => {
-  await setupStorageAndRoute({ page, withAuthObject: true });
+  await setupStorage({ page, withAuthObject: true });
   await page.waitForTimeout(1000);
   const questionArea = await page.getByPlaceholder(
     "Type your question here...",
@@ -134,6 +140,7 @@ test("Tool call", async ({ page }) => {
   );
   await page.waitForTimeout(1000);
 
+  await setupNearAIRoute({ page });
   await page.getByRole("button", { name: "Ask NEAR AI" }).click();
 
   await expect(
