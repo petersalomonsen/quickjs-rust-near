@@ -56,8 +56,6 @@ async function setupStorageAndRoute({ page, withAuthObject = false }) {
     { accountId, publicKey, functionAccessKeyPair, contractId, withAuthObject },
   );
 
-  await page.reload();
-
   await page.route("https://api.near.ai/v1/chat/completions", async (route) => {
     const postdata = JSON.parse(route.request().postData());
     const message = postdata.messages[postdata.messages.length - 1].content;
@@ -65,6 +63,8 @@ async function setupStorageAndRoute({ page, withAuthObject = false }) {
       json: responses[message] ?? responses["Hello"],
     });
   });
+
+  await page.reload();
   return { contractId, accountId, publicKey, functionAccessKeyPair };
 }
 
@@ -93,7 +93,7 @@ test("login to NEAR AI", async ({ page }) => {
   );
 
   await setupStorageAndRoute({ page });
-  await page.goto("/");
+
   await page.waitForTimeout(1000);
   let questionArea = await page.getByPlaceholder("Type your question here...");
   await expect(questionArea).toBeEnabled();

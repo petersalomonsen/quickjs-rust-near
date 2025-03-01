@@ -19,6 +19,7 @@
     "serve-examples-nft": "http-server -p 8085 examples/nft/web4",
     "test-playwright-aiproxy": "yarn playwright test -c examples/aiproxy/playwright.config.js",
     "aiproxy:web4bundle": "cd examples/aiproxy && rollup -c rollup.config.js",
+    "aiproxy:generateimportmap": "cd examples/aiproxy/web && jspm link index.html -o index.html",
     "example-contracts:create:car": "ipfs-car pack examples/fungibletoken/out/fungible_token.wasm examples/nft/out/nft.wasm examples/minimumweb4/out/minimum_web4.wasm --output example-contracts.car",
     "example-contracts:upload:car": "NODE_ENV=mainnet node ./node_modules/nearfs/scripts/upload-car.js example-contracts.car"
   },
@@ -33,6 +34,7 @@
     "dotenv": "^16.4.7",
     "http-server": "^14.1.1",
     "ipfs-car": "^2.0.0",
+    "jspm": "^3.3.4",
     "near-workspaces": "4.0.0",
     "prettier": "^3.5.1",
     "rollup": "^4.31.0",
