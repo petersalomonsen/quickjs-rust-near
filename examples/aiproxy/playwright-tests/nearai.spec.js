@@ -101,9 +101,8 @@ test("login to NEAR AI", async ({ page }) => {
 
   const baseURL = page.url();
   await page.getByRole("button", { name: "Ask NEAR AI" }).click();
-  await expect(
-    page.url().startsWith("https://app.mynearwallet.com"),
-  ).toBeTruthy();
+
+  await page.waitForURL("https://app.mynearwallet.com/*");
 
   await page.waitForTimeout(500);
   const redirectUrl = `${baseURL}#accountId=${accountId}&publicKey=${publicKey}&signature=abcd`;
@@ -111,10 +110,10 @@ test("login to NEAR AI", async ({ page }) => {
     location.href = redirectUrl;
   }, redirectUrl);
 
-  questionArea = await page.getByPlaceholder("Type your question here...");
+  await page.waitForURL(`${baseURL}#`);
 
+  questionArea = await page.getByPlaceholder("Type your question here...");
   questionArea.fill("Hello again");
-  await page.waitForTimeout(1000);
 
   await page.getByRole("button", { name: "Ask NEAR AI" }).click();
 
