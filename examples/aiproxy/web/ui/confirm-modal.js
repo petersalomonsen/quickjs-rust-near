@@ -8,11 +8,13 @@ export async function confirmModal(title, description) {
       description;
     confirmationModal.show();
     let modalResult = false;
+    modalElement.querySelector("#confirmationModalCancelButton").onclick = () => {
+      confirmationModal.hide();
+    };
     modalElement.querySelector("#confirmationModalOkButton").onclick = () => {
       modalResult = true;
       confirmationModal.hide();
     };
-
     modalElement.addEventListener("hidden.bs.modal", () => {
       resolve(modalResult);
     });
