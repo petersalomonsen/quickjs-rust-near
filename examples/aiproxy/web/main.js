@@ -34,6 +34,7 @@ const walletSelector = await setupWalletSelector({
   network: "mainnet",
   modules: walletSelectorModules,
 });
+window.walletSelector = walletSelector;
 
 setWalletSelector(walletSelector);
 

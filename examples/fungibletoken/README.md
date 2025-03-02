@@ -120,9 +120,16 @@ To the AI service UI, you provide the conversation ID. The AI service will look 
 
 When the user wants to end the conversation, the `Stop conversation and refund tokens` button can be clicked, and a signed refund message will be displayed. No more messages can be added to the conversation.
 
-
 ```json
-{"refund_message": "{\"conversation_id\":\"aiuser.testnet_1730058753308\",\"receiver_id\":\"aiuser.testnet\",\"refund_amount\":\"127999584\"}","signature": [ 45, 73, 50, 99, 128, 29, 74, 56, 160, 85, 146, 64, 96, 15, 236, 191, 82, 234, 108, 224, 55, 161, 123, 122, 122, 102, 236, 33, 173, 193, 93, 177, 105, 95, 249, 58, 65, 107, 136, 169, 36, 254, 86, 184, 27, 224, 226, 164, 66, 40, 94, 123, 111, 196, 16, 126, 92, 190, 37, 210, 158, 132, 13, 10]}
+{
+  "refund_message": "{\"conversation_id\":\"aiuser.testnet_1730058753308\",\"receiver_id\":\"aiuser.testnet\",\"refund_amount\":\"127999584\"}",
+  "signature": [
+    45, 73, 50, 99, 128, 29, 74, 56, 160, 85, 146, 64, 96, 15, 236, 191, 82,
+    234, 108, 224, 55, 161, 123, 122, 122, 102, 236, 33, 173, 193, 93, 177, 105,
+    95, 249, 58, 65, 107, 136, 169, 36, 254, 86, 184, 27, 224, 226, 164, 66, 40,
+    94, 123, 111, 196, 16, 126, 92, 190, 37, 210, 158, 132, 13, 10
+  ]
+}
 ```
 
 We can post this refund message back to the smart contract.

@@ -1,6 +1,7 @@
 import { getContractInstanceExports } from "../contract-runner/contract-runner.js";
 import { InMemorySigner, keyStores, connect } from "near-api-js";
 import { run_javascript_in_web4_simulator } from "./javascriptsimulator.js";
+import { confirmModal } from "../ui/confirm-modal.js";
 
 /**
  * @type {import('@near-wallet-selector/core').WalletSelector}
@@ -97,6 +98,61 @@ ${JSON.stringify(simulationResult)}
       return `There was an error deploying the JavaScript module. Here is the full result: ${JSON.stringify(result)}`;
     }
   },
+  buy_fungible_tokens: async function () {
+    const selectedWallet = await walletSelector.wallet();
+    const account = (await selectedWallet.getAccounts())[0];
+    const fungible_token_contract_id = localStorage.getItem("contractId");
+    const connectedAccount = await nearConnection.account(account.accountId);
+    const storage_balance = await connectedAccount.viewFunction({
+      contractId: fungible_token_contract_id,
+      methodName: "storage_balance_of",
+      args: { account_id: account.accountId },
+    });
+    const actions = [];
+    if (storage_balance === null) {
+      actions.push({
+        type: "FunctionCall",
+        params: {
+          methodName: "storage_deposit",
+          args: {
+            account_id: account.accountId,
+          },
+          gas: 30_000_000_000_000n.toString(),
+          deposit: 100_000_000_000_000_000_000_000n.toString(),
+        },
+      });
+    }
+
+    actions.push({
+      type: "FunctionCall",
+      params: {
+        methodName: "call_js_func",
+        args: {
+          function_name: "buy_tokens_for_near",
+        },
+        gas: 30_000_000_000_000n.toString(),
+        deposit: 500_000_000_000_000_000_000_000n.toString(),
+      },
+    });
+    if (
+      await confirmModal(
+        `Buy fungible tokens`,
+        `Do you want to buy 3 tokens for 0.5 NEAR? ${storage_balance === null ? `Also additional 0.1 NEAR are required for registering with the Fungible Token contract.` : ""}`,
+      )
+    ) {
+      const result = await selectedWallet.signAndSendTransaction({
+        receiverId: fungible_token_contract_id,
+        actions,
+      });
+      if (result.status.SuccessValue !== undefined) {
+        return `Successfully bought tokens. Here is the logged event: ${result.receipts_outcome[0].outcome.logs[0]}`;
+      } else {
+        return `There was an error buying tokens. Here is the transaction result ${JSON.stringify(result)}`;
+      }
+    } else {
+      return "user cancelled buying tokens";
+    }
+  },
   create_new_web4_contract_account: async function ({ new_account_id }) {
     const selectedWallet = await walletSelector.wallet();
     const existingPublicKey = await signer.getPublicKey(
@@ -108,37 +164,43 @@ ${JSON.stringify(simulationResult)}
     }
 
     if (
-      !confirm(
+      !(await confirmModal(
+        "Create account",
         "Note that 9 NEAR is required for storage. The keys to the new account will be stored in your browsers localstorage for this site.",
-      )
+      ))
     ) {
       return "User cancelled account creation";
     }
     const publicKey = await signer.createKey(new_account_id, networkId);
 
-    const result = await selectedWallet.signAndSendTransactions({
-      transactions: [
+    const result = await selectedWallet.signAndSendTransaction({
+      receiverId: "web4factory.near",
+      actions: [
         {
-          receiverId: "web4factory.near",
-          actions: [
-            {
-              type: "FunctionCall",
-              params: {
-                methodName: "create",
-                args: {
-                  new_account_id,
-                  full_access_key: publicKey.toString(),
-                },
-                gas: 300_000_000_000_000n.toString(),
-                deposit: 9_000_000_000_000_000_000_000_000n.toString(),
-              },
+          type: "FunctionCall",
+          params: {
+            methodName: "create",
+            args: {
+              new_account_id,
+              full_access_key: publicKey.toString(),
             },
-          ],
+            gas: 300_000_000_000_000n.toString(),
+            deposit: 9_000_000_000_000_000_000_000_000n.toString(),
+          },
         },
       ],
     });
 
-    return `Created new NEAR account ${account_id} and deployed the web4 contract to it. You may now deploy javascript code for implementing \`web4_get\` to it.`;
+    if (
+      result.status.SuccessValue !== undefined &&
+      !result.receipts_outcome.find(
+        (receipt) => receipt.outcome.status.Failure !== undefined,
+      )
+    ) {
+      return `Created new NEAR account ${new_account_id} and deployed the web4 contract to it. You may now deploy javascript code for implementing \`web4_get\` to it.`;
+    } else {
+      return `Failed creating new web4 account ${new_account_id}. Here are the receipt statuses ${JSON.stringify(result.receipts_outcome.map((receipt) => receipt.outcome.status))}`;
+    }
   },
 };
 
@@ -246,6 +308,14 @@ export function web4_get() {
         additionalProperties: false,
         required: ["new_account_id"],
       },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "buy_fungible_tokens",
+      description: `Buy fungible tokens with NEAR`,
+      parameters: {},
     },
   },
 ];

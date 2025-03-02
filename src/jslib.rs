@@ -164,6 +164,14 @@ fn predecessor_account_id_func(ctx: i32, _this_val: i64, _argc: i32, _argv: i32)
     }
 }
 
+fn attached_deposit_func(ctx: i32, _this_val: i64, _argc: i32, _argv: i32) -> i64 {
+    unsafe {
+        let attached_deposit = near_sdk::env::attached_deposit().as_yoctonear().to_string();
+        let attached_deposit_ptr = attached_deposit.as_ptr();
+        return JS_NewStringLen(ctx, attached_deposit_ptr as i32, attached_deposit.len());
+    }
+}
+
 fn verify_signed_message_func(ctx: i32, _this_val: i64, _argc: i32, argv: i32) -> i64 {
     let message = arg_to_str(ctx, 0, argv);
     let signature = arg_to_str(ctx, 1, argv);
@@ -221,6 +229,7 @@ unsafe fn setup_quickjs() {
     );
     add_function_to_js("value_return", value_return_func, 1);
     add_function_to_js("input", input_func, 1);
+    add_function_to_js("attached_deposit", attached_deposit_func, 1);
     add_function_to_js(
         "block_timestamp_ms",
         |_ctx: i32, _this_val: i64, _argc: i32, _argv: i32| -> i64 {
@@ -352,12 +361,11 @@ pub fn compile_js(script: String, modulename: Option<String>) -> Vec<u8> {
 mod tests {
     use super::{compile_js, js_get_property, js_get_string, run_js, run_js_bytecode};
     use crate::viewaccesscontrol::store_signing_key_for_account;
-    use near_sdk::{base64, env::sha256};
+    use near_sdk::{base64, env::sha256, NearToken};
     use ed25519_dalek::{ed25519::signature::SignerMut, SigningKey};
 
     use quickjs_rust_near_testenv::testenv::{
-        alice, assert_latest_return_value_string_eq, set_input, set_signer_account_id,
-        setup_test_env,
+        alice, assert_latest_return_value_string_eq, set_attached_deposit, set_input, set_signer_account_id, setup_test_env
     };
     use std::ffi::CStr;
 
@@ -384,6 +392,15 @@ mod tests {
         set_signer_account_id(alice());
         run_js("env.value_return(env.signer_account_id())".to_string());
         assert_latest_return_value_string_eq(alice().to_string());
+    }
+
+    #[test]
+    fn test_attached_deposit_func() {
+        setup_test_env();
+        set_attached_deposit(NearToken::from_near(20));
+
+        run_js("env.value_return(env.attached_deposit())".to_string());
+        assert_latest_return_value_string_eq(NearToken::from_near(20).as_yoctonear().to_string());
     }
 
     #[test]

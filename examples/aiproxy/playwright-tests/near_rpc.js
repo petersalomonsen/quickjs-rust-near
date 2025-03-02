@@ -19,6 +19,23 @@ const aiTokenAccount =
 await aiTokenAccount.deploy(
   await readFile("../fungibletoken/out/fungible_token.wasm"),
 );
+
+const nearContract = await worker.rootAccount.importContract({
+  mainnetContract: "near",
+  initialBalance: 100_000_000_000_000_000_000_000_000n.toString(),
+});
+await nearContract.call(
+  "near",
+  "new",
+  {},
+  30_000_000_000_000n.toString(),
+  0n.toString(),
+);
+await worker.rootAccount.importContract({
+  mainnetContract: "web4factory.near",
+  initialBalance: 10_000_000_000_000_000_000_000_000n.toString(),
+});
+
 await aiTokenAccount.call(aiTokenAccount.accountId, "new_default_meta", {
   owner_id: aiTokenAccount.accountId,
   total_supply: 1_000_000_000_000n.toString(),
@@ -68,6 +85,10 @@ await aiTokenAccount.call(
   },
 );
 
+const unregisteredaiuser = await worker.rootAccount.createAccount(
+  "unregisteredaiuser.test.near",
+);
+
 const functionAccessKeyPair = KeyPairEd25519.fromRandom();
 
 await aiuser.updateAccessKey(functionAccessKeyPair, {
@@ -83,7 +104,7 @@ await aiuser.updateAccessKey(functionAccessKeyPair, {
 
 const publicKey = (await aiuser.getKey()).getPublicKey().toString();
 
-const server = createServer((req, res) => {
+const server = createServer(async (req, res) => {
   res.writeHead(200, { "Content-Type": "application/json" });
   res.end(
     JSON.stringify({
@@ -91,6 +112,10 @@ const server = createServer((req, res) => {
       functionAccessKeyPair: functionAccessKeyPair.toString(),
       accountId: aiuser.accountId,
       contractId: aiTokenAccount.accountId,
+      unregisteredaiuser: {
+        accountId: unregisteredaiuser.accountId,
+        fullAccessKeyPair: (await unregisteredaiuser.getKey()).toString(),
+      },
     }),
   );
 });

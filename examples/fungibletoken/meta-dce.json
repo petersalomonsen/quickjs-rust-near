@@ -1,87 +1,87 @@
 [
-    {
-        "name": "call_js_func",
-        "export": "call_js_func",
-        "root": true
-    },
-    {
-        "name": "view_js_func",
-        "export": "view_js_func",
-        "root": true
-    },
-    {
-        "name": "post_javascript",
-        "export": "post_javascript",
-        "root": true
-    },
-    {
-        "name": "ft_transfer",
-        "export": "ft_transfer",
-        "root": true
-    },
-    {
-        "name": "ft_metadata",
-        "export": "ft_metadata",
-        "root": true
-    },
-    {
-        "name": "ft_balance_of",
-        "export": "ft_balance_of",
-        "root": true
-    },
-    {
-        "name": "ft_total_supply",
-        "export": "ft_total_supply",
-        "root": true
-    },
-    {
-        "name": "ft_transfer_call",
-        "export": "ft_transfer_call",
-        "root": true
-    },
-    {
-        "name": "ft_on_transfer",
-        "export": "ft_on_transfer",
-        "root": true
-    },
-    {
-        "name": "new_default_meta",
-        "export": "new_default_meta",
-        "root": true
-    },
-    {
-        "name": "storage_deposit",
-        "export": "storage_deposit",
-        "root": true
-    },
-    {
-        "name": "storage_withdraw",
-        "export": "storage_withdraw",
-        "root": true
-    },
-    {
-        "name": "storage_unregister",
-        "export": "storage_unregister",
-        "root": true
-    },
-    {
-        "name": "storage_balance_bounds",
-        "export": "storage_balance_bounds",
-        "root": true
-    },
-    {
-        "name": "storage_balance_of",
-        "export": "storage_balance_of",
-        "root": true
-    },
-    {
-        "name": "web4_get",
-        "export": "web4_get",
-        "root": true
-    },
-    {
-        "name": "new",
-        "export": "new",
-        "root": true
-    }
+  {
+    "name": "call_js_func",
+    "export": "call_js_func",
+    "root": true
+  },
+  {
+    "name": "view_js_func",
+    "export": "view_js_func",
+    "root": true
+  },
+  {
+    "name": "post_javascript",
+    "export": "post_javascript",
+    "root": true
+  },
+  {
+    "name": "ft_transfer",
+    "export": "ft_transfer",
+    "root": true
+  },
+  {
+    "name": "ft_metadata",
+    "export": "ft_metadata",
+    "root": true
+  },
+  {
+    "name": "ft_balance_of",
+    "export": "ft_balance_of",
+    "root": true
+  },
+  {
+    "name": "ft_total_supply",
+    "export": "ft_total_supply",
+    "root": true
+  },
+  {
+    "name": "ft_transfer_call",
+    "export": "ft_transfer_call",
+    "root": true
+  },
+  {
+    "name": "ft_on_transfer",
+    "export": "ft_on_transfer",
+    "root": true
+  },
+  {
+    "name": "new_default_meta",
+    "export": "new_default_meta",
+    "root": true
+  },
+  {
+    "name": "storage_deposit",
+    "export": "storage_deposit",
+    "root": true
+  },
+  {
+    "name": "storage_withdraw",
+    "export": "storage_withdraw",
+    "root": true
+  },
+  {
+    "name": "storage_unregister",
+    "export": "storage_unregister",
+    "root": true
+  },
+  {
+    "name": "storage_balance_bounds",
+    "export": "storage_balance_bounds",
+    "root": true
+  },
+  {
+    "name": "storage_balance_of",
+    "export": "storage_balance_of",
+    "root": true
+  },
+  {
+    "name": "web4_get",
+    "export": "web4_get",
+    "root": true
+  },
+  {
+    "name": "new",
+    "export": "new",
+    "root": true
+  }
 ]
