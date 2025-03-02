@@ -160,7 +160,7 @@ test("start conversation without login", async ({ page }) => {
   await expect(await page.locator("#progressErrorAlert")).toContainText(
     "Error: No wallet selected",
   );
-  await expect(await page.getByLabel("Close")).toBeVisible();
+  await expect(await page.getByRole("button", { name: "Close" })).toBeVisible();
 });
 
 test("start conversation, ask question and refund (using OpenAI authorization header)", async ({
