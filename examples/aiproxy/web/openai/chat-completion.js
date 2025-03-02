@@ -183,7 +183,7 @@ ${toolResult}
 }
 
 export async function nearAiChatCompletionRequest({
-  model = "fireworks::accounts/fireworks/models/llama-v3p1-70b-instruct",
+  model = "fireworks::accounts/fireworks/models/qwen2p5-72b-instruct",
   messages = [],
   authorizationObject,
   assistantResponse = "",
