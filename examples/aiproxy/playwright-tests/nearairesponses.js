@@ -29,6 +29,46 @@ export const responses = {
       prompt_tokens_details: null,
     },
   },
+  "I want to buy some tokens": {
+    id: "ec762fa5-d7ff-458e-a17e-2cf8b79a2ccb",
+    choices: [
+      {
+        finish_reason: "tool_calls",
+        index: 0,
+        logprobs: null,
+        message: {
+          content: null,
+          refusal: null,
+          role: "assistant",
+          audio: null,
+          function_call: null,
+          tool_calls: [
+            {
+              id: "call_HazLRPmkNi0dzHrAmscxD5Yq",
+              function: {
+                arguments: "{}",
+                name: "buy_fungible_tokens",
+              },
+              type: "function",
+              index: 0,
+            },
+          ],
+        },
+      },
+    ],
+    created: 1740858973,
+    model: "accounts/fireworks/models/llama-v3p1-70b-instruct",
+    object: "chat.completion",
+    service_tier: null,
+    system_fingerprint: null,
+    usage: {
+      completion_tokens: 17,
+      prompt_tokens: 833,
+      total_tokens: 850,
+      completion_tokens_details: null,
+      prompt_tokens_details: null,
+    },
+  },
   "Can you create a web4 javascript code that shows the current account and current date?":
     {
       id: "ed2c8f7c-e7a2-4e4c-8d81-a15c0562d9c3",
