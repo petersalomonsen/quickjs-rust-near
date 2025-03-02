@@ -112,4 +112,44 @@ export const responses = {
         prompt_tokens_details: null,
       },
     },
+  "Can you create a web4 account named myweb4test.near?": {
+    id: "c25b4c73-c0ce-4fa1-beba-565d1dbb55da",
+    choices: [
+      {
+        finish_reason: "tool_calls",
+        index: 0,
+        logprobs: null,
+        message: {
+          content: null,
+          refusal: null,
+          role: "assistant",
+          audio: null,
+          function_call: null,
+          tool_calls: [
+            {
+              id: "call_dQAzFNkWPUV3nUqXJjvBL9dv",
+              function: {
+                arguments: '{"new_account_id": "myweb4test.near"}',
+                name: "create_new_web4_contract_account",
+              },
+              type: "function",
+              index: 0,
+            },
+          ],
+        },
+      },
+    ],
+    created: 1740913358,
+    model: "accounts/fireworks/models/llama-v3p1-70b-instruct",
+    object: "chat.completion",
+    service_tier: null,
+    system_fingerprint: null,
+    usage: {
+      completion_tokens: 29,
+      prompt_tokens: 840,
+      total_tokens: 869,
+      completion_tokens_details: null,
+      prompt_tokens_details: null,
+    },
+  },
 };

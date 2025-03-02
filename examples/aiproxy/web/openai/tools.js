@@ -164,37 +164,43 @@ ${JSON.stringify(simulationResult)}
     }
 
     if (
-      !confirm(
+      !(await confirmModal(
+        "Create account",
         "Note that 9 NEAR is required for storage. The keys to the new account will be stored in your browsers localstorage for this site.",
-      )
+      ))
     ) {
       return "User cancelled account creation";
     }
     const publicKey = await signer.createKey(new_account_id, networkId);
 
-    const result = await selectedWallet.signAndSendTransactions({
-      transactions: [
+    const result = await selectedWallet.signAndSendTransaction({
+      receiverId: "web4factory.near",
+      actions: [
         {
-          receiverId: "web4factory.near",
-          actions: [
-            {
-              type: "FunctionCall",
-              params: {
-                methodName: "create",
-                args: {
-                  new_account_id,
-                  full_access_key: publicKey.toString(),
-                },
-                gas: 300_000_000_000_000n.toString(),
-                deposit: 9_000_000_000_000_000_000_000_000n.toString(),
-              },
+          type: "FunctionCall",
+          params: {
+            methodName: "create",
+            args: {
+              new_account_id,
+              full_access_key: publicKey.toString(),
             },
-          ],
+            gas: 300_000_000_000_000n.toString(),
+            deposit: 9_000_000_000_000_000_000_000_000n.toString(),
+          },
         },
       ],
     });
 
-    return `Created new NEAR account ${account_id} and deployed the web4 contract to it. You may now deploy javascript code for implementing \`web4_get\` to it.`;
+    if (
+      result.status.SuccessValue !== undefined &&
+      !result.receipts_outcome.find(
+        (receipt) => receipt.outcome.status.Failure !== undefined,
+      )
+    ) {
+      return `Created new NEAR account ${new_account_id} and deployed the web4 contract to it. You may now deploy javascript code for implementing \`web4_get\` to it.`;
+    } else {
+      return `Failed creating new web4 account ${new_account_id}. Here are the receipt statuses ${JSON.stringify(result.receipts_outcome.map((receipt) => receipt.outcome.status))}`;
+    }
   },
 };
 
