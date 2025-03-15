@@ -20,11 +20,30 @@ const nearConnection = await connect({
   keyStore,
 });
 
+const fungible_token_contract_id = localStorage.getItem("contractId");
+let ft_metadata;
+/**
+ * @type {import('near-api-js').Account}
+ */
+let connectedAccount;
+
 /**
  * @param newWalletSelector {import('@near-wallet-selector/core').WalletSelector}
  */
-export function setWalletSelector(newWalletSelector) {
+export async function setWalletSelector(newWalletSelector) {
   walletSelector = newWalletSelector;
+  const selectedWallet = await walletSelector.wallet();
+  if (selectedWallet) {
+    const accounts = await selectedWallet.getAccounts();
+    if (accounts.length > 0) {
+      const account = accounts[0];
+      connectedAccount = await nearConnection.account(account.accountId);
+      ft_metadata = await connectedAccount.viewFunction({
+        contractId: fungible_token_contract_id,
+        methodName: "ft_metadata",
+      });
+    }
+  }
 }
 
 export const toolImplementations = {
@@ -99,14 +118,11 @@ ${JSON.stringify(simulationResult)}
     }
   },
   buy_fungible_tokens: async function () {
-    const selectedWallet = await walletSelector.wallet();
-    const account = (await selectedWallet.getAccounts())[0];
-    const fungible_token_contract_id = localStorage.getItem("contractId");
-    const connectedAccount = await nearConnection.account(account.accountId);
+    const account_id = connectedAccount.accountId;
     const storage_balance = await connectedAccount.viewFunction({
       contractId: fungible_token_contract_id,
       methodName: "storage_balance_of",
-      args: { account_id: account.accountId },
+      args: { account_id },
     });
     const actions = [];
     if (storage_balance === null) {
@@ -115,7 +131,7 @@ ${JSON.stringify(simulationResult)}
         params: {
           methodName: "storage_deposit",
           args: {
-            account_id: account.accountId,
+            account_id,
           },
           gas: 30_000_000_000_000n.toString(),
           deposit: 100_000_000_000_000_000_000_000n.toString(),
@@ -204,7 +220,7 @@ ${JSON.stringify(simulationResult)}
   },
 };
 
-export const tools = [
+export const toolDefinitions = async () => [
   {
     type: "function",
     function: {
@@ -314,8 +330,13 @@ export function web4_get() {
     type: "function",
     function: {
       name: "buy_fungible_tokens",
-      description: `Buy fungible tokens with NEAR`,
-      parameters: {},
+      description: `Buy ${ft_metadata?.symbol} fungible tokens to use for ChatGPT conversations. You will get 3 tokens for 0.5 NEAR.`,
+      parameters: {
+        type: "object",
+        properties: {},
+        additionalProperties: false,
+        required: [],
+      },
     },
   },
 ];

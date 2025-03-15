@@ -7,7 +7,7 @@ import {
   sendStreamingRequest,
 } from "./openai/chat-completion.js";
 import {
-  tools,
+  toolDefinitions,
   toolImplementations,
   setWalletSelector,
 } from "./openai/tools.js";
@@ -36,7 +36,7 @@ const walletSelector = await setupWalletSelector({
 });
 window.walletSelector = walletSelector;
 
-setWalletSelector(walletSelector);
+await setWalletSelector(walletSelector);
 
 const walletSelectorModal = setupModal(walletSelector, {
   contractId: localStorage.getItem("contractId"),
@@ -232,7 +232,7 @@ askAIButton.addEventListener("click", async () => {
       proxyUrl,
       conversation_id,
       messages,
-      tools,
+      tools: await toolDefinitions(),
       toolImplementations,
       onError: (err) => {
         messagesDiv.innerHTML += `<strong>Assistant:</strong> Failed to fetch from proxy: ${err.statusText} ${err.responText ?? ""} <br>`;
@@ -288,7 +288,7 @@ askNearAIButton.addEventListener("click", async () => {
       authorizationObject: authorizationObject,
       proxyUrl,
       messages,
-      tools,
+      tools: await toolDefinitions(),
       toolImplementations,
       onError: (err) => {
         messagesDiv.innerHTML += `<strong>Assistant:</strong> Failed to fetch from proxy: ${err.statusText} ${err.responText ?? ""} <br>`;
