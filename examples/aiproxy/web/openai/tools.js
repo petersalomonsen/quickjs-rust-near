@@ -152,10 +152,11 @@ ${JSON.stringify(simulationResult)}
     });
     if (
       await confirmModal(
-        `Buy fungible tokens`,
-        `Do you want to buy 3 tokens for 0.5 NEAR? ${storage_balance === null ? `Also additional 0.1 NEAR are required for registering with the Fungible Token contract.` : ""}`,
+        `Buy ${ft_metadata.symbol} <img src="${ft_metadata.icon}" style="height: 20px"> tokens`,
+        `Do you want to buy 3 ${ft_metadata.symbol} <img src="${ft_metadata.icon}" style="height: 20px"> tokens for 0.5 NEAR? ${storage_balance === null ? `Also additional 0.1 NEAR are required for registering with the Fungible Token contract.` : ""}`,
       )
     ) {
+      const selectedWallet = await walletSelector.wallet();
       const result = await selectedWallet.signAndSendTransaction({
         receiverId: fungible_token_contract_id,
         actions,
