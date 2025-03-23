@@ -2,7 +2,6 @@ import { KeyPairEd25519, KeyPair, parseNEAR, Worker } from "near-workspaces";
 
 import { readFile } from "fs/promises";
 import { createServer } from "http";
-import { createHash } from "crypto";
 
 const worker = await Worker.init({
   port: 14500,

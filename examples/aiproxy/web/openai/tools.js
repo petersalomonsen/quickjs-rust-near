@@ -16,7 +16,7 @@ const keyStore = new keyStores.BrowserLocalStorageKeyStore(
 const signer = new InMemorySigner(keyStore);
 const nearConnection = await connect({
   networkId,
-  nodeUrl: "https://rpc.mainnet.near.org",
+  nodeUrl: "http://localhost:14500",
   keyStore,
 });
 

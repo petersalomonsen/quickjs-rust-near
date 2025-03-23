@@ -75,12 +75,12 @@ test("should buy fungible tokens with NEAR", async ({ page }) => {
   await setupNearAIRoute({ page });
   await page.getByRole("button", { name: "Ask NEAR AI" }).click();
   await expect(
-    page.getByRole("heading", { name: "Buy fungible tokens" }),
+    page.getByRole("heading", { name: "Buy EXAMPLE tokens" }),
   ).toBeVisible();
 
   await page.locator("#confirmationModalOkButton").click();
   await expect(
-    page.getByRole("heading", { name: "Buy fungible tokens" }),
+    page.getByRole("heading", { name: "Buy EXAMPLE tokens" }),
   ).not.toBeVisible();
   await expect(page.getByText("Function call result")).toBeVisible();
 
