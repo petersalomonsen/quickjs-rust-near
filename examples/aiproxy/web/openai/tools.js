@@ -32,7 +32,15 @@ let connectedAccount;
  */
 export async function setWalletSelector(newWalletSelector) {
   walletSelector = newWalletSelector;
-  const selectedWallet = await walletSelector.wallet();
+
+  /**
+   * @type — {import('@near-wallet-selector/core').WalletSelector}
+   */
+  let selectedWallet;
+  try {
+    selectedWallet = await walletSelector.wallet();
+  } catch (e) {}
+
   if (selectedWallet) {
     const accounts = await selectedWallet.getAccounts();
     if (accounts.length > 0) {
