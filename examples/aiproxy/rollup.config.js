@@ -41,13 +41,13 @@ export default {
       closeBundle: () => {
         const js = readFileSync("dist/main.js")
           .toString()
-          .replace("http://localhost:3000", AI_PROXY_BASEURL)
-          .replace(
+          .replaceAll("http://localhost:3000", AI_PROXY_BASEURL)
+          .replaceAll(
             `localStorage.getItem("contractId")`,
             `"${FUNGIBLE_TOKEN_CONTRACT_ID}"`,
           )
-          .replace("http://localhost:14500", RPC_URL)
-          .replace('"mainnet"', `"${NETWORK_ID}"`);
+          .replaceAll("http://localhost:14500", RPC_URL)
+          .replaceAll('"mainnet"', `"${NETWORK_ID}"`);
 
         const html = readFileSync("dist/index.html")
           .toString()
