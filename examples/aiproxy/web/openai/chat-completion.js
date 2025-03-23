@@ -120,7 +120,7 @@ export async function sendStreamingRequest({
 
   if (assistantMessage.tool_calls) {
     const { messages: newMessages, assistantResponse: toolsAssistantResponse } =
-      await hanleToolCalls({
+      await handleToolCalls({
         assistantResponse,
         toolCalls: tool_calls,
         toolImplementations,
@@ -144,7 +144,7 @@ export async function sendStreamingRequest({
   return messages; // Return updated message history
 }
 
-export async function hanleToolCalls({
+export async function handleToolCalls({
   assistantResponse = "",
   toolCalls,
   toolImplementations,
@@ -225,13 +225,13 @@ export async function nearAiChatCompletionRequest({
   // Add assistant response to the message history
   const message = result.choices[0].message;
   messages.push(message);
-  assistantResponse += message.content;
+  assistantResponse += message.content ?? "";
   onChunk({ assistantResponse });
 
   const toolCalls = message.tool_calls;
   if (toolCalls) {
     const { messages: newMessages, assistantResponse: toolsAssistantResponse } =
-      await hanleToolCalls({
+      await handleToolCalls({
         assistantResponse,
         toolCalls,
         toolImplementations,

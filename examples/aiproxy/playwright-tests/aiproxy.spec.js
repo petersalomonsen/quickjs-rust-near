@@ -153,6 +153,9 @@ test("start conversation without login", async ({ page }) => {
   await expect(questionArea).toBeEnabled();
   questionArea.fill("Hello");
   await page.waitForTimeout(1000);
+  await expect(
+    await page.getByRole("button", { name: "Ask ChatGPT" }),
+  ).toBeEnabled();
 
   await page.getByRole("button", { name: "Ask ChatGPT" }).click();
 

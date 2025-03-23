@@ -47,6 +47,3 @@ mkdir -p ./bin
 mv ./spin ./bin/spin
 export PATH="$(pwd)/bin:$PATH"
 echo 'export PATH="$(pwd)/bin:$PATH"' >> ~/.bashrc
-
-cargo install cargo-component
-spin plugin install -y -u https://github.com/fermyon/spin-test/releases/download/canary/spin-test.json

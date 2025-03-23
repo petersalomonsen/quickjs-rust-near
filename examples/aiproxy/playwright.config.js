@@ -83,16 +83,19 @@ export default defineConfig({
       command: "spin build && spin up",
       url: "http://127.0.0.1:3000",
       reuseExistingServer: !process.env.CI,
+      stdout: "pipe",
     },
     {
       command: "node playwright-tests/near_rpc.js",
       url: "http://127.0.0.1:14501",
       reuseExistingServer: !process.env.CI,
+      stdout: "pipe",
     },
     {
       command: "npx http-server ./web -p 8080",
       url: "http://127.0.0.1:8080",
       reuseExistingServer: !process.env.CI,
+      stdout: "pipe",
     },
   ],
 });
