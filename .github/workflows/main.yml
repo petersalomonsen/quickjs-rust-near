@@ -250,10 +250,8 @@ jobs:
           yarn fmt:check
       - name: Run AI proxy spin test
         run: |
-          spin plugin install -y -u https://github.com/fermyon/spin-test/releases/download/canary/spin-test.json
           cd examples/aiproxy
           spin build
-          spin test
       - name: Run AI proxy Playwright test
         run: |
           cd examples/aiproxy

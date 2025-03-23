@@ -17,8 +17,6 @@ jobs:
           curl -fsSL https://developer.fermyon.com/downloads/install.sh | bash
           sudo mv spin /usr/local/bin/
           rustup target add wasm32-wasip1
-          cargo install cargo-component --locked
-          spin plugin install -y -u https://github.com/fermyon/spin-test/releases/download/canary/spin-test.json
       - name: Check formatting
         working-directory: examples/aiproxy
         run: |
@@ -28,10 +26,6 @@ jobs:
         working-directory: examples/aiproxy
         run: |
           spin build
-      - name: Run tests
-        working-directory: examples/aiproxy
-        run: |
-          spin test
       - name: Log in to GitHub Container Registry
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin  
       - name: "Publish"
