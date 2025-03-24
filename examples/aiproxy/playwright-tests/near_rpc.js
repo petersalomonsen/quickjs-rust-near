@@ -1,4 +1,4 @@
-import { KeyPairEd25519, KeyPair, parseNEAR, Worker } from "near-workspaces";
+import { KeyPairEd25519, KeyPair, Worker, parseNEAR } from "near-workspaces";
 
 import { readFile } from "fs/promises";
 import { createServer } from "http";
@@ -88,6 +88,10 @@ const unregisteredaiuser = await worker.rootAccount.createAccount(
   "unregisteredaiuser.test.near",
 );
 
+const relayer = await worker.rootAccount.createAccount("relayer.test.near", {
+  initialBalance: 100_000_000_000_000_000_000_000_000n.toString(),
+});
+
 const functionAccessKeyPair = KeyPairEd25519.fromRandom();
 
 await aiuser.updateAccessKey(functionAccessKeyPair, {
@@ -114,6 +118,10 @@ const server = createServer(async (req, res) => {
       unregisteredaiuser: {
         accountId: unregisteredaiuser.accountId,
         fullAccessKeyPair: (await unregisteredaiuser.getKey()).toString(),
+      },
+      relayer: {
+        accountId: relayer.accountId,
+        fullAccessKeyPair: (await relayer.getKey()).toString(),
       },
     }),
   );
