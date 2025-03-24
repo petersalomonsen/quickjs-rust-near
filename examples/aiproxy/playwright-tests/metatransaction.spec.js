@@ -5,7 +5,7 @@ import { actionCreators } from "@near-js/transactions";
 import { deserialize } from "borsh";
 
 test("meta transaction", async ({ page }) => {
-  // On the client
+  // setup accounts
 
   const rpc_url = "http://localhost:14500";
   const { contractId, unregisteredaiuser, relayer } = await fetch(
@@ -13,22 +13,30 @@ test("meta transaction", async ({ page }) => {
   ).then((r) => r.json());
 
   const networkId = "sandbox";
-  const fullAccessKeyPair = utils.KeyPair.fromString(
+  const userFullAccessKeyPair = utils.KeyPair.fromString(
     unregisteredaiuser.fullAccessKeyPair,
   );
-  const accountId = unregisteredaiuser.accountId;
+  const userAccountId = unregisteredaiuser.accountId;
 
   const keyStore = new keyStores.InMemoryKeyStore();
-  keyStore.setKey(networkId, accountId, fullAccessKeyPair);
+  keyStore.setKey(networkId, userAccountId, userFullAccessKeyPair);
   const connection = await connect({
     networkId,
     nodeUrl: rpc_url,
     keyStore,
   });
-  const account = await connection.account(accountId);
-  const new_account_id = "myweb4site.near";
+  const userAccount = await connection.account(userAccountId);
+  const web4AccountId =
+    "myweb4site" + new Date().toJSON().replace(/[^0-9]/g, "") + ".near";
 
-  const signedDelegate = await account.signedDelegate({
+  const relayerAccount = await connection.account(relayer.accountId);
+  const relayerAccountKeyPair = utils.KeyPair.fromString(
+    relayer.fullAccessKeyPair,
+  );
+  keyStore.setKey(networkId, relayer.accountId, relayerAccountKeyPair);
+
+  // On the client
+  const signedDelegate = await userAccount.signedDelegate({
     receiverId: "web4factory.near",
     blockHeightTtl: 120,
     actions: [
@@ -37,8 +45,8 @@ test("meta transaction", async ({ page }) => {
         params: {
           methodName: "create",
           args: {
-            new_account_id,
-            full_access_key: fullAccessKeyPair.getPublicKey().toString(),
+            new_account_id: web4AccountId,
+            full_access_key: relayerAccountKeyPair.getPublicKey().toString(),
           },
           gas: 300_000_000_000_000n.toString(),
           deposit: 9_000_000_000_000_000_000_000_000n.toString(),
@@ -56,12 +64,19 @@ test("meta transaction", async ({ page }) => {
     transactions.SCHEMA.SignedDelegate,
     new Uint8Array(JSON.parse(serializedSignedDelegate)[0]),
   );
-  const relayerAccount = await connection.account(relayer.accountId);
-  keyStore.setKey(
-    networkId,
-    relayer.accountId,
-    utils.KeyPair.fromString(relayer.fullAccessKeyPair),
+
+  // the server should check that the relayer has the full access key, and that the deposit is correct ( 9 NEAR )
+
+  const actions = deserializedTx.delegateAction.actions;
+  expect(actions.length).toBe(1);
+  const functionCall = actions[0].functionCall;
+  const args = JSON.parse(String.fromCharCode(...functionCall.args));
+
+  expect(args.full_access_key).toBe(
+    relayerAccountKeyPair.getPublicKey().toString(),
   );
+  expect(functionCall.deposit).toBe(9_000_000_000_000_000_000_000_000n);
+
   await relayerAccount.signAndSendTransaction({
     actions: [actionCreators.signedDelegate(deserializedTx)],
     receiverId: deserializedTx.delegateAction.senderId,
@@ -69,8 +84,8 @@ test("meta transaction", async ({ page }) => {
 
   // On the client
   try {
-    await account.viewFunction({
-      contractId: new_account_id,
+    await userAccount.viewFunction({
+      contractId: web4AccountId,
       methodName: "web4_get",
       args: { request: { path: "/" } },
     });
