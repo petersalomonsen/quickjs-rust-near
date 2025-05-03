@@ -1,105 +1,120 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
-
-<head>
-    <meta charset="UTF-8">
+  <head>
+    <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <style>
-        body {
-            max-width: 400px;
-            margin: auto;
-            background-color: black;
-            color: #cc8;
-            font-family: Arial, Helvetica, sans-serif;
-        }
+      body {
+        max-width: 400px;
+        margin: auto;
+        background-color: black;
+        color: #cc8;
+        font-family: Arial, Helvetica, sans-serif;
+      }
 
-        #message {
-            margin-top: 20px;
-        }
+      #message {
+        margin-top: 20px;
+      }
 
-        #loginbutton {
-            display: none;
-        }
+      #loginbutton {
+        display: none;
+      }
 
-        #download_sources_button {
-            display: none;
-        }
+      #download_sources_button {
+        display: none;
+      }
 
-        #authorizingdownloadspan {
-            display: none;
-        }
+      #authorizingdownloadspan {
+        display: none;
+      }
     </style>
-</head>
+  </head>
 
-<body>
+  <body>
     <h1>Owners page</h1>
-    
-    <p>If you own an NFT from this contract you may log in and a new button will appear that lets you download the source code files for the music.
-    These source code files can be pasted into the WebAssembly Music app at <a href="https://petersalomonsen.com">petersalomonsen.com</a></p>
+
+    <p>
+      If you own an NFT from this contract you may log in and a new button will
+      appear that lets you download the source code files for the music. These
+      source code files can be pasted into the WebAssembly Music app at
+      <a href="https://petersalomonsen.com">petersalomonsen.com</a>
+    </p>
 
     <button id="loginbutton">Login</button>
-    
+
     <button id="download_sources_button">Download source code for music</button>
-    
+
     <p id="authorizingdownloadspan">Please wait while authorizing download</p>
-</body>
-<script src="https://cdn.jsdelivr.net/npm/near-api-js@1.1.0/dist/near-api-js.js" integrity="sha256-P4UWOeQu3ArN0DbPCzdyfYBaeKLzKu+7V+BZcmxFigE=" crossorigin="anonymous"></script>
-<script type="module">
-const { connect, keyStores, WalletConnection, Contract } = nearApi;
+  </body>
+  <script
+    src="https://cdn.jsdelivr.net/npm/near-api-js@1.1.0/dist/near-api-js.js"
+    integrity="sha256-P4UWOeQu3ArN0DbPCzdyfYBaeKLzKu+7V+BZcmxFigE="
+    crossorigin="anonymous"
+  ></script>
+  <script type="module">
+    const { connect, keyStores, WalletConnection, Contract } = nearApi;
 
-const contractAccountId = 'webassemblymusic.near';
-const networkId = 'mainnet';
+    const contractAccountId = "webassemblymusic.near";
+    const networkId = "mainnet";
 
-const connectionConfig = {
-    networkId: networkId,
-    keyStore: new keyStores.BrowserLocalStorageKeyStore(),
-    nodeUrl: `https://rpc.${networkId}.near.org`,
-    walletUrl: `https://wallet.${networkId}.near.org`,
-    helperUrl: `https://helper.${networkId}.near.org`,
-    explorerUrl: `https://explorer.${networkId}.near.org`,
-};
+    const connectionConfig = {
+      networkId: networkId,
+      keyStore: new keyStores.BrowserLocalStorageKeyStore(),
+      nodeUrl: `https://rpc.${networkId}.near.org`,
+      walletUrl: `https://wallet.${networkId}.near.org`,
+      helperUrl: `https://helper.${networkId}.near.org`,
+      explorerUrl: `https://explorer.${networkId}.near.org`,
+    };
 
-const nearConnection = await connect(connectionConfig);
-const walletConnection = new WalletConnection(nearConnection);
+    const nearConnection = await connect(connectionConfig);
+    const walletConnection = new WalletConnection(nearConnection);
 
-if (!walletConnection.isSignedIn()) {
-    const loginbutton = document.getElementById('loginbutton');
-    loginbutton.style.display = 'block';
-    loginbutton.addEventListener('click', () => {
-        walletConnection.requestSignIn(
-            {contractId: contractAccountId, methodNames: ['call_js_func']}
-        );
-    });
-} else {
-    const downloadSourcesButton = document.getElementById('download_sources_button');
-    downloadSourcesButton.style.display = 'block';
-    downloadSourcesButton.addEventListener('click', async () => {
-        downloadSourcesButton.style.display = 'none';
-        document.getElementById('authorizingdownloadspan').style.display = 'block';
+    if (!walletConnection.isSignedIn()) {
+      const loginbutton = document.getElementById("loginbutton");
+      loginbutton.style.display = "block";
+      loginbutton.addEventListener("click", () => {
+        walletConnection.requestSignIn({
+          contractId: contractAccountId,
+          methodNames: ["call_js_func"],
+        });
+      });
+    } else {
+      const downloadSourcesButton = document.getElementById(
+        "download_sources_button",
+      );
+      downloadSourcesButton.style.display = "block";
+      downloadSourcesButton.addEventListener("click", async () => {
+        downloadSourcesButton.style.display = "none";
+        document.getElementById("authorizingdownloadspan").style.display =
+          "block";
         const account = walletConnection.account();
         const contract = new Contract(account, contractAccountId, {
-            changeMethods: ['call_js_func']
+          changeMethods: ["call_js_func"],
         });
-        const result = await contract.call_js_func({'function_name': 'store_signing_key'});
+        const result = await contract.call_js_func({
+          function_name: "store_signing_key",
+        });
 
-        const message = 'hello'+new Date().getTime();
+        const message = "hello" + new Date().getTime();
 
         const keyPair = await account.connection.signer.keyStore.getKey(
-            connectionConfig.networkId,
-            account.accountId
+          connectionConfig.networkId,
+          account.accountId,
         );
         const signature = await keyPair.sign(new TextEncoder().encode(message));
-        const signatureBase64 = btoa(String.fromCharCode(...signature.signature));
+        const signatureBase64 = btoa(
+          String.fromCharCode(...signature.signature),
+        );
 
         const requestQuery = `?message=${encodeURIComponent(message)}&account_id=${encodeURIComponent(account.accountId)}&signature=${encodeURIComponent(signatureBase64)}`;
         const downloadUrl = `https://${contractAccountId}.page/webassemblymusicsources.zip${requestQuery}`;
-        const downloadElement = document.createElement('a');
+        const downloadElement = document.createElement("a");
         downloadElement.href = downloadUrl;
-        downloadElement.download = 'webassemblymusicsources.zip';
+        downloadElement.download = "webassemblymusicsources.zip";
         document.documentElement.appendChild(downloadElement);
         downloadElement.click();
-        document.documentElement.removeChild(downloadElement);        
-    });
-}
-</script>
+        document.documentElement.removeChild(downloadElement);
+      });
+    }
+  </script>
 </html>
