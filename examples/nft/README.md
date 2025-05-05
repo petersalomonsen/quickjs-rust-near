@@ -231,3 +231,81 @@ downloadSourcesButton.addEventListener("click", async () => {
 ```
 
 See the full implementation in [ownerspage.html](./web4/ownerspage.html)
+
+## Locked content per NFT: Per-token Wasm download with signature verification
+
+This contract supports locking content so that only the owner of a specific NFT can access files or features tied to that NFT. In this example, the contract exposes a dedicated `get_synth_wasm` function, which allows the owner of a specific NFT to download a Wasm file, in this case a synthesizer instrument for use in an Audio Plugin. The particular audio plugin for this example can be found here: https://github.com/petersalomonsen/javascriptmusic/blob/master/dawplugin/
+
+### How it works
+
+- Each NFT owner can store a signing key on the contract, valid for a limited time (e.g., 24 hours).
+- To download a Wasm instrument, the user must:
+  1. Prove they own the specific NFT (by token ID).
+  2. Provide a signed message using their stored signing key.
+- The contract verifies both the ownership and the signature before returning the Wasm file.
+
+### Example: Per-NFT locked Wasm download
+
+Suppose you want to allow only the owner of a specific NFT (by token ID) to download a Wasm instrument. The contract will:
+
+1. Check that the `account_id` in the request owns the NFT with the given `token_id`.
+2. Verify the provided signature matches the message and the stored signing key for that account.
+3. If both checks pass, the Wasm file is returned. Otherwise, access is denied.
+
+#### Example JavaScript (frontend)
+
+```js
+// Store signing key (must be called by the NFT owner)
+await contract.call_js_func({
+  function_name: "store_signing_key",
+  args: { token_id },
+});
+
+// Prepare message and signature for download
+const message = JSON.stringify({ token_id });
+const keyPair = await account.connection.signer.keyStore.getKey(
+  connectionConfig.networkId,
+  account.accountId,
+);
+const signatureObj = await keyPair.sign(new TextEncoder().encode(message));
+const signature = btoa(String.fromCharCode(...signatureObj.signature));
+
+// Call the contract to get the Wasm file
+const wasmBase64 = await contract.call_js_func({
+  function_name: "get_synth_wasm",
+  message,
+  account_id: account.accountId,
+  signature,
+});
+
+// Decode and use the Wasm file as needed
+```
+
+#### Example contract logic (JavaScript)
+
+```js
+export function get_synth_wasm({ message, account_id, signature }) {
+  // Parse the message to get the token_id
+  const { token_id } = JSON.parse(message);
+
+  // Check ownership
+  if (env.nft_supply_for_owner_token(account_id, token_id) > 0) {
+    // Verify signature
+    const validSignature = env.verify_signed_message(
+      message,
+      signature,
+      account_id,
+    );
+    if (validSignature) {
+      // Return the Wasm file (as base64)
+      return env.get_content_base64(`musicwasms/${token_id}.wasm`);
+    } else {
+      return "invalid signature";
+    }
+  } else {
+    return "not owner";
+  }
+}
+```
+
+This approach ensures that only the owner of a specific NFT can access its associated Wasm instrument, and that access is cryptographically verified for each request. This is especially useful for integrating with external tools (like the audio plugin mentioned above) that need to securely fetch Wasm content per NFT.
