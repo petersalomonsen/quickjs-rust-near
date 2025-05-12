@@ -152,4 +152,39 @@ export const responses = {
       prompt_tokens_details: null,
     },
   },
+  "Which tools do you have?": async ({postdata}) => {
+    const toolNames = (postdata.tools || []).map(
+      (t) => t.function?.name || t.name,
+    );
+    return {
+      id: "tools-list-123",
+      choices: [
+        {
+          finish_reason: "stop",
+          index: 0,
+          logprobs: null,
+          message: {
+            content: `The following tools are available: ${toolNames.join(", ")}.`,
+            refusal: null,
+            role: "assistant",
+            audio: null,
+            function_call: null,
+            tool_calls: null,
+          },
+        },
+      ],
+      created: Date.now() / 1000,
+      model: "accounts/fireworks/models/ai-tools-list",
+      object: "chat.completion",
+      service_tier: null,
+      system_fingerprint: null,
+      usage: {
+        completion_tokens: 10,
+        prompt_tokens: 100,
+        total_tokens: 110,
+        completion_tokens_details: null,
+        prompt_tokens_details: null,
+      },
+    };
+  },
 };

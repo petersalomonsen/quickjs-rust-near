@@ -68,8 +68,12 @@ export async function setupNearAIRoute({ page }) {
   await page.route("https://api.near.ai/v1/chat/completions", async (route) => {
     const postdata = JSON.parse(route.request().postData());
     const message = postdata.messages[postdata.messages.length - 1].content;
+    const response =
+      typeof responses[message] === "function"
+        ? responses[message](postdata)
+        : (responses[message] ?? responses["Hello"]);
     await route.fulfill({
-      json: responses[message] ?? responses["Hello"],
+      json: response,
     });
   });
 }
