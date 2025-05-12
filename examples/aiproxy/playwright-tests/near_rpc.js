@@ -40,6 +40,17 @@ await aiTokenAccount.call(aiTokenAccount.accountId, "new_default_meta", {
   total_supply: 1_000_000_000_000n.toString(),
 });
 
+const nftContract = await worker.rootAccount.importContract({
+  mainnetContract: "webassemblymusic.near",
+  withData: false,
+  blockId: 80283551,
+  initialBalance: 100_000_000_000_000_000_000_000_000n.toString(),
+});
+await nftContract.call(nftContract.accountId, "new", {});
+await nftContract.call(nftContract.accountId, "post_javascript", {
+  javascript: (await readFile("../nft/src/contract.js")).toString(),
+});
+
 const publicKeyBytes = KeyPair.fromString(
   "ed25519:" + process.env.SPIN_VARIABLE_REFUND_SIGNING_KEY,
 ).getPublicKey().data;

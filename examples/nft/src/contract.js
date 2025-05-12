@@ -1,6 +1,22 @@
 const icon_svg_base64 =
   "PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA5IDkiPgogICAgPHJlY3QgeT0iMCIgd2lkdGg9IjkiIGhlaWdodD0iMyIgZmlsbD0iIzBiZiIvPgogICAgPHJlY3QgeT0iMyIgd2lkdGg9IjYiIGhlaWdodD0iMyIgZmlsbD0iI2Y4MiIvPgogICAgPHJlY3QgeD0iNiIgeT0iMyIgd2lkdGg9IjMiIGhlaWdodD0iMyIgZmlsbD0iIzMzMyIgLz4KICAgIDxyZWN0IHk9IjYiIHdpZHRoPSIzIiBoZWlnaHQ9IjMiIGZpbGw9IiMyYWEiLz4KICAgIDxyZWN0IHg9IjMiIHk9IjYiIHdpZHRoPSI2IiBoZWlnaHQ9IjMiIGZpbGw9IiM2NjYiIC8+Cjwvc3ZnPg==";
 
+export function get_ai_tool_definitions() {
+  env.value_return(
+    JSON.stringify([
+      {
+        name: "test_tool",
+        description: "A test tool",
+        parameters: {
+          type: "object",
+          properties: { foo: { type: "string" } },
+          required: ["foo"],
+        },
+      },
+    ]),
+  );
+}
+
 export function get_synth_wasm() {
   const { message, signature, account_id } = JSON.parse(env.input());
   const { token_id } = JSON.parse(message);

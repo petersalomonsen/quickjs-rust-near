@@ -152,7 +152,7 @@ export const responses = {
       prompt_tokens_details: null,
     },
   },
-  "Which tools do you have?": async ({postdata}) => {
+  "Which tools do you have?": async ({ postdata }) => {
     const toolNames = (postdata.tools || []).map(
       (t) => t.function?.name || t.name,
     );
@@ -186,5 +186,45 @@ export const responses = {
         prompt_tokens_details: null,
       },
     };
+  },
+  "Which tools are available for the contract webassemblymusic.near?": {
+    id: "ec762fa5-d7ff-458e-a17e-2cf8b79a2ccb",
+    choices: [
+      {
+        finish_reason: "tool_calls",
+        index: 0,
+        logprobs: null,
+        message: {
+          content: null,
+          refusal: null,
+          role: "assistant",
+          audio: null,
+          function_call: null,
+          tool_calls: [
+            {
+              id: "call_HazLRPmkNi0dzHrAmscxD5Yq",
+              function: {
+                arguments: '{"contract_id": "webassemblymusic.near"}',
+                name: "inspect_contract_tools",
+              },
+              type: "function",
+              index: 0,
+            },
+          ],
+        },
+      },
+    ],
+    created: 1740858973,
+    model: "accounts/fireworks/models/llama-v3p1-70b-instruct",
+    object: "chat.completion",
+    service_tier: null,
+    system_fingerprint: null,
+    usage: {
+      completion_tokens: 17,
+      prompt_tokens: 833,
+      total_tokens: 850,
+      completion_tokens_details: null,
+      prompt_tokens_details: null,
+    },
   },
 };
