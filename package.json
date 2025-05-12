@@ -35,7 +35,7 @@
     "http-server": "^14.1.1",
     "ipfs-car": "^2.0.0",
     "jspm": "^3.3.4",
-    "near-workspaces": "4.0.0",
+    "near-workspaces": "5.0.0",
     "prettier": "^3.5.1",
     "rollup": "^4.31.0",
     "rollup-plugin-terser": "^7.0.2"
