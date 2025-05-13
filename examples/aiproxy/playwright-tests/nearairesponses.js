@@ -227,4 +227,42 @@ export const responses = {
       prompt_tokens_details: null,
     },
   },
+  "I want to mint an NFT": {
+    id: "nft-mint-call-123",
+    choices: [
+      {
+        finish_reason: "tool_calls",
+        index: 0,
+        logprobs: null,
+        message: {
+          content: "I'll help you mint a new NFT using the available tools.",
+          refusal: null,
+          role: "assistant",
+          audio: null,
+          function_call: null,
+          tool_calls: [
+            {
+              id: "call_NFTMintOperation123",
+              function: {
+                arguments: '{"foo": "Sample NFT Title"}',
+                name: "test_tool",
+              },
+              type: "function",
+              index: 0,
+            },
+          ],
+        },
+      },
+    ],
+    created: Date.now() / 1000,
+    model: "accounts/fireworks/models/llama-v3p1-70b-instruct",
+    object: "chat.completion",
+    service_tier: null,
+    system_fingerprint: null,
+    usage: {
+      completion_tokens: 25,
+      prompt_tokens: 840,
+      total_tokens: 865,
+    },
+  },
 };
