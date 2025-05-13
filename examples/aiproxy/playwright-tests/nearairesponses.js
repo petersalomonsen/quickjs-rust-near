@@ -227,6 +227,82 @@ export const responses = {
       prompt_tokens_details: null,
     },
   },
+  "Please select webassemblymusic.near as the contract for tools": {
+    id: "select-contract-call-123",
+    choices: [
+      {
+        finish_reason: "tool_calls",
+        index: 0,
+        logprobs: null,
+        message: {
+          content: "I'll set the webassemblymusic.near contract for tools.",
+          refusal: null,
+          role: "assistant",
+          audio: null,
+          function_call: null,
+          tool_calls: [
+            {
+              id: "call_SelectContractOperation456",
+              function: {
+                arguments: '{"contract_id": "webassemblymusic.near"}',
+                name: "select_contract_for_tools",
+              },
+              type: "function",
+              index: 0,
+            },
+          ],
+        },
+      },
+    ],
+    created: Date.now() / 1000,
+    model: "accounts/fireworks/models/llama-v3p1-70b-instruct",
+    object: "chat.completion",
+    service_tier: null,
+    system_fingerprint: null,
+    usage: {
+      completion_tokens: 20,
+      prompt_tokens: 830,
+      total_tokens: 850,
+    },
+  },
+  "Please select webassemblymusic.near as the contract for tools": {
+    id: "contract-selection-123",
+    choices: [
+      {
+        finish_reason: "tool_calls",
+        index: 0,
+        logprobs: null,
+        message: {
+          content: "I'll set the webassemblymusic.near contract for tools.",
+          refusal: null,
+          role: "assistant",
+          audio: null,
+          function_call: null,
+          tool_calls: [
+            {
+              id: "call_SelectContractOperation123",
+              function: {
+                arguments: '{"contract_id": "webassemblymusic.near"}',
+                name: "select_contract_for_tools",
+              },
+              type: "function",
+              index: 0,
+            },
+          ],
+        },
+      },
+    ],
+    created: Date.now() / 1000,
+    model: "accounts/fireworks/models/llama-v3p1-70b-instruct",
+    object: "chat.completion",
+    service_tier: null,
+    system_fingerprint: null,
+    usage: {
+      completion_tokens: 25,
+      prompt_tokens: 840,
+      total_tokens: 865,
+    },
+  },
   "I want to mint an NFT": {
     id: "nft-mint-call-123",
     choices: [
@@ -263,6 +339,44 @@ export const responses = {
       completion_tokens: 25,
       prompt_tokens: 840,
       total_tokens: 865,
+    },
+  },
+  "Please select webassemblymusic.near as the contract for tools": {
+    id: "contract-select-call-456",
+    choices: [
+      {
+        finish_reason: "tool_calls",
+        index: 0,
+        logprobs: null,
+        message: {
+          content: "I'll set the webassemblymusic.near contract for tools.",
+          refusal: null,
+          role: "assistant",
+          audio: null,
+          function_call: null,
+          tool_calls: [
+            {
+              id: "call_SelectContract456",
+              function: {
+                arguments: '{"contract_id": "webassemblymusic.near"}',
+                name: "select_contract_for_tools",
+              },
+              type: "function",
+              index: 0,
+            },
+          ],
+        },
+      },
+    ],
+    created: Date.now() / 1000,
+    model: "accounts/fireworks/models/llama-v3p1-70b-instruct",
+    object: "chat.completion",
+    service_tier: null,
+    system_fingerprint: null,
+    usage: {
+      completion_tokens: 20,
+      prompt_tokens: 830,
+      total_tokens: 850,
     },
   },
 };

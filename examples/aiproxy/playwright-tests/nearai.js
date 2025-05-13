@@ -103,12 +103,45 @@ function handleToolCallResult(postdata, lastMessage) {
   const toolCallName = findToolCallName(postdata.messages, toolCallId);
   
   if (!toolCallName) {
+    console.log("Tool call ID not found:", toolCallId);
     return responses["Hello"]; // Default response if we can't find the tool call
   }
+  
+  console.log(`Processing tool call result for ${toolCallName}`);
   
   // Check if we have a specific handler for this tool
   if (toolCallResponses[toolCallName]) {
     return toolCallResponses[toolCallName](postdata, lastMessage);
+  }
+  
+  // Special case for test_tool NFT minting which might not have a specific handler
+  if (toolCallName === "test_tool") {
+    return {
+      id: `test-tool-${Date.now()}`,
+      choices: [
+        {
+          finish_reason: "stop",
+          index: 0,
+          logprobs: null,
+          message: {
+            content: `The NFT minting process completed successfully. Your new NFT titled "Sample NFT Title" has been created. You can view it in your collection now.`,
+            refusal: null,
+            role: "assistant",
+            audio: null,
+            function_call: null,
+            tool_calls: null,
+          },
+        },
+      ],
+      created: Date.now() / 1000,
+      model: "accounts/fireworks/models/nft-mint",
+      object: "chat.completion",
+      usage: {
+        completion_tokens: 35,
+        prompt_tokens: 90,
+        total_tokens: 125,
+      },
+    };
   }
   
   // Generic acknowledgment response

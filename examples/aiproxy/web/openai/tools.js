@@ -91,6 +91,35 @@ export const getToolContract = () => {
   );
 };
 
+/**
+ * Call a tool function on a contract
+ * @param {string} contractId - The contract ID to call
+ * @param {string} toolName - The name of the tool to call
+ * @param {object} args - The arguments to pass to the tool
+ * @returns {Promise<any>} - The result of the tool call
+ */
+export const callContractTool = async (contractId, toolName, args) => {
+  if (!connectedAccount) {
+    throw new Error("No connected account");
+  }
+  
+  try {
+    // Call the contract with the tool name and arguments
+    // This is a generic approach that will route the tool call to the contract's JavaScript
+    return await connectedAccount.viewFunction({
+      contractId,
+      methodName: "call_js_func",
+      args: {
+        function_name: toolName,
+        args: args,
+      },
+    });
+  } catch (e) {
+    console.error(`Error calling contract tool ${toolName}:`, e);
+    throw new Error(`Failed to call contract tool ${toolName}: ${e.message}`);
+  }
+};
+
 // Tool implementation
 export const toolImplementations = {
   run_javascript: async function ({ script }) {
