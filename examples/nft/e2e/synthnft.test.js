@@ -57,7 +57,7 @@ describe("NFT contract", () => {
       userAccountKeyPair,
     );
   });
-  test("should run custom javascript in contract", async () => {
+  test("should run custom javascript in contract for getting synth wasm", async () => {
     const nearConnection = await connect(connectionConfig);
     const accountId = contract.accountId;
 

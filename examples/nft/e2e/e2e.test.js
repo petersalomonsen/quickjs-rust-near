@@ -1,7 +1,7 @@
 import { connect, keyStores } from "near-api-js";
-import { homedir } from "os";
+
 import { readFile } from "fs/promises";
-import { KeyPair, Worker } from "near-workspaces";
+import { Worker } from "near-workspaces";
 import { before, after, test, describe } from "node:test";
 import { expect } from "chai";
 import { createQuickJS } from "../../../quickjslib/js/quickjs.js";
