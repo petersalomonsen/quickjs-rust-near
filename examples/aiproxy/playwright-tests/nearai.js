@@ -114,17 +114,17 @@ function handleToolCallResult(postdata, lastMessage) {
     return toolCallResponses[toolCallName](postdata, lastMessage);
   }
   
-  // Special case for test_tool NFT minting which might not have a specific handler
-  if (toolCallName === "test_tool") {
+  // Handle get_synth_wasm tool call
+  if (toolCallName === "get_synth_wasm") {
     return {
-      id: `test-tool-${Date.now()}`,
+      id: `get-synth-wasm-${Date.now()}`,
       choices: [
         {
           finish_reason: "stop",
           index: 0,
           logprobs: null,
           message: {
-            content: `The NFT minting process completed successfully. Your new NFT titled "Sample NFT Title" has been created. You can view it in your collection now.`,
+            content: `The WebAssembly synthesizer for your NFT has been retrieved successfully. Here's a base64-encoded snippet of the WASM code:\n\nAGFzbQEAAAAAoAIUYAF/AGAAAGAAAX9gAX8Bf2ABfwF9YAJ/fwBgA39/fwBgAn9/AX...\n\nYou can use this WebAssembly code in your music application for token #123.`,
             refusal: null,
             role: "assistant",
             audio: null,
@@ -134,7 +134,7 @@ function handleToolCallResult(postdata, lastMessage) {
         },
       ],
       created: Date.now() / 1000,
-      model: "accounts/fireworks/models/nft-mint",
+      model: "accounts/fireworks/models/synth-wasm-retrieval",
       object: "chat.completion",
       usage: {
         completion_tokens: 35,
@@ -197,14 +197,41 @@ function findToolCallName(messages, toolCallId) {
 // Map of tool call names to their respective response handlers
 const toolCallResponses = {
   inspect_contract_tools: (postdata, lastMessage) => {
-    // Parse the result from the tool call
-    const toolResult = lastMessage.content;
-    let toolDefinitions = [];
-    try {
-      toolDefinitions = JSON.parse(toolResult);
-    } catch (e) {
-      // Handle parse error
-    }
+    // In a real environment, this would be the result of calling the contract
+    // For testing purposes, simulate that lastMessage.content contains the result from the contract call
+    // which would be a JSON string with the tool definitions
+    
+    // This is what we simulate the contract returned
+    const contractResponse = JSON.stringify([
+      {
+        name: "get_synth_wasm",
+        description: "Retrieves WebAssembly music synthesizer code for an NFT. Requires authentication via a signed message.",
+        parameters: {
+          type: "object",
+          properties: { 
+            message: { 
+              type: "string", 
+              description: "JSON string containing token_id that needs to be verified" 
+            },
+            signature: { 
+              type: "string", 
+              description: "Signature of the message" 
+            },
+            account_id: { 
+              type: "string", 
+              description: "Account ID of the message signer, must be the token owner"  
+            }
+          },
+          required: ["message", "signature", "account_id"],
+        }
+      }
+    ]);
+    
+    // Set this as the content that would have been returned from the tool call
+    lastMessage.content = contractResponse;
+    
+    // Parse the "result" from the simulated contract call
+    const toolDefinitions = JSON.parse(lastMessage.content);
     
     // Create a summary of the available tools
     const toolSummary = toolDefinitions.length > 0

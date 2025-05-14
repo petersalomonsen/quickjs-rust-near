@@ -19,11 +19,14 @@ test("dynamic tool definitions are included in chat completion request", async (
   await page.waitForTimeout(1000);
   await page.getByRole("button", { name: "Ask NEAR AI" }).click();
 
-  // Wait for the dynamic tools response
+  // Wait for the call to inspect tools
   await expect(
-    await page.getByText(
-      '[{"name":"test_tool","description":"A test tool","parameters":{"type":"object","properties":{"foo":{"type":"string"}},"required":["foo"]}}]',
-    ),
+    page.getByText("I'll check what tools are available for the webassemblymusic.near contract.")
+  ).toBeVisible();
+  
+  // Wait for the result of tool inspection
+  await expect(
+    page.getByText(/The contract provides 1 tools: get_synth_wasm/)
   ).toBeVisible();
   
   // Now select the contract for tools
@@ -41,23 +44,18 @@ test("dynamic tool definitions are included in chat completion request", async (
   // Wait for the tool call result to be processed
   await page.waitForTimeout(1000);
   
-  // Now test using one of the tools
+  // Now test using the get_synth_wasm tool
   await page.waitForTimeout(1000);
-  questionArea.fill("I want to mint an NFT");
+  questionArea.fill("I need the WebAssembly synthesizer for my NFT");
   await page.getByRole("button", { name: "Ask NEAR AI" }).click();
   
   // Verify tool was called
   await expect(
-    await page.getByText("I'll help you mint a new NFT using the available tools.")
+    await page.getByText("I'll help you retrieve the WebAssembly synthesizer for your NFT")
   ).toBeVisible();
   
   // After tool call is completed, test the response handling
   await expect(
-    await page.getByText(/The NFT minting process completed successfully/)
-  ).toBeVisible();
-  
-  // Check that the NFT title is mentioned in the response
-  await expect(
-    await page.getByText(/Your new NFT titled "Sample NFT Title"/)
+    await page.getByText(/The WebAssembly synthesizer for your NFT has been retrieved/)
   ).toBeVisible();
 });

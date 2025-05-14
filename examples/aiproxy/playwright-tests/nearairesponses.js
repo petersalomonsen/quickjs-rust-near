@@ -195,7 +195,7 @@ export const responses = {
         index: 0,
         logprobs: null,
         message: {
-          content: null,
+          content: "I'll check what tools are available for the webassemblymusic.near contract.",
           refusal: null,
           role: "assistant",
           audio: null,
@@ -303,25 +303,25 @@ export const responses = {
       total_tokens: 865,
     },
   },
-  "I want to mint an NFT": {
-    id: "nft-mint-call-123",
+  "I need the WebAssembly synthesizer for my NFT": {
+    id: "get-synth-wasm-call-123",
     choices: [
       {
         finish_reason: "tool_calls",
         index: 0,
         logprobs: null,
         message: {
-          content: "I'll help you mint a new NFT using the available tools.",
+          content: "I'll help you retrieve the WebAssembly synthesizer for your NFT. I'll need the token ID, your signature, and your account ID.",
           refusal: null,
           role: "assistant",
           audio: null,
           function_call: null,
           tool_calls: [
             {
-              id: "call_NFTMintOperation123",
+              id: "call_getSynthWasmOperation123",
               function: {
-                arguments: '{"foo": "Sample NFT Title"}',
-                name: "test_tool",
+                arguments: '{"message": "{\\"token_id\\":\\"123\\"}", "signature": "validSignatureHash123", "account_id": "alice.near"}',
+                name: "get_synth_wasm",
               },
               type: "function",
               index: 0,

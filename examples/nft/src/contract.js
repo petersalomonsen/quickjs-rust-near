@@ -5,12 +5,25 @@ export function get_ai_tool_definitions() {
   env.value_return(
     JSON.stringify([
       {
-        name: "test_tool",
-        description: "A test tool",
+        name: "get_synth_wasm",
+        description: "Retrieves WebAssembly music synthesizer code for an NFT. Requires authentication via a signed message.",
         parameters: {
           type: "object",
-          properties: { foo: { type: "string" } },
-          required: ["foo"],
+          properties: { 
+            message: { 
+              type: "string", 
+              description: "JSON string containing token_id that needs to be verified" 
+            },
+            signature: { 
+              type: "string", 
+              description: "Signature of the message" 
+            },
+            account_id: { 
+              type: "string", 
+              description: "Account ID of the message signer, must be the token owner"  
+            }
+          },
+          required: ["message", "signature", "account_id"],
         },
       },
     ]),
