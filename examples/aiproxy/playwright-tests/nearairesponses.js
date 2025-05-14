@@ -195,7 +195,8 @@ export const responses = {
         index: 0,
         logprobs: null,
         message: {
-          content: "I'll check what tools are available for the webassemblymusic.near contract.",
+          content:
+            "I'll check what tools are available for the webassemblymusic.near contract.",
           refusal: null,
           role: "assistant",
           audio: null,
@@ -311,7 +312,8 @@ export const responses = {
         index: 0,
         logprobs: null,
         message: {
-          content: "I'll help you retrieve the WebAssembly synthesizer for your NFT. I'll need the token ID, your signature, and your account ID.",
+          content:
+            "I'll help you retrieve the WebAssembly synthesizer for your NFT. I'll need the token ID, your signature, and your account ID.",
           refusal: null,
           role: "assistant",
           audio: null,
@@ -320,7 +322,8 @@ export const responses = {
             {
               id: "call_getSynthWasmOperation123",
               function: {
-                arguments: '{"message": "{\\"token_id\\":\\"123\\"}", "signature": "validSignatureHash123", "account_id": "alice.near"}',
+                arguments:
+                  '{"message": "{\\"token_id\\":\\"123\\"}", "signature": "validSignatureHash123", "account_id": "alice.near"}',
                 name: "get_synth_wasm",
               },
               type: "function",
@@ -360,6 +363,44 @@ export const responses = {
               function: {
                 arguments: '{"contract_id": "webassemblymusic.near"}',
                 name: "select_contract_for_tools",
+              },
+              type: "function",
+              index: 0,
+            },
+          ],
+        },
+      },
+    ],
+    created: Date.now() / 1000,
+    model: "accounts/fireworks/models/llama-v3p1-70b-instruct",
+    object: "chat.completion",
+    service_tier: null,
+    system_fingerprint: null,
+    usage: {
+      completion_tokens: 20,
+      prompt_tokens: 830,
+      total_tokens: 850,
+    },
+  },
+  "Please store my signing key for NFT access": {
+    id: "store-signing-key-tool-call-123",
+    choices: [
+      {
+        finish_reason: "tool_calls",
+        index: 0,
+        logprobs: null,
+        message: {
+          content: "I'll store your signing key for NFT access.",
+          refusal: null,
+          role: "assistant",
+          audio: null,
+          function_call: null,
+          tool_calls: [
+            {
+              id: "call_StoreSigningKeyOperation123",
+              function: {
+                arguments: "{}",
+                name: "store_signing_key",
               },
               type: "function",
               index: 0,

@@ -167,23 +167,27 @@ export async function handleToolCalls({
       if (toolImplementations[toolCall.function.name]) {
         // Call local tool implementation
         toolResult = await toolImplementations[toolCall.function.name](
-          JSON.parse(toolCall.function.arguments)
+          JSON.parse(toolCall.function.arguments),
         );
       } else {
         // This might be a contract-provided tool
         // Import dynamically to avoid circular dependencies
-        const { getToolContract, callContractTool } = await import('./tools.js');
-        
+        const { getToolContract, callContractTool } = await import(
+          "./tools.js"
+        );
+
         const contractId = getToolContract();
         if (!contractId) {
-          throw new Error("No tool contract selected. Use select_contract_for_tools first.");
+          throw new Error(
+            "No tool contract selected. Use select_contract_for_tools first.",
+          );
         }
-        
+
         // Call the contract method with the tool name and arguments
         toolResult = await callContractTool(
           contractId,
           toolCall.function.name,
-          JSON.parse(toolCall.function.arguments)
+          JSON.parse(toolCall.function.arguments),
         );
       }
     } catch (error) {
@@ -194,7 +198,7 @@ export async function handleToolCalls({
         onError(errorMessage);
       }
     }
-    
+
     assistantResponse += `*Function call result is*
 \`\`\`
 ${toolResult}

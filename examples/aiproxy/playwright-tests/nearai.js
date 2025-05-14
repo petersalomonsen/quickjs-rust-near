@@ -69,7 +69,7 @@ export async function setupNearAIRoute({ page }) {
   await page.route("https://api.near.ai/v1/chat/completions", async (route) => {
     const postdata = JSON.parse(route.request().postData());
     const lastMessage = postdata.messages[postdata.messages.length - 1];
-    
+
     // Check if this is a tool call result
     if (lastMessage.tool_call_id) {
       const response = handleToolCallResult(postdata, lastMessage);
@@ -78,7 +78,7 @@ export async function setupNearAIRoute({ page }) {
       });
       return;
     }
-    
+
     // Regular message handling
     const message = lastMessage.content;
     const response =
@@ -101,25 +101,25 @@ function handleToolCallResult(postdata, lastMessage) {
   // Find the tool call that this is a response to
   const toolCallId = lastMessage.tool_call_id;
   const toolCallName = findToolCallName(postdata.messages, toolCallId);
-  
+
   if (!toolCallName) {
     console.log("Tool call ID not found:", toolCallId);
     return responses["Hello"]; // Default response if we can't find the tool call
   }
-  
+
   console.log(`Processing tool call result for ${toolCallName}`);
-  
+
   // Check if we have a specific handler for this tool
   if (toolCallResponses[toolCallName]) {
     return toolCallResponses[toolCallName](postdata, lastMessage);
   }
-  
+
   // Handle get_synth_wasm tool call
   if (toolCallName === "get_synth_wasm") {
     // In a real environment, lastMessage.content would contain the actual WebAssembly code
     // returned from the contract. For our test, we'll simulate the response.
     const wasmCodeResponse = lastMessage.content;
-    
+
     return {
       id: `get-synth-wasm-${Date.now()}`,
       choices: [
@@ -147,7 +147,7 @@ function handleToolCallResult(postdata, lastMessage) {
       },
     };
   }
-  
+
   // Generic acknowledgment response
   return {
     id: `tool-result-${Date.now()}`,
@@ -201,47 +201,15 @@ function findToolCallName(messages, toolCallId) {
 // Map of tool call names to their respective response handlers
 const toolCallResponses = {
   inspect_contract_tools: (postdata, lastMessage) => {
-    // In a real environment, this would be the result of calling the contract
-    // For testing purposes, simulate that lastMessage.content contains the result from the contract call
-    // which would be a JSON string with the tool definitions
-    
-    // This is what we simulate the contract returned
-    const contractResponse = JSON.stringify([
-      {
-        name: "get_synth_wasm",
-        description: "Retrieves WebAssembly music synthesizer code for an NFT. Requires authentication via a signed message.",
-        parameters: {
-          type: "object",
-          properties: { 
-            message: { 
-              type: "string", 
-              description: "JSON string containing token_id that needs to be verified" 
-            },
-            signature: { 
-              type: "string", 
-              description: "Signature of the message" 
-            },
-            account_id: { 
-              type: "string", 
-              description: "Account ID of the message signer, must be the token owner"  
-            }
-          },
-          required: ["message", "signature", "account_id"],
-        }
-      }
-    ]);
-    
-    // Set this as the content that would have been returned from the tool call
-    lastMessage.content = contractResponse;
-    
     // Parse the "result" from the simulated contract call
     const toolDefinitions = JSON.parse(lastMessage.content);
-    
+
     // Create a summary of the available tools
-    const toolSummary = toolDefinitions.length > 0
-      ? `The contract provides ${toolDefinitions.length} tools: ${toolDefinitions.map(t => t.name).join(", ")}`
-      : "No tools were found for this contract.";
-    
+    const toolSummary =
+      toolDefinitions.length > 0
+        ? `The contract provides ${toolDefinitions.length} tools: ${toolDefinitions.map((t) => t.name).join(", ")}`
+        : "No tools were found for this contract.";
+
     return {
       id: `inspect-tools-${Date.now()}`,
       choices: [
@@ -269,7 +237,7 @@ const toolCallResponses = {
       },
     };
   },
-  
+
   select_contract_for_tools: (postdata, lastMessage) => {
     const content = lastMessage.content;
     return {
@@ -298,5 +266,34 @@ const toolCallResponses = {
         total_tokens: 110,
       },
     };
-  }
+  },
+
+  store_signing_key: (postdata, lastMessage) => {
+    return {
+      id: `store-signing-key-${Date.now()}`,
+      choices: [
+        {
+          finish_reason: "stop",
+          index: 0,
+          logprobs: null,
+          message: {
+            content: `Your signing key has been stored successfully. You can now use the get_synth_wasm tool to retrieve WebAssembly code for your NFTs.`,
+            refusal: null,
+            role: "assistant",
+            audio: null,
+            function_call: null,
+            tool_calls: null,
+          },
+        },
+      ],
+      created: Date.now() / 1000,
+      model: "accounts/fireworks/models/qwen2p5-72b-instruct",
+      object: "chat.completion",
+      usage: {
+        completion_tokens: 25,
+        prompt_tokens: 60,
+        total_tokens: 85,
+      },
+    };
+  },
 };

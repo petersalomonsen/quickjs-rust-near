@@ -5,26 +5,41 @@ export function get_ai_tool_definitions() {
   env.value_return(
     JSON.stringify([
       {
-        name: "get_synth_wasm",
-        description: "Retrieves WebAssembly music synthesizer code for an NFT. Requires authentication via a signed message.",
+        name: "store_signing_key",
+        description:
+          "Stores the signing key for the authenticated user. Must be called before using get_synth_wasm.",
         parameters: {
           type: "object",
-          properties: { 
-            message: { 
-              type: "string", 
-              description: "JSON string containing token_id that needs to be verified" 
+          properties: {},
+          required: [],
+        },
+        requires_transaction: true,
+      },
+      {
+        name: "get_synth_wasm",
+        description:
+          "Retrieves WebAssembly music synthesizer code for an NFT. Requires authentication via a signed message.",
+        parameters: {
+          type: "object",
+          properties: {
+            message: {
+              type: "string",
+              description:
+                "JSON string containing token_id that needs to be verified",
             },
-            signature: { 
-              type: "string", 
-              description: "Signature of the message" 
+            signature: {
+              type: "string",
+              description: "Signature of the message",
             },
-            account_id: { 
-              type: "string", 
-              description: "Account ID of the message signer, must be the token owner"  
-            }
+            account_id: {
+              type: "string",
+              description:
+                "Account ID of the message signer, must be the token owner",
+            },
           },
           required: ["message", "signature", "account_id"],
         },
+        requires_transaction: false,
       },
     ]),
   );

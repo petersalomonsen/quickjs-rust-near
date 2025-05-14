@@ -102,21 +102,54 @@ export const callContractTool = async (contractId, toolName, args) => {
   if (!connectedAccount) {
     throw new Error("No connected account");
   }
-  
+
+  // Find the tool definition (from dynamicToolDefinitions)
+  const toolDef = (dynamicToolDefinitions || []).find(
+    (t) => t.name === toolName,
+  );
+  const requiresTx = toolDef && toolDef.requires_transaction;
+
   try {
-    // Call the contract with the tool name and arguments
-    // This is a generic approach that will route the tool call to the contract's JavaScript
-    return await connectedAccount.viewFunction({
-      contractId,
-      methodName: "call_js_func",
-      args: {
-        function_name: toolName,
-        args: args,
-      },
-    });
+    if (requiresTx) {
+      // Use walletSelector to sign and send the transaction
+      const selectedWallet = await walletSelector.wallet();
+      return await selectedWallet.signAndSendTransaction({
+        receiverId: contractId,
+        actions: [
+          {
+            type: "FunctionCall",
+            params: {
+              methodName: "call_js_func",
+              args: {
+                function_name: toolName,
+                ...(args ? { args } : {}),
+              },
+              gas: "30000000000000",
+              deposit: "0",
+            },
+          },
+        ],
+      });
+    } else {
+      // Use viewFunction for read-only tools
+      return await connectedAccount.viewFunction({
+        contractId,
+        methodName: "call_js_func",
+        args: {
+          function_name: toolName,
+          ...(args ? { args } : {}),
+        },
+      });
+    }
   } catch (e) {
     console.error(`Error calling contract tool ${toolName}:`, e);
-    throw new Error(`Failed to call contract tool ${toolName}: ${e.message}`);
+    if (e.message && e.message.includes("SyntaxError: unexpected token")) {
+      throw new Error(
+        `Failed to call contract tool ${toolName}: The arguments could not be properly parsed by the contract. Please make sure the arguments format is correct.`,
+      );
+    } else {
+      throw new Error(`Failed to call contract tool ${toolName}: ${e.message}`);
+    }
   }
 };
 
