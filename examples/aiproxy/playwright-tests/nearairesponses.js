@@ -203,9 +203,10 @@ export const responses = {
           function_call: null,
           tool_calls: [
             {
-              id: "call_HazLRPmkNi0dzHrAmscxD5Yq",
+              id: "call_inspect_tools_123",
               function: {
-                arguments: '{"contract_id": "webassemblymusic.near"}',
+                arguments:
+                  '{"contract_id": "webassemblymusic.near"}',
                 name: "inspect_contract_tools",
               },
               type: "function",
@@ -229,83 +230,7 @@ export const responses = {
     },
   },
   "Please select webassemblymusic.near as the contract for tools": {
-    id: "select-contract-call-123",
-    choices: [
-      {
-        finish_reason: "tool_calls",
-        index: 0,
-        logprobs: null,
-        message: {
-          content: "I'll set the webassemblymusic.near contract for tools.",
-          refusal: null,
-          role: "assistant",
-          audio: null,
-          function_call: null,
-          tool_calls: [
-            {
-              id: "call_SelectContractOperation456",
-              function: {
-                arguments: '{"contract_id": "webassemblymusic.near"}',
-                name: "select_contract_for_tools",
-              },
-              type: "function",
-              index: 0,
-            },
-          ],
-        },
-      },
-    ],
-    created: Date.now() / 1000,
-    model: "accounts/fireworks/models/llama-v3p1-70b-instruct",
-    object: "chat.completion",
-    service_tier: null,
-    system_fingerprint: null,
-    usage: {
-      completion_tokens: 20,
-      prompt_tokens: 830,
-      total_tokens: 850,
-    },
-  },
-  "Please select webassemblymusic.near as the contract for tools": {
-    id: "contract-selection-123",
-    choices: [
-      {
-        finish_reason: "tool_calls",
-        index: 0,
-        logprobs: null,
-        message: {
-          content: "I'll set the webassemblymusic.near contract for tools.",
-          refusal: null,
-          role: "assistant",
-          audio: null,
-          function_call: null,
-          tool_calls: [
-            {
-              id: "call_SelectContractOperation123",
-              function: {
-                arguments: '{"contract_id": "webassemblymusic.near"}',
-                name: "select_contract_for_tools",
-              },
-              type: "function",
-              index: 0,
-            },
-          ],
-        },
-      },
-    ],
-    created: Date.now() / 1000,
-    model: "accounts/fireworks/models/llama-v3p1-70b-instruct",
-    object: "chat.completion",
-    service_tier: null,
-    system_fingerprint: null,
-    usage: {
-      completion_tokens: 25,
-      prompt_tokens: 840,
-      total_tokens: 865,
-    },
-  },
-  "I need the WebAssembly synthesizer for my NFT": {
-    id: "get-synth-wasm-call-123",
+    id: "sel-contract-tools-123",
     choices: [
       {
         finish_reason: "tool_calls",
@@ -313,55 +238,15 @@ export const responses = {
         logprobs: null,
         message: {
           content:
-            "I'll help you retrieve the WebAssembly synthesizer for your NFT. I'll need the token ID, your signature, and your account ID.",
+            "I'll set the webassemblymusic.near contract for tools.",
           refusal: null,
           role: "assistant",
-          audio: null,
-          function_call: null,
           tool_calls: [
             {
-              id: "call_getSynthWasmOperation123",
+              id: "call_select_contract_456",
               function: {
                 arguments:
-                  '{"message": "{\\"token_id\\":\\"123\\"}", "signature": "validSignatureHash123", "account_id": "alice.near"}',
-                name: "get_synth_wasm",
-              },
-              type: "function",
-              index: 0,
-            },
-          ],
-        },
-      },
-    ],
-    created: Date.now() / 1000,
-    model: "accounts/fireworks/models/llama-v3p1-70b-instruct",
-    object: "chat.completion",
-    service_tier: null,
-    system_fingerprint: null,
-    usage: {
-      completion_tokens: 25,
-      prompt_tokens: 840,
-      total_tokens: 865,
-    },
-  },
-  "Please select webassemblymusic.near as the contract for tools": {
-    id: "contract-select-call-456",
-    choices: [
-      {
-        finish_reason: "tool_calls",
-        index: 0,
-        logprobs: null,
-        message: {
-          content: "I'll set the webassemblymusic.near contract for tools.",
-          refusal: null,
-          role: "assistant",
-          audio: null,
-          function_call: null,
-          tool_calls: [
-            {
-              id: "call_SelectContract456",
-              function: {
-                arguments: '{"contract_id": "webassemblymusic.near"}',
+                  '{"contract_id": "webassemblymusic.near"}',
                 name: "select_contract_for_tools",
               },
               type: "function",
@@ -371,7 +256,7 @@ export const responses = {
         },
       },
     ],
-    created: Date.now() / 1000,
+    created: 1740858974,
     model: "accounts/fireworks/models/llama-v3p1-70b-instruct",
     object: "chat.completion",
     service_tier: null,
@@ -383,24 +268,22 @@ export const responses = {
     },
   },
   "Please store my signing key for NFT access": {
-    id: "store-signing-key-tool-call-123",
+    id: "store-key-123",
     choices: [
       {
         finish_reason: "tool_calls",
         index: 0,
         logprobs: null,
         message: {
-          content: "I'll store your signing key for NFT access.",
+          content: "I'll store your signing key for NFT access",
           refusal: null,
           role: "assistant",
-          audio: null,
-          function_call: null,
           tool_calls: [
             {
-              id: "call_StoreSigningKeyOperation123",
+              id: "call_store_signing_key_789",
               function: {
-                arguments: "{}",
-                name: "store_signing_key",
+                arguments: "{}", // No arguments for store_signing_key as per its definition
+                name: "store_signing_key", // This will be a dynamic tool
               },
               type: "function",
               index: 0,
@@ -409,7 +292,7 @@ export const responses = {
         },
       },
     ],
-    created: Date.now() / 1000,
+    created: 1740858975,
     model: "accounts/fireworks/models/llama-v3p1-70b-instruct",
     object: "chat.completion",
     service_tier: null,
@@ -419,5 +302,119 @@ export const responses = {
       prompt_tokens: 830,
       total_tokens: 850,
     },
+  },
+  "I need the WebAssembly synthesizer for my NFT with token_id 123": {
+    id: "get-synth-123",
+    choices: [
+      {
+        finish_reason: "tool_calls",
+        index: 0,
+        logprobs: null,
+        message: {
+          content:
+            "I'll help you retrieve the WebAssembly synthesizer for your NFT",
+          refusal: null,
+          role: "assistant",
+          tool_calls: [
+            {
+              id: "call_get_synth_wasm_abc",
+              function: {
+                arguments: '{"token_id": "123"}', // AI provides token_id
+                name: "get_synth_wasm", // This is the dynamic tool
+              },
+              type: "function",
+              index: 0,
+            },
+          ],
+        },
+      },
+    ],
+    created: 1740858976,
+    model: "accounts/fireworks/models/llama-v3p1-70b-instruct",
+    object: "chat.completion",
+    service_tier: null,
+    system_fingerprint: null,
+    usage: {
+      completion_tokens: 25,
+      prompt_tokens: 840,
+      total_tokens: 865,
+    },
+  },
+};
+
+export const toolCallResponses = {
+  call_inspect_tools_123: {
+    // Corresponds to inspect_contract_tools
+    id: "tool-resp-inspect-123",
+    choices: [
+      {
+        finish_reason: "stop", // Or "tool_calls" if it leads to another action
+        index: 0,
+        message: {
+          role: "assistant",
+          content:
+            "The contract provides 2 tools: store_signing_key, get_synth_wasm. The store_signing_key tool stores the signing key for the authenticated user and must be called before using get_synth_wasm. The get_synth_wasm tool retrieves WebAssembly music synthesizer code for an NFT and requires authentication via a signed message.",
+        },
+      },
+    ],
+    created: Date.now() / 1000,
+    model: "accounts/fireworks/models/tool-response-model",
+    object: "chat.completion",
+  },
+  call_select_contract_456: {
+    // Corresponds to select_contract_for_tools
+    id: "tool-resp-select-456",
+    choices: [
+      {
+        finish_reason: "stop",
+        index: 0,
+        message: {
+          role: "assistant",
+          content:
+            "Tool contract set to webassemblymusic.near and loaded 2 tool definitions.",
+        },
+      },
+    ],
+    created: Date.now() / 1000,
+    model: "accounts/fireworks/models/tool-response-model",
+    object: "chat.completion",
+  },
+  call_store_signing_key_789: {
+    // Corresponds to the dynamic tool store_signing_key
+    id: "tool-resp-store-key-789",
+    choices: [
+      {
+        finish_reason: "stop",
+        index: 0,
+        message: {
+          role: "assistant",
+          // This simulates the successful execution of the transaction-based tool
+          content: "Your signing key has been stored successfully.",
+        },
+      },
+    ],
+    created: Date.now() / 1000,
+    model: "accounts/fireworks/models/tool-response-model",
+    object: "chat.completion",
+  },
+  call_get_synth_wasm_abc: {
+    // Corresponds to the dynamic tool get_synth_wasm (after clientImplementation)
+    id: "tool-resp-get-synth-abc",
+    choices: [
+      {
+        finish_reason: "stop",
+        index: 0,
+        message: {
+          role: "assistant",
+          // This simulates the successful execution of get_synth_wasm via clientImplementation
+          // The actual content would be the base64 Wasm, but for the test, a confirmation is enough.
+          content:
+            "The WebAssembly synthesizer for your NFT has been retrieved successfully. (Simulated: Wasm content would be here).",
+        },
+      },
+    ],
+    created: Date.now() / 1000,
+    model: "accounts/fireworks/models/tool-response-model",
+    object: "chat.completion",
   },
 };

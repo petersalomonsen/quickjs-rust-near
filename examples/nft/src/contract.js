@@ -22,24 +22,30 @@ export function get_ai_tool_definitions() {
         parameters: {
           type: "object",
           properties: {
-            message: {
+            token_id: {
               type: "string",
-              description:
-                "JSON string containing token_id that needs to be verified",
-            },
-            signature: {
-              type: "string",
-              description: "Signature of the message",
-            },
-            account_id: {
-              type: "string",
-              description:
-                "Account ID of the message signer, must be the token owner",
+              description: "The token ID of the NFT.",
             },
           },
-          required: ["message", "signature", "account_id"],
+          required: ["token_id"],
         },
-        requires_transaction: false,
+        requires_transaction: false, // This remains false as the actual contract call is a view call
+        clientImplementation: `
+          const { token_id } = args;
+          const tokenIdStr = token_id.toString();
+
+          const message = JSON.stringify({ token_id: tokenIdStr });
+
+          const signature = await signMessage(message);
+          const account_id = await getAccountId();
+
+          return callToolOnContract("get_synth_wasm", {
+            message,
+            signature,
+            account_id,
+            token_id: tokenIdStr,
+          });
+        `,
       },
     ]),
   );

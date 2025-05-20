@@ -2,6 +2,7 @@ import { getContractInstanceExports } from "../contract-runner/contract-runner.j
 import { InMemorySigner, keyStores, connect } from "near-api-js";
 import { run_javascript_in_web4_simulator } from "./javascriptsimulator.js";
 import { confirmModal } from "../ui/confirm-modal.js";
+import { ToolSandbox } from "./sandbox.js"; // Import ToolSandbox
 
 /**
  * @type {import('@near-wallet-selector/core').WalletSelector}
@@ -96,23 +97,58 @@ export const getToolContract = () => {
  * @param {string} contractId - The contract ID to call
  * @param {string} toolName - The name of the tool to call
  * @param {object} args - The arguments to pass to the tool
+ * @param {import('@near-wallet-selector/core').WalletSelector} [currentWalletSelector=walletSelector] - The current wallet selector instance
+ * @param {import('near-api-js').Account} [currentConnectedAccount=connectedAccount] - The current connected account instance
+ * @param {Array<object>|null} [currentDynamicToolDefinitions=dynamicToolDefinitions] - The current dynamic tool definitions
+ * @param {boolean} [skipClientImplementation=false] - Flag to skip clientImplementation execution (used by sandbox)
  * @returns {Promise<any>} - The result of the tool call
  */
-export const callContractTool = async (contractId, toolName, args) => {
-  if (!connectedAccount) {
+export const callContractTool = async (
+  contractId,
+  toolName,
+  args,
+  currentWalletSelector = walletSelector,
+  currentConnectedAccount = connectedAccount,
+  currentDynamicToolDefinitions = dynamicToolDefinitions,
+  skipClientImplementation = false,
+) => {
+  if (!currentConnectedAccount) {
     throw new Error("No connected account");
   }
 
-  // Find the tool definition (from dynamicToolDefinitions)
-  const toolDef = (dynamicToolDefinitions || []).find(
+  const toolDef = (currentDynamicToolDefinitions || []).find(
     (t) => t.name === toolName,
   );
-  const requiresTx = toolDef && toolDef.requires_transaction;
+
+  if (!toolDef) {
+    throw new Error(`Tool definition for '${toolName}' not found.`);
+  }
+
+  // Handle clientImplementation if it exists and not skipping
+  if (toolDef.clientImplementation && !skipClientImplementation) {
+    // Pass currentDynamicToolDefinitions to the sandbox constructor
+    const sandbox = new ToolSandbox(currentWalletSelector, currentConnectedAccount, currentDynamicToolDefinitions, callContractTool);
+    try {
+      console.log(`Executing clientImplementation for ${toolName} with args:`, args);
+      // The clientImplementation script itself is now responsible for calling callToolOnContract
+      // which will eventually call this function again but with skipClientImplementation = true.
+      const result = await sandbox.executeClientImplementation(toolDef.clientImplementation, args);
+      console.log(`clientImplementation for ${toolName} executed successfully, result:`, result);
+      return result;
+    } catch (e) {
+      console.error(`Error executing clientImplementation for ${toolName}:`, e);
+      throw new Error(
+        `Failed to execute client-side logic for tool ${toolName}: ${e.message}`,
+      );
+    }
+  }
+
+  // Proceed with direct contract call if no clientImplementation or if skipped
+  const requiresTx = toolDef.requires_transaction;
 
   try {
     if (requiresTx) {
-      // Use walletSelector to sign and send the transaction
-      const selectedWallet = await walletSelector.wallet();
+      const selectedWallet = await currentWalletSelector.wallet();
       const transactionResult = await selectedWallet.signAndSendTransaction({
         receiverId: contractId,
         actions: [
@@ -122,34 +158,38 @@ export const callContractTool = async (contractId, toolName, args) => {
               methodName: "call_js_func",
               args: {
                 function_name: toolName,
-                ...(args ? { args } : {}),
+                ...(args ? { args: typeof args === 'string' ? args : JSON.stringify(args) } : {}),
               },
-              gas: "30000000000000",
+              gas: "300000000000000", // 300 TGas, ensure this is a string
               deposit: "0",
             },
           },
         ],
       });
-      return JSON.stringify(transactionResult);
+      return JSON.stringify(transactionResult); // Or handle more specific result parsing if needed
     } else {
-      // Use viewFunction for read-only tools
-      return await connectedAccount.viewFunction({
+      const viewResult = await currentConnectedAccount.viewFunction({
         contractId,
         methodName: "call_js_func",
         args: {
           function_name: toolName,
-          ...(args ? { args } : {}),
+          ...(args ? { args: typeof args === 'string' ? args : JSON.stringify(args) } : {}),
         },
       });
+      return viewResult;
     }
   } catch (e) {
-    console.error(`Error calling contract tool ${toolName}:`, e);
+    console.error(`Error calling contract tool ${toolName} on contract ${contractId}:`, e);
     if (e.message && e.message.includes("SyntaxError: unexpected token")) {
       throw new Error(
-        `Failed to call contract tool ${toolName}: The arguments could not be properly parsed by the contract. Please make sure the arguments format is correct.`,
+        `Failed to call contract tool ${toolName}: The arguments could not be properly parsed by the contract. Please make sure the arguments format is correct. Original error: ${e.message}`,
       );
+    } else if (e.message && e.message.includes("TypeError: Cannot read properties of undefined (reading 'args')")) {
+        throw new Error(
+            `Failed to call contract tool ${toolName} on ${contractId}: Contract error, possibly due to incorrect arguments structure or missing arguments. Original error: ${e.message}`
+        );
     } else {
-      throw new Error(`Failed to call contract tool ${toolName}: ${e.message}`);
+      throw new Error(`Failed to call contract tool ${toolName} on ${contractId}: ${e.message}`);
     }
   }
 };
