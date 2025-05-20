@@ -158,7 +158,7 @@ export const callContractTool = async (
               methodName: "call_js_func",
               args: {
                 function_name: toolName,
-                ...(args ? { args: typeof args === 'string' ? args : JSON.stringify(args) } : {}),
+                ...args,
               },
               gas: "300000000000000", // 300 TGas, ensure this is a string
               deposit: "0",
@@ -173,7 +173,7 @@ export const callContractTool = async (
         methodName: "call_js_func",
         args: {
           function_name: toolName,
-          ...(args ? { args: typeof args === 'string' ? args : JSON.stringify(args) } : {}),
+          ...args,
         },
       });
       return viewResult;
