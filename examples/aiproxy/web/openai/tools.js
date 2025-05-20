@@ -113,7 +113,7 @@ export const callContractTool = async (contractId, toolName, args) => {
     if (requiresTx) {
       // Use walletSelector to sign and send the transaction
       const selectedWallet = await walletSelector.wallet();
-      return await selectedWallet.signAndSendTransaction({
+      const transactionResult = await selectedWallet.signAndSendTransaction({
         receiverId: contractId,
         actions: [
           {
@@ -130,6 +130,7 @@ export const callContractTool = async (contractId, toolName, args) => {
           },
         ],
       });
+      return JSON.stringify(transactionResult);
     } else {
       // Use viewFunction for read-only tools
       return await connectedAccount.viewFunction({
