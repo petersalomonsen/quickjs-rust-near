@@ -10,10 +10,7 @@ import { ToolSandbox } from "./sandbox.js"; // Import ToolSandbox
 let walletSelector;
 
 const networkId = "mainnet";
-const keyStore = new keyStores.BrowserLocalStorageKeyStore(
-  localStorage,
-  "ai-app",
-);
+const keyStore = new keyStores.BrowserLocalStorageKeyStore(localStorage);
 const signer = new InMemorySigner(keyStore);
 const nearConnection = await connect({
   networkId,
@@ -127,14 +124,28 @@ export const callContractTool = async (
   // Handle clientImplementation if it exists and not skipping
   if (toolDef.clientImplementation && !skipClientImplementation) {
     // Pass currentDynamicToolDefinitions to the sandbox constructor
-    const sandbox = new ToolSandbox(currentWalletSelector, currentConnectedAccount, currentDynamicToolDefinitions, callContractTool);
+    const sandbox = new ToolSandbox(
+      currentWalletSelector,
+      currentConnectedAccount,
+      currentDynamicToolDefinitions,
+      callContractTool,
+    );
     try {
-      console.log(`Executing clientImplementation for ${toolName} with args:`, args);
+      console.log(
+        `Executing clientImplementation for ${toolName} with args:`,
+        args,
+      );
       // The clientImplementation script itself is now responsible for calling callToolOnContract
       // which will eventually call this function again but with skipClientImplementation = true.
-      const result = await sandbox.executeClientImplementation(toolDef.clientImplementation, args);
-      console.log(`clientImplementation for ${toolName} executed successfully, result:`, result);
-      return result;
+      const result = await sandbox.executeClientImplementation(
+        toolDef.clientImplementation,
+        args,
+      );
+      console.log(
+        `clientImplementation for ${toolName} executed successfully, result:`,
+        result,
+      );
+      return JSON.stringify(result);
     } catch (e) {
       console.error(`Error executing clientImplementation for ${toolName}:`, e);
       throw new Error(
@@ -179,17 +190,27 @@ export const callContractTool = async (
       return viewResult;
     }
   } catch (e) {
-    console.error(`Error calling contract tool ${toolName} on contract ${contractId}:`, e);
+    console.error(
+      `Error calling contract tool ${toolName} on contract ${contractId}:`,
+      e,
+    );
     if (e.message && e.message.includes("SyntaxError: unexpected token")) {
       throw new Error(
         `Failed to call contract tool ${toolName}: The arguments could not be properly parsed by the contract. Please make sure the arguments format is correct. Original error: ${e.message}`,
       );
-    } else if (e.message && e.message.includes("TypeError: Cannot read properties of undefined (reading 'args')")) {
-        throw new Error(
-            `Failed to call contract tool ${toolName} on ${contractId}: Contract error, possibly due to incorrect arguments structure or missing arguments. Original error: ${e.message}`
-        );
+    } else if (
+      e.message &&
+      e.message.includes(
+        "TypeError: Cannot read properties of undefined (reading 'args')",
+      )
+    ) {
+      throw new Error(
+        `Failed to call contract tool ${toolName} on ${contractId}: Contract error, possibly due to incorrect arguments structure or missing arguments. Original error: ${e.message}`,
+      );
     } else {
-      throw new Error(`Failed to call contract tool ${toolName} on ${contractId}: ${e.message}`);
+      throw new Error(
+        `Failed to call contract tool ${toolName} on ${contractId}: ${e.message}`,
+      );
     }
   }
 };

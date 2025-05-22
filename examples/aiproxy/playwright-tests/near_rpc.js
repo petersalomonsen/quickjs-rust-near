@@ -100,6 +100,27 @@ const unregisteredaiuser = await worker.rootAccount.createAccount(
   "unregisteredaiuser.test.near",
 );
 
+await nftContract.call(
+  nftContract.accountId,
+  "nft_mint",
+  {
+    token_id: `123`,
+    token_owner_id: unregisteredaiuser.accountId,
+    token_metadata: {},
+  },
+  { attachedDeposit: "16250000000000000000000", gas: "300000000000000" },
+);
+
+await nftContract.call(
+  nftContract.accountId,
+  "post_content",
+  {
+    key: "synthwasm-123",
+    valuebase64: btoa("synth wasm content"),
+  },
+  { gas: "300000000000000" },
+);
+
 const functionAccessKeyPair = KeyPairEd25519.fromRandom();
 
 await aiuser.updateAccessKey(functionAccessKeyPair, {

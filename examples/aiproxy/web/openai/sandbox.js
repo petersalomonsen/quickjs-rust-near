@@ -4,7 +4,17 @@
  * Provides a sandboxed environment for executing client-side tool logic.
  */
 export class ToolSandbox {
-  constructor(walletSelector, connectedAccount, dynamicToolDefinitions, originalCallContractTool) {
+  /**
+   *
+   * @param {import('@near-wallet-selector/core').WalletSelector} walletSelector
+   * @param {import('near-api-js').Account} connectedAccount
+   */
+  constructor(
+    walletSelector,
+    connectedAccount,
+    dynamicToolDefinitions,
+    originalCallContractTool,
+  ) {
     this.walletSelector = walletSelector;
     this.connectedAccount = connectedAccount;
     this.dynamicToolDefinitions = dynamicToolDefinitions; // Store dynamic tool definitions
@@ -18,21 +28,17 @@ export class ToolSandbox {
    * @returns {Promise<string>} - The signature.
    */
   async signMessage(message) {
-    console.log(`Sandbox: signMessage called with: ${message}`);
-    if (!this.walletSelector || !this.walletSelector.isSignedIn()) {
-      throw new Error("User is not signed in. Cannot sign message.");
-    }
-    // const wallet = await this.walletSelector.wallet();
-    // Actual signing logic would go here.
-    // For now, returning a mock signature as per the contract's expectation for env.verify_signed_message
-    // This is a placeholder and needs to be implemented correctly based on how the contract verifies.
-    // The contract's env.verify_signed_message likely expects a signature that can be recovered to a public key.
-    // A simple string like "mock_signature_from_sandbox" will not work with actual cryptographic verification.
-    // However, for testing the flow, this might be acceptable if the contract's verification is also mocked or lenient for tests.
-    console.warn("Sandbox: signMessage is returning a MOCK signature. Actual cryptographic signing needed for production.");
-    // The mock signature needs to be in a format that the contract can attempt to parse, even if verification fails.
-    // Typically, a base64 encoded string is common for signatures.
-    return "c2lnbmF0dXJlX2Zyb21fc2FuZGJveF90ZXN0"; // Placeholder: base64 encoded "signature_from_sandbox_test"
+    const keyPair =
+      await this.connectedAccount.connection.signer.keyStore.getKey(
+        this.connectedAccount.connection.networkId,
+        this.connectedAccount.accountId,
+      );
+    const signatureObj = await keyPair.sign(new TextEncoder().encode(message));
+    const signatureBase64 = btoa(
+      String.fromCharCode(...signatureObj.signature),
+    );
+
+    return signatureBase64;
   }
 
   /**
@@ -61,19 +67,24 @@ export class ToolSandbox {
    * @returns {Promise<any>} - The result of the contract tool call.
    */
   async callToolOnContract(toolName, args) {
-    console.log(`Sandbox: callToolOnContract called for tool: ${toolName} with args:`, args);
-    const contractId = localStorage.getItem("toolContractId"); 
+    console.log(
+      `Sandbox: callToolOnContract called for tool: ${toolName} with args:`,
+      args,
+    );
+    const contractId = localStorage.getItem("toolContractId");
     if (!contractId) {
-        throw new Error("Sandbox: callToolOnContract cannot determine contractId. Make sure a tool contract is selected.");
+      throw new Error(
+        "Sandbox: callToolOnContract cannot determine contractId. Make sure a tool contract is selected.",
+      );
     }
     return this.originalCallContractTool(
-        contractId,
-        toolName,
-        args,
-        this.walletSelector,
-        this.connectedAccount,
-        this.dynamicToolDefinitions, 
-        true // skipClientImplementation = true, to prevent re-execution of client script for the same tool
+      contractId,
+      toolName,
+      args,
+      this.walletSelector,
+      this.connectedAccount,
+      this.dynamicToolDefinitions,
+      true, // skipClientImplementation = true, to prevent re-execution of client script for the same tool
     );
   }
 
@@ -84,20 +95,36 @@ export class ToolSandbox {
    * @returns {Promise<any>} - The result of the executed script.
    */
   async executeClientImplementation(scriptString, initialArgs) {
-    console.log("Sandbox: Executing clientImplementation script with args:", initialArgs);
+    console.log(
+      "Sandbox: Executing clientImplementation script with args:",
+      initialArgs,
+    );
 
-    const AsyncFunction = Object.getPrototypeOf(async function(){}).constructor;
+    const AsyncFunction = Object.getPrototypeOf(
+      async function () {},
+    ).constructor;
     // The parameters for the sandboxed function are (args, signMessage, getAccountId, callToolOnContract)
     // The scriptString is the body of an async function.
-    const scriptFunc = new AsyncFunction("args", "signMessage", "getAccountId", "callToolOnContract", scriptString);
-    
+    const scriptFunc = new AsyncFunction(
+      "args",
+      "signMessage",
+      "getAccountId",
+      "callToolOnContract",
+      scriptString,
+    );
+
     const boundSignMessage = this.signMessage.bind(this);
     const boundGetAccountId = this.getAccountId.bind(this);
     const boundCallToolOnContract = this.callToolOnContract.bind(this);
 
     try {
       // The script will be called with initialArgs and the bound sandbox functions
-      return await scriptFunc(initialArgs, boundSignMessage, boundGetAccountId, boundCallToolOnContract);
+      return await scriptFunc(
+        initialArgs,
+        boundSignMessage,
+        boundGetAccountId,
+        boundCallToolOnContract,
+      );
     } catch (error) {
       console.error("Error executing clientImplementation script:", error);
       // Augment the error message with more context if possible
@@ -109,4 +136,3 @@ export class ToolSandbox {
     }
   }
 }
-

@@ -147,6 +147,8 @@ export function web4_get() {
 export function store_signing_key() {
   if (env.nft_supply_for_owner(env.signer_account_id()) > 0) {
     env.store_signing_key(env.block_timestamp_ms() + 24 * 60 * 60 * 1000);
+  } else {
+    env.panic("only NFT owners account can store signing key");
   }
 }
 

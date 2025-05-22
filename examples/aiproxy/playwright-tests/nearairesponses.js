@@ -205,8 +205,7 @@ export const responses = {
             {
               id: "call_inspect_tools_123",
               function: {
-                arguments:
-                  '{"contract_id": "webassemblymusic.near"}',
+                arguments: '{"contract_id": "webassemblymusic.near"}',
                 name: "inspect_contract_tools",
               },
               type: "function",
@@ -237,16 +236,14 @@ export const responses = {
         index: 0,
         logprobs: null,
         message: {
-          content:
-            "I'll set the webassemblymusic.near contract for tools.",
+          content: "I'll set the webassemblymusic.near contract for tools.",
           refusal: null,
           role: "assistant",
           tool_calls: [
             {
               id: "call_select_contract_456",
               function: {
-                arguments:
-                  '{"contract_id": "webassemblymusic.near"}',
+                arguments: '{"contract_id": "webassemblymusic.near"}',
                 name: "select_contract_for_tools",
               },
               type: "function",
