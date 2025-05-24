@@ -57,7 +57,7 @@ describe("NFT contract", () => {
       userAccountKeyPair,
     );
   });
-  test("should run custom javascript in contract for getting synth wasm", async () => {
+  test("should run custom javascript in contract for getting locked content", async () => {
     const nearConnection = await connect(connectionConfig);
     const accountId = contract.accountId;
 
@@ -77,7 +77,7 @@ describe("NFT contract", () => {
       contractId: accountId,
       methodName: "post_content",
       args: {
-        key: "synthwasm-fall",
+        key: "locked-fall",
         valuebase64,
       },
     });
@@ -126,7 +126,7 @@ describe("NFT contract", () => {
       contractId: accountId,
       methodName: "call_js_func",
       args: {
-        function_name: "get_synth_wasm",
+        function_name: "get_locked_content",
         message,
         account_id: accountId,
         signature,
@@ -150,7 +150,7 @@ describe("NFT contract", () => {
       contractId: accountId,
       methodName: "call_js_func",
       args: {
-        function_name: "get_synth_wasm",
+        function_name: "get_locked_content",
         message,
         account_id: userAccount.accountId,
         signature,
@@ -163,7 +163,7 @@ describe("NFT contract", () => {
       contractId: accountId,
       methodName: "call_js_func",
       args: {
-        function_name: "get_synth_wasm",
+        function_name: "get_locked_content",
         message,
         account_id: accountId,
         signature,
