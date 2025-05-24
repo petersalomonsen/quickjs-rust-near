@@ -337,6 +337,36 @@ export const responses = {
       total_tokens: 865,
     },
   },
+  "Can I access the locked content for my NFT with token_id 123?": {
+    id: "check-locked-content-123",
+    choices: [
+      {
+        finish_reason: "tool_calls",
+        index: 0,
+        logprobs: null,
+        message: {
+          content:
+            "I'll check if you can access the locked content for your NFT.", // AI confirms the action
+          refusal: null,
+          role: "assistant",
+          tool_calls: [
+            {
+              id: "call_get_locked_content_xyz", // New call ID
+              function: {
+                arguments: '{"token_id": "123"}', // AI provides token_id
+                name: "get_locked_content", // New tool name
+              },
+              type: "function",
+              index: 0,
+            },
+          ],
+        },
+      },
+    ],
+    created: 1740858977, // Adjusted timestamp
+    model: "accounts/fireworks/models/llama-v3p1-70b-instruct",
+    object: "chat.completion",
+  },
 };
 
 export const toolCallResponses = {
@@ -345,12 +375,12 @@ export const toolCallResponses = {
     id: "tool-resp-inspect-123",
     choices: [
       {
-        finish_reason: "stop", // Or "tool_calls" if it leads to another action
+        finish_reason: "stop",
         index: 0,
         message: {
           role: "assistant",
           content:
-            "The contract provides 2 tools: store_signing_key, get_synth_wasm. The store_signing_key tool stores the signing key for the authenticated user and must be called before using get_synth_wasm. The get_synth_wasm tool retrieves WebAssembly music synthesizer code for an NFT and requires authentication via a signed message.",
+            "The contract provides 2 tools: store_signing_key, get_locked_content. The store_signing_key tool stores the signing key for the authenticated user and must be called before using get_locked_content. The get_locked_content tool checks if locked content for an NFT is accessible and requires authentication via a signed message.",
         },
       },
     ],
@@ -385,7 +415,6 @@ export const toolCallResponses = {
         index: 0,
         message: {
           role: "assistant",
-          // This simulates the successful execution of the transaction-based tool
           content: "Your signing key has been stored successfully.",
         },
       },
@@ -394,19 +423,19 @@ export const toolCallResponses = {
     model: "accounts/fireworks/models/tool-response-model",
     object: "chat.completion",
   },
-  call_get_synth_wasm_abc: {
-    // Corresponds to the dynamic tool get_synth_wasm (after clientImplementation)
-    id: "tool-resp-get-synth-abc",
+  // Updated to reflect the new tool name and expected response for verify_only: true
+  call_get_locked_content_xyz: {
+    // Corresponds to the dynamic tool get_locked_content (after clientImplementation)
+    id: "tool-resp-get-locked-content-xyz",
     choices: [
       {
         finish_reason: "stop",
         index: 0,
         message: {
           role: "assistant",
-          // This simulates the successful execution of get_synth_wasm via clientImplementation
-          // The actual content would be the base64 Wasm, but for the test, a confirmation is enough.
+          // This simulates the successful execution of get_locked_content with verify_only: true
           content:
-            "The WebAssembly synthesizer for your NFT has been retrieved successfully. (Simulated: Wasm content would be here).",
+            "Locked content with length 12345 can be accessed with the provided signed message", // Example length
         },
       },
     ],

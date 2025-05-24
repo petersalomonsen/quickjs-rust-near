@@ -47,7 +47,6 @@ const nftContract = await worker.rootAccount.importContract({
   initialBalance: 100_000_000_000_000_000_000_000_000n.toString(),
 });
 await nftContract.call(nftContract.accountId, "new", {});
-await nftContract.deploy(await readFile("../nft/out/nft.wasm"));
 await nftContract.call(nftContract.accountId, "post_javascript", {
   javascript: (await readFile("../nft/src/contract.js")).toString(),
 });
@@ -115,8 +114,8 @@ await nftContract.call(
   nftContract.accountId,
   "post_content",
   {
-    key: "synthwasm-123",
-    valuebase64: btoa("synth wasm content"),
+    key: "locked-123",
+    valuebase64: btoa("locked content"),
   },
   { gas: "300000000000000" },
 );

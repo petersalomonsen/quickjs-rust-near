@@ -30,7 +30,7 @@ test("dynamic tool definitions are included in chat completion request", async (
   // Wait for the result of tool inspection
   await expect(
     page.getByText(
-      /The contract provides 2 tools: store_signing_key, get_synth_wasm/,
+      /The contract provides 2 tools: store_signing_key, get_locked_content/,
     ),
   ).toBeVisible();
 
@@ -66,24 +66,25 @@ test("dynamic tool definitions are included in chat completion request", async (
     await page.getByText(/Your signing key has been stored successfully/),
   ).toBeVisible();
 
-  // Now test using the get_synth_wasm tool
+  // Now test using the get_locked_content tool (previously get_synth_wasm)
   await page.waitForTimeout(1000);
   questionArea.fill(
-    "I need the WebAssembly synthesizer for my NFT with token_id 123",
+    "Can I access the locked content for my NFT with token_id 123?", // Updated prompt
   );
   await page.getByRole("button", { name: "Ask NEAR AI" }).click();
 
-  // Verify tool was called
+  // Verify tool was called - AI confirms it will check access
   await expect(
     await page.getByText(
-      "I'll help you retrieve the WebAssembly synthesizer for your NFT",
+      "I'll check if you can access the locked content for your NFT.", // Updated AI response
     ),
   ).toBeVisible();
 
   // After tool call is completed, test the response handling
+  // Expecting a message confirming access, based on verify_only: true
   await expect(
     await page.getByText(
-      /The WebAssembly synthesizer for your NFT has been retrieved/,
+      /Locked content with length \d+ can be accessed with the provided signed message/, // Updated expected outcome
     ),
   ).toBeVisible();
 });

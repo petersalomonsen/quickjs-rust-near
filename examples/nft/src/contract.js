@@ -7,7 +7,7 @@ export function get_ai_tool_definitions() {
       {
         name: "store_signing_key",
         description:
-          "Stores the signing key for the authenticated user. Must be called before using get_synth_wasm.",
+          "Stores the signing key for the authenticated user. Must be called before using get_locked_content.",
         parameters: {
           type: "object",
           properties: {},
@@ -16,9 +16,9 @@ export function get_ai_tool_definitions() {
         requires_transaction: true,
       },
       {
-        name: "get_synth_wasm",
+        name: "get_locked_content",
         description:
-          "Retrieves WebAssembly music synthesizer code for an NFT. Requires authentication via a signed message.",
+          "Checks if locked content for an NFT is accessible. Requires authentication via a signed message.",
         parameters: {
           type: "object",
           properties: {
@@ -39,11 +39,12 @@ export function get_ai_tool_definitions() {
           const signature = await signMessage(message);
           const account_id = await getAccountId();
 
-          return callToolOnContract("get_synth_wasm", {
+          return callToolOnContract("get_locked_content", {
             message,
             signature,
             account_id,
             token_id: tokenIdStr,
+            verify_only: true
           });
         `,
       },
@@ -51,8 +52,10 @@ export function get_ai_tool_definitions() {
   );
 }
 
-export function get_synth_wasm() {
-  const { message, signature, account_id } = JSON.parse(env.input());
+export function get_locked_content() {
+  const { message, signature, account_id, verify_only } = JSON.parse(
+    env.input(),
+  );
   const { token_id } = JSON.parse(message);
   const validSignature = env.verify_signed_message(
     message,
@@ -68,9 +71,16 @@ export function get_synth_wasm() {
     env.value_return(JSON.stringify("not owner"));
     return;
   }
-  env.value_return(
-    JSON.stringify(env.get_content_base64(`synthwasm-${token_id}`)),
-  );
+  const content = env.get_content_base64(`locked-${token_id}`);
+  if (!verify_only) {
+    env.value_return(JSON.stringify(content));
+  } else {
+    env.value_return(
+      JSON.stringify(
+        `Locked content with length ${content.length} can be accessed with the provided signed message`,
+      ),
+    );
+  }
 }
 
 export function web4_get() {
