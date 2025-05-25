@@ -109,74 +109,19 @@ function handleToolCallResult(postdata, lastMessage) {
 
   console.log(`Processing tool call result for ${toolCallName}`);
 
+  const toolNames = (postdata.tools || []).map(
+    (t) => t.function?.name || t.name,
+  );
+
   // Check if we have a specific handler for this tool
   if (toolCallResponses[toolCallName]) {
+    if (!toolNames.includes(toolCallName)) {
+      throw new Error(
+        `The tool named '${toolCallName}' was not found in the postdata. These tools were found: ${toolNames}`,
+      );
+    }
     return toolCallResponses[toolCallName](postdata, lastMessage);
   }
-
-  // Handle get_synth_wasm tool call
-  if (toolCallName === "get_synth_wasm") {
-    // In a real environment, lastMessage.content would contain the actual WebAssembly code
-    // returned from the contract. For our test, we'll simulate the response.
-    const wasmCodeResponse = lastMessage.content;
-
-    return {
-      id: `get-synth-wasm-${Date.now()}`,
-      choices: [
-        {
-          finish_reason: "stop",
-          index: 0,
-          logprobs: null,
-          message: {
-            content: `The WebAssembly synthesizer for your NFT has been retrieved successfully. Here's the synthesizer code from the contract:\n\n${wasmCodeResponse}\n\nYou can use this WebAssembly code in your music application.`,
-            refusal: null,
-            role: "assistant",
-            audio: null,
-            function_call: null,
-            tool_calls: null,
-          },
-        },
-      ],
-      created: Date.now() / 1000,
-      model: "accounts/fireworks/models/synth-wasm-retrieval",
-      object: "chat.completion",
-      usage: {
-        completion_tokens: 35,
-        prompt_tokens: 90,
-        total_tokens: 125,
-      },
-    };
-  }
-
-  // Generic acknowledgment response
-  return {
-    id: `tool-result-${Date.now()}`,
-    choices: [
-      {
-        finish_reason: "stop",
-        index: 0,
-        logprobs: null,
-        message: {
-          content: `I've processed the result of the ${toolCallName} tool call. Thank you.`,
-          refusal: null,
-          role: "assistant",
-          audio: null,
-          function_call: null,
-          tool_calls: null,
-        },
-      },
-    ],
-    created: Date.now() / 1000,
-    model: "accounts/fireworks/models/tool-response",
-    object: "chat.completion",
-    service_tier: null,
-    system_fingerprint: null,
-    usage: {
-      completion_tokens: 15,
-      prompt_tokens: 100,
-      total_tokens: 115,
-    },
-  };
 }
 
 /**

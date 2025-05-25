@@ -414,30 +414,7 @@ ${JSON.stringify(simulationResult)}
 // When returning tool definitions, include dynamic ones if set
 export const toolDefinitions = async () => {
   if (dynamicToolDefinitions.length > 0) {
-    return [
-      // Optionally, include the select_contract_for_tools tool always
-      {
-        type: "function",
-        function: {
-          name: "select_contract_for_tools",
-          description:
-            "Select which NEAR smart contract to use for fetching tool definitions and tool calls.",
-          parameters: {
-            type: "object",
-            properties: {
-              contract_id: {
-                type: "string",
-                description:
-                  "The NEAR account ID of the contract to use for tools.",
-              },
-            },
-            required: ["contract_id"],
-            additionalProperties: false,
-          },
-        },
-      },
-      ...dynamicToolDefinitions,
-    ];
+    return [...dynamicToolDefinitions];
   }
   return [
     {
@@ -568,6 +545,26 @@ export function web4_get() {
             contract_id: {
               type: "string",
               description: "The NEAR account ID of the contract to inspect.",
+            },
+          },
+          required: ["contract_id"],
+          additionalProperties: false,
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "select_contract_for_tools",
+        description:
+          "Select which NEAR smart contract to use for fetching tool definitions and tool calls.",
+        parameters: {
+          type: "object",
+          properties: {
+            contract_id: {
+              type: "string",
+              description:
+                "The NEAR account ID of the contract to use for tools.",
             },
           },
           required: ["contract_id"],
