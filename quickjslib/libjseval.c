@@ -106,6 +106,7 @@ JSValue js_eval_bytecode(const uint8_t *buf, size_t buf_len)
     return val;
 }
 
+
 JSValue js_load_bytecode(const uint8_t *buf, size_t buf_len)
 {
     JSValue module_obj;
@@ -125,6 +126,12 @@ JSValue js_load_bytecode(const uint8_t *buf, size_t buf_len)
     return JS_PromiseResult(ctx, load_module_promise);
 }
 
+JSValue js_get_promise_result(JSValue promise)
+{
+    JSValue promise_result = JS_PromiseResult(ctx, promise);
+    return promise_result;
+}
+
 JSValue js_call_function(JSValue mod_obj, const char *function_name)
 {
     JSValue fun_obj, val;
@@ -140,14 +147,14 @@ JSValue js_call_function(JSValue mod_obj, const char *function_name)
     return val;
 }
 
-void createNearEnv()
+void create_env()
 {
     global_obj = JS_GetGlobalObject(ctx);
     env = JS_NewObject(ctx);
     JS_SetPropertyStr(ctx, global_obj, "env", env);
 }
 
-void js_add_near_host_function(const char *name, JSCFunction *func, int length)
+void js_add_host_function(const char *name, JSCFunction *func, int length)
 {
     JS_SetPropertyStr(ctx, env, name, JS_NewCFunction(ctx, func, name, length));
 }
@@ -160,4 +167,9 @@ JSValue js_get_property(JSValue obj, const char *name)
 const char *js_get_string(JSValue val)
 {
     return JS_ToCString(ctx, val);
+}
+
+JSContext *get_js_context()
+{
+    return ctx;
 }

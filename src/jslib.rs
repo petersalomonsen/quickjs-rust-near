@@ -12,8 +12,8 @@ extern "C" {
     pub fn js_call_function(mod_obj: i64, function_name: i32) -> i64;
     pub fn js_get_property(val: i64, propertyname: i32) -> i64;
     pub fn js_get_string(val: i64) -> i32;
-    fn createNearEnv();
-    fn js_add_near_host_function(name: i32, func: i32, length: i32);
+    fn create_env();
+    fn js_add_host_function(name: i32, func: i32, length: i32);
     fn JS_ToCStringLen2(ctx: i32, value_len_ptr: i32, val: i64, b: i32) -> i32;
     fn JS_NewStringLen(ctx: i32, buf: i32, buf_len: usize) -> i64;
     fn JS_GetTypedArrayBuffer(
@@ -195,7 +195,7 @@ pub unsafe fn add_function_to_js(
     num_params: i32,
 ) {
     let function_name_cstr = CString::new(function_name).unwrap();
-    js_add_near_host_function(
+    js_add_host_function(
         function_name_cstr.as_ptr() as i32,
         function_impl as i32,
         num_params,
@@ -212,7 +212,7 @@ pub fn to_js_string(ctx: i32, str: String) -> i64 {
 
 unsafe fn setup_quickjs() {
     create_runtime();
-    createNearEnv();
+    create_env();
 
     add_function_to_js(
         "panic",

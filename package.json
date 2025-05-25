@@ -4,7 +4,7 @@
   "license": "MIT",
   "scripts": {
     "fmt:check": "prettier --check examples/aiproxy examples/fungibletoken examples/nft",
-    "fmt": "prettier --write examples/aiproxy examples/fungibletoken examples/nft",
+    "fmt": "prettier --write examples/aiproxy examples/fungibletoken examples/nft quickjslib",
     "serve": "http-server -p 8085 web4",
     "serve-dist": "http-server -p 8085 web4/dist",
     "web4bundle": "cd web4 && rollup -c rollup.config.js",
