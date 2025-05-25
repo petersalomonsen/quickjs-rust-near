@@ -43,7 +43,7 @@ test(
     };
     const bytecode = quickjs.compileToByteCode(
       `export async function test() {
-        const result = await env.callHostAsync({ function_name: "sleep", duration: 100 });
+        const result = await env.callHostAsync({ function_name: "sleep", duration: 500 });
         print("I got the result: "+result);
         return result;
     }`,
@@ -51,8 +51,9 @@ test(
     );
     const mod = quickjs.loadByteCode(bytecode);
     const promise = quickjs.callModFunction(mod, "test");
-    await new Promise((resolve) => setTimeout(() => resolve(), 200));
+    await quickjs.waitForPendingAsyncInvocations();
+
     const result = quickjs.getPromiseResult(promise);
-    equal(result, "I slept for 100 milliseconds");
+    equal(result, "I slept for 500 milliseconds");
   },
 );

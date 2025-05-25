@@ -22,6 +22,8 @@ const JS_TAG_FLOAT64 = 7;
 class QuickJS {
   constructor() {
     this.hostFunctions = {};
+    this.pendingAsyncInvocations = [];
+
     this.wasmInstancePromise = (async () => {
       this.wasi = new Wasi({
         LANG: "en_GB.UTF-8",
@@ -43,18 +45,28 @@ class QuickJS {
           wasi_snapshot_preview1: this.wasi,
           env: {
             js_call_host_async: async (params, resolving_func) => {
-              const hostFunctionName = this.getObjectPropertyValue(
-                params,
-                "function_name",
+              this.pendingAsyncInvocations.push(
+                new Promise(async (resolvePendingInvocation) => {
+                  try {
+                    const hostFunctionName = this.getObjectPropertyValue(
+                      params,
+                      "function_name",
+                    );
+                    if (this.hostFunctions[hostFunctionName]) {
+                      const result =
+                        await this.hostFunctions[hostFunctionName](params);
+                      this.wasmInstance.promise_callback(
+                        resolving_func,
+                        result,
+                      );
+                    } else {
+                      this.wasmInstance.promise_callback(resolving_func, null);
+                    }
+                  } finally {
+                    resolvePendingInvocation();
+                  }
+                }),
               );
-              console.log("js_call_host_async", hostFunctionName);
-              if (this.hostFunctions[hostFunctionName]) {
-                const result =
-                  await this.hostFunctions[hostFunctionName](params);
-                this.wasmInstance.promise_callback(resolving_func, result);
-              } else {
-                this.wasmInstance.promise_callback(resolving_func, null);
-              }
             },
           },
         })
@@ -112,6 +124,14 @@ class QuickJS {
 
   getPromiseResult(jsval) {
     return this.convertReturnValue(this.wasmInstance.get_promise_result(jsval));
+  }
+
+  async waitForPendingAsyncInvocations() {
+    while (this.pendingAsyncInvocations.length > 0) {
+      const pending = [...this.pendingAsyncInvocations];
+      this.pendingAsyncInvocations = [];
+      await Promise.all(pending);
+    }
   }
 
   convertReturnValue(jsval) {
