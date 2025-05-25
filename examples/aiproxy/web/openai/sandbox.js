@@ -1,6 +1,4 @@
-// /Users/peter/git/quickjs-rust-near/examples/aiproxy/web/openai/sandbox.js
-
-import { createQuickJS } from "http://localhost:16000/quickjslib/js/quickjs.js";
+import { createQuickJS } from "https://cdn.jsdelivr.net/npm/quickjs-wasm@0.0.1/js/quickjs.js";
 
 /**
  * Provides a sandboxed environment for executing client-side tool logic.

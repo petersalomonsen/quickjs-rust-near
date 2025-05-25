@@ -1,0 +1,22 @@
+{
+  "name": "quickjs-wasm",
+  "version": "0.0.1",
+  "description": "Execute javascript in a secure WebAssembly sandbox",
+  "main": "js/quickjs.js",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/petersalomonsen/quickjs-rust-near.git"
+  },
+  "author": "Peter Salomonsen",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/petersalomonsen/quickjs-rust-near/issues"
+  },
+  "homepage": "https://github.com/petersalomonsen/quickjs-rust-near#readme",
+  "files": [
+    "js/quickjs.js",
+    "js/wasi.js",
+    "jseval.wasm"
+  ]
+}
