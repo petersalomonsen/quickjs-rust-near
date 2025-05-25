@@ -1,5 +1,7 @@
 // /Users/peter/git/quickjs-rust-near/examples/aiproxy/web/openai/sandbox.js
 
+import { createQuickJS } from "http://localhost:16000/quickjslib/js/quickjs.js";
+
 /**
  * Provides a sandboxed environment for executing client-side tool logic.
  */
@@ -89,6 +91,14 @@ export class ToolSandbox {
   }
 
   /**
+   * Initializes the QuickJS instance for executing scripts.
+   * @returns {Promise<void>}
+   */
+  async initializeQuickJS() {
+    this.quickjs = await createQuickJS();
+  }
+
+  /**
    * Executes a clientImplementation script.
    * @param {string} scriptString - The clientImplementation script as a string.
    * @param {object} initialArgs - The arguments passed to the tool by the AI.
@@ -100,39 +110,48 @@ export class ToolSandbox {
       initialArgs,
     );
 
-    const AsyncFunction = Object.getPrototypeOf(
-      async function () {},
-    ).constructor;
-    // The parameters for the sandboxed function are (args, signMessage, getAccountId, callToolOnContract)
-    // The scriptString is the body of an async function.
-    const scriptFunc = new AsyncFunction(
-      "args",
-      "signMessage",
-      "getAccountId",
-      "callToolOnContract",
-      scriptString,
+    const quickjs = await createQuickJS();
+
+    // Bind sandbox functions to the QuickJS environment
+    quickjs.hostFunctions["signMessage"] = async (params) => {
+      const message = quickjs.getObjectPropertyValue(params, "message");
+      return quickjs.allocateJSstring(await this.signMessage(message));
+    };
+
+    quickjs.hostFunctions["getAccountId"] = async () => {
+      return quickjs.allocateJSstring(await this.getAccountId());
+    };
+
+    quickjs.hostFunctions["callToolOnContract"] = async (params) => {
+      const toolName = quickjs.getObjectPropertyValue(params, "toolName");
+      const args = JSON.parse(quickjs.getObjectPropertyValue(params, "args"));
+
+      return quickjs.allocateJSstring(
+        JSON.stringify(await this.callToolOnContract(toolName, args)),
+      );
+    };
+
+    // Compile the script
+    const bytecode = quickjs.compileToByteCode(
+      `
+      const args = ${JSON.stringify(initialArgs)};
+      export async function execute() { ${scriptString} }`,
+      "sandbox.js",
     );
 
-    const boundSignMessage = this.signMessage.bind(this);
-    const boundGetAccountId = this.getAccountId.bind(this);
-    const boundCallToolOnContract = this.callToolOnContract.bind(this);
+    // Load and execute the script
+    const mod = quickjs.loadByteCode(bytecode);
+    const promise = quickjs.callModFunction(mod, "execute");
 
-    try {
-      // The script will be called with initialArgs and the bound sandbox functions
-      return await scriptFunc(
-        initialArgs,
-        boundSignMessage,
-        boundGetAccountId,
-        boundCallToolOnContract,
-      );
-    } catch (error) {
-      console.error("Error executing clientImplementation script:", error);
-      // Augment the error message with more context if possible
-      let errorMessage = `Error executing clientImplementation script for tool: ${error.message}`;
-      if (error.stack) {
-        errorMessage += `\nStack: ${error.stack}`;
-      }
-      throw new Error(errorMessage);
-    }
+    // Wait for any pending async operations
+    await quickjs.waitForPendingAsyncInvocations();
+
+    // Get the result of the script execution
+    const result = quickjs.getPromiseResult(promise);
+
+    // Clean up the QuickJS instance
+    quickjs.wasmInstance.free();
+
+    return result;
   }
 }

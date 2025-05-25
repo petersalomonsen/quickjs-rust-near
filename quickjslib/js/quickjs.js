@@ -42,7 +42,7 @@ class QuickJS {
       const wasm =
         url.protocol === "file:"
           ? await (await import("fs/promises")).readFile(url)
-          : await fetch(url).then(r => r.arrayBuffer());
+          : await fetch(url).then((r) => r.arrayBuffer());
 
       const mod = (
         await WebAssembly.instantiate(wasm, {

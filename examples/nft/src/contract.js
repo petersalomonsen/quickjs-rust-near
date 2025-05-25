@@ -36,16 +36,21 @@ export function get_ai_tool_definitions() {
 
           const message = JSON.stringify({ token_id: tokenIdStr });
 
-          const signature = await signMessage(message);
-          const account_id = await getAccountId();
+          print("Message: " + message);
+          const signature = await env.callHostAsync({ function_name: "signMessage", message});
+          print("Signature: " + signature);
+          const account_id = await env.callHostAsync({ function_name: "getAccountId" });
 
-          return callToolOnContract("get_locked_content", {
+          print("Account ID: " + account_id);
+          const verificationResult = await env.callHostAsync({ function_name: "callToolOnContract", toolName: "get_locked_content", args: JSON.stringify({
             message,
             signature,
             account_id,
             token_id: tokenIdStr,
             verify_only: true
-          });
+          })});
+          print("Verification result: " + verificationResult);
+          return verificationResult;
         `,
       },
     ]),
