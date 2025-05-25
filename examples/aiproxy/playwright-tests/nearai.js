@@ -109,9 +109,7 @@ function handleToolCallResult(postdata, lastMessage) {
 
   console.log(`Processing tool call result for ${toolCallName}`);
 
-  const toolNames = (postdata.tools || []).map(
-    (t) => t.function?.name || t.name,
-  );
+  const toolNames = (postdata.tools || []).map((t) => t.function.name);
 
   // Check if we have a specific handler for this tool
   if (toolCallResponses[toolCallName]) {

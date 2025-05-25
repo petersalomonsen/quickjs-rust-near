@@ -414,7 +414,14 @@ ${JSON.stringify(simulationResult)}
 // When returning tool definitions, include dynamic ones if set
 export const toolDefinitions = async () => {
   if (dynamicToolDefinitions.length > 0) {
-    return [...dynamicToolDefinitions];
+    return dynamicToolDefinitions.map((toolFunction) => ({
+      type: "function",
+      function: {
+        name: toolFunction.name,
+        description: toolFunction.description,
+        parameters: toolFunction.parameters,
+      },
+    }));
   }
   return [
     {

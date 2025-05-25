@@ -153,9 +153,7 @@ export const responses = {
     },
   },
   "Which tools do you have?": async ({ postdata }) => {
-    const toolNames = (postdata.tools || []).map(
-      (t) => t.function?.name || t.name,
-    );
+    const toolNames = (postdata.tools || []).map((t) => t.function.name);
     return {
       id: "tools-list-123",
       choices: [
