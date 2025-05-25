@@ -46,11 +46,14 @@ const result = quickjs.evalByteCode(bytecode); // returns 42
 
 ```javascript
 // Compile a module to bytecode
-const bytecode = quickjs.compileToByteCode(`
+const bytecode = quickjs.compileToByteCode(
+  `
   export function getNumber() {
     return 42;
   }
-`, "math.js");
+`,
+  "math.js",
+);
 
 // Load the module
 const mod = quickjs.loadByteCode(bytecode);
@@ -65,12 +68,15 @@ const result = quickjs.callModFunction(mod, "getNumber"); // returns 42
 
 ```javascript
 // Compile an async function
-const bytecode = quickjs.compileToByteCode(`
+const bytecode = quickjs.compileToByteCode(
+  `
   export async function test() {
     const result = await new Promise(resolve => resolve(883));
     return result;
   }
-`, "test.js");
+`,
+  "test.js",
+);
 
 // Load the module
 const mod = quickjs.loadByteCode(bytecode);
@@ -95,12 +101,15 @@ quickjs.hostFunctions["sleep"] = async (params) => {
 };
 
 // Compile JavaScript that calls the host function
-const bytecode = quickjs.compileToByteCode(`
+const bytecode = quickjs.compileToByteCode(
+  `
   export async function test() {
     const result = await env.callHostAsync({ function_name: "sleep", duration: 500 });
     return result;
   }
-`, "test.js");
+`,
+  "test.js",
+);
 
 // Load and call the function
 const mod = quickjs.loadByteCode(bytecode);
