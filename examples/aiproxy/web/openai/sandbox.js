@@ -130,9 +130,13 @@ export class ToolSandbox {
       const toolName = quickjs.getObjectPropertyValue(params, "toolName");
       const args = JSON.parse(quickjs.getObjectPropertyValue(params, "args"));
 
-      return quickjs.allocateJSstring(
-        JSON.stringify(await this.callToolOnContract(toolName, args)),
-      );
+      try {
+        return quickjs.allocateJSstring(
+          JSON.stringify(await this.callToolOnContract(toolName, args)),
+        );
+      } catch (e) {
+        return quickjs.allocateJSstring(JSON.stringify(e.toString()));
+      }
     };
 
     // Compile the script
