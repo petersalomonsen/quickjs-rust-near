@@ -11,6 +11,11 @@ export async function setupStorageAndRoutes({ page }) {
     await route.fulfill({ response });
   });
 
+  await page.route("https://rpc.mainnet.fastnear.com/", async (route) => {
+    const response = await route.fetch({ url: rpc_url });
+    await route.fulfill({ response });
+  });
+
   const fullAccessKeyPair = utils.KeyPair.fromString(
     unregisteredaiuser.fullAccessKeyPair,
   );

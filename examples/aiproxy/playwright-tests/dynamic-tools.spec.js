@@ -48,6 +48,18 @@ test("dynamic tool definitions are included in chat completion request", async (
     ),
   ).toBeVisible();
 
+  questionArea.fill(
+    "Please add an accesskey for interacting with webassemblymusic.near",
+  );
+  await page.getByRole("button", { name: "Ask NEAR AI" }).click();
+
+  // Wait for the contract selection confirmation
+  await expect(
+    await page.getByText(
+      "I've added a function access key for webassemblymusic.near.",
+    ),
+  ).toBeVisible();
+
   // Wait for the tool call result to be processed
   await page.waitForTimeout(1000);
 

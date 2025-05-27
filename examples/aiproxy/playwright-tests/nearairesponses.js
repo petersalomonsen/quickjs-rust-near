@@ -365,80 +365,35 @@ export const responses = {
     model: "accounts/fireworks/models/llama-v3p1-70b-instruct",
     object: "chat.completion",
   },
-};
-
-export const toolCallResponses = {
-  call_inspect_tools_123: {
-    // Corresponds to inspect_contract_tools
-    id: "tool-resp-inspect-123",
+  "Please add an accesskey for interacting with webassemblymusic.near": {
+    id: "2cd9dc62-95ca-44e9-aa27-d5fbbbb43c09",
     choices: [
       {
-        finish_reason: "stop",
+        finish_reason: "tool_calls",
         index: 0,
+        logprobs: null,
         message: {
+          content: null,
+          refusal: null,
           role: "assistant",
-          content:
-            "The contract provides 2 tools: store_signing_key, get_locked_content. The store_signing_key tool stores the signing key for the authenticated user and must be called before using get_locked_content. The get_locked_content tool checks if locked content for an NFT is accessible and requires authentication via a signed message.",
+          audio: null,
+          function_call: null,
+          tool_calls: [
+            {
+              id: "call_add_key_for_contract_123",
+              function: {
+                arguments: '{"contract_id": "webassemblymusic.near"}',
+                name: "add_key_for_contract",
+              },
+              type: "function",
+              index: 0,
+            },
+          ],
         },
       },
     ],
-    created: Date.now() / 1000,
-    model: "accounts/fireworks/models/tool-response-model",
-    object: "chat.completion",
-  },
-  call_select_contract_456: {
-    // Corresponds to select_contract_for_tools
-    id: "tool-resp-select-456",
-    choices: [
-      {
-        finish_reason: "stop",
-        index: 0,
-        message: {
-          role: "assistant",
-          content:
-            "Tool contract set to webassemblymusic.near and loaded 2 tool definitions.",
-        },
-      },
-    ],
-    created: Date.now() / 1000,
-    model: "accounts/fireworks/models/tool-response-model",
-    object: "chat.completion",
-  },
-  call_store_signing_key_789: {
-    // Corresponds to the dynamic tool store_signing_key
-    id: "tool-resp-store-key-789",
-    choices: [
-      {
-        finish_reason: "stop",
-        index: 0,
-        message: {
-          role: "assistant",
-          content: "Your signing key has been stored successfully.",
-        },
-      },
-    ],
-    created: Date.now() / 1000,
-    model: "accounts/fireworks/models/tool-response-model",
-    object: "chat.completion",
-  },
-  // Updated to reflect the new tool name and expected response for verify_only: true
-  call_get_locked_content_xyz: {
-    // Corresponds to the dynamic tool get_locked_content (after clientImplementation)
-    id: "tool-resp-get-locked-content-xyz",
-    choices: [
-      {
-        finish_reason: "stop",
-        index: 0,
-        message: {
-          role: "assistant",
-          // This simulates the successful execution of get_locked_content with verify_only: true
-          content:
-            "Locked content with length 12345 can be accessed with the provided signed message", // Example length
-        },
-      },
-    ],
-    created: Date.now() / 1000,
-    model: "accounts/fireworks/models/tool-response-model",
+    created: 1740235569,
+    model: "accounts/fireworks/models/qwen2p5-72b-instruct",
     object: "chat.completion",
   },
 };

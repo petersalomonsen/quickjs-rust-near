@@ -210,7 +210,6 @@ const toolCallResponses = {
       },
     };
   },
-
   store_signing_key: (postdata, lastMessage) => {
     return {
       id: `store-signing-key-${Date.now()}`,
@@ -221,6 +220,64 @@ const toolCallResponses = {
           logprobs: null,
           message: {
             content: `Your signing key has been stored successfully. You can now use the get_synth_wasm tool to retrieve WebAssembly code for your NFTs.`,
+            refusal: null,
+            role: "assistant",
+            audio: null,
+            function_call: null,
+            tool_calls: null,
+          },
+        },
+      ],
+      created: Date.now() / 1000,
+      model: "accounts/fireworks/models/qwen2p5-72b-instruct",
+      object: "chat.completion",
+      usage: {
+        completion_tokens: 25,
+        prompt_tokens: 60,
+        total_tokens: 85,
+      },
+    };
+  },
+  add_key_for_contract: (postdata, lastMessage) => {
+    return {
+      id: `add_key_for_contract-${Date.now()}`,
+      choices: [
+        {
+          finish_reason: "stop",
+          index: 0,
+          logprobs: null,
+          message: {
+            content: `I've added a function access key for webassemblymusic.near.`,
+            refusal: null,
+            role: "assistant",
+            audio: null,
+            function_call: null,
+            tool_calls: null,
+          },
+        },
+      ],
+      created: Date.now() / 1000,
+      model: "accounts/fireworks/models/qwen2p5-72b-instruct",
+      object: "chat.completion",
+      usage: {
+        completion_tokens: 25,
+        prompt_tokens: 60,
+        total_tokens: 85,
+      },
+    };
+  },
+  get_locked_content: (postdata, lastMessage) => {
+    return {
+      id: `get_locked_content-${Date.now()}`,
+      choices: [
+        {
+          finish_reason: "stop",
+          index: 0,
+          logprobs: null,
+          message: {
+            content: (lastMessage.content + "").includes("can be accessed")
+              ? "You have access"
+              : "You don't have access",
             refusal: null,
             role: "assistant",
             audio: null,
