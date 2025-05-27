@@ -1,4 +1,5 @@
 import { createQuickJS } from "https://cdn.jsdelivr.net/npm/quickjs-wasm@0.0.1/js/quickjs.js";
+import { keyStores } from "near-api-js";
 
 /**
  * Provides a sandboxed environment for executing client-side tool logic.
@@ -14,12 +15,14 @@ export class ToolSandbox {
     connectedAccount,
     dynamicToolDefinitions,
     originalCallContractTool,
+    targetContract,
   ) {
     this.walletSelector = walletSelector;
     this.connectedAccount = connectedAccount;
     this.dynamicToolDefinitions = dynamicToolDefinitions; // Store dynamic tool definitions
     // This is the original callContractTool from tools.js, to be used by the sandboxed callToolOnContract
     this.originalCallContractTool = originalCallContractTool;
+    this.targetContract = targetContract;
   }
 
   /**
@@ -28,11 +31,14 @@ export class ToolSandbox {
    * @returns {Promise<string>} - The signature.
    */
   async signMessage(message) {
-    const keyPair =
-      await this.connectedAccount.connection.signer.keyStore.getKey(
-        this.connectedAccount.connection.networkId,
-        this.connectedAccount.accountId,
-      );
+    const keyStore = new keyStores.BrowserLocalStorageKeyStore(
+      localStorage,
+      this.targetContract,
+    );
+    const keyPair = await keyStore.getKey(
+      this.connectedAccount.connection.networkId,
+      this.connectedAccount.accountId,
+    );
     const signatureObj = await keyPair.sign(new TextEncoder().encode(message));
     const signatureBase64 = btoa(
       String.fromCharCode(...signatureObj.signature),

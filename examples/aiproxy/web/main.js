@@ -10,6 +10,7 @@ import {
   toolDefinitions,
   toolImplementations,
   setWalletSelector,
+  fetchToolsFromContract,
 } from "./openai/tools.js";
 import { marked } from "marked";
 import {
@@ -18,6 +19,7 @@ import {
   NEAR_AI_AUTH_OBJECT_STORAGE_KEY,
 } from "./nearai/login.js";
 import { getProgressBarHTML } from "./ui/progress-bar.js";
+import nearConnectionConfig from "./near/config.js";
 
 window.Buffer = Buffer;
 
@@ -164,7 +166,7 @@ async function startAiProxyConversation() {
       ],
     });
 
-    const transactionStatus = await fetch("http://localhost:14500", {
+    const transactionStatus = await fetch(nearConnectionConfig.nodeUrl, {
       method: "POST",
       headers: {
         "content-type": "application/json",
@@ -326,3 +328,9 @@ document.getElementById("refundButton").addEventListener("click", async () => {
 handleNearAILoginCallback();
 askAIButton.disabled = false;
 askNearAIButton.disabled = false;
+
+try {
+  await fetchToolsFromContract();
+} catch (e) {
+  console.warn(e);
+}

@@ -1,8 +1,9 @@
 import { getContractInstanceExports } from "../contract-runner/contract-runner.js";
-import { InMemorySigner, keyStores, connect } from "near-api-js";
+import { InMemorySigner, keyStores, connect, utils } from "near-api-js";
 import { run_javascript_in_web4_simulator } from "./javascriptsimulator.js";
 import { confirmModal } from "../ui/confirm-modal.js";
 import { ToolSandbox } from "./sandbox.js"; // Import ToolSandbox
+import nearConnectionConfig from "../near/config.js";
 
 /**
  * @type {import('@near-wallet-selector/core').WalletSelector}
@@ -13,8 +14,7 @@ const networkId = "mainnet";
 const keyStore = new keyStores.BrowserLocalStorageKeyStore(localStorage);
 const signer = new InMemorySigner(keyStore);
 const nearConnection = await connect({
-  networkId,
-  nodeUrl: "http://localhost:14500",
+  ...nearConnectionConfig,
   keyStore,
 });
 
@@ -55,14 +55,11 @@ export async function setWalletSelector(newWalletSelector) {
 let toolContractId = null;
 let dynamicToolDefinitions = [];
 
-export const setToolContract = async (
-  contractId,
-  account = connectedAccount,
-) => {
-  toolContractId = contractId;
-  localStorage.setItem("toolContractId", contractId);
-  // Fetch tool definitions from the contract
+export const fetchToolsFromContract = async () => {
+  const account = connectedAccount;
   if (!account) throw new Error("No connected account");
+
+  const contractId = await getToolContract();
   try {
     const defs = await account.viewFunction({
       contractId,
@@ -79,6 +76,15 @@ export const setToolContract = async (
       `Failed to fetch tool definitions from ${contractId}: ${e}`,
     );
   }
+};
+
+export const setToolContract = async (
+  contractId,
+  account = connectedAccount,
+) => {
+  toolContractId = contractId;
+  localStorage.setItem("toolContractId", contractId);
+  await fetchToolsFromContract();
 };
 
 export const getToolContract = () => {
@@ -129,6 +135,7 @@ export const callContractTool = async (
       currentConnectedAccount,
       currentDynamicToolDefinitions,
       callContractTool,
+      getToolContract(),
     );
     try {
       console.log(
@@ -159,24 +166,23 @@ export const callContractTool = async (
 
   try {
     if (requiresTx) {
-      const selectedWallet = await currentWalletSelector.wallet();
-      const transactionResult = await selectedWallet.signAndSendTransaction({
-        receiverId: contractId,
-        actions: [
-          {
-            type: "FunctionCall",
-            params: {
-              methodName: "call_js_func",
-              args: {
-                function_name: toolName,
-                ...args,
-              },
-              gas: "300000000000000", // 300 TGas, ensure this is a string
-              deposit: "0",
-            },
-          },
-        ],
+      const keyStore = new keyStores.BrowserLocalStorageKeyStore(
+        localStorage,
+        contractId,
+      );
+      const connection = await connect({ ...nearConnectionConfig, keyStore });
+      const account = await connection.account(connectedAccount.accountId);
+      const transactionResult = await account.functionCall({
+        contractId,
+        methodName: "call_js_func",
+        args: {
+          function_name: toolName,
+          ...args,
+        },
+        gas: 300_000_000_000_000n,
+        deposit: 0n,
       });
+
       return JSON.stringify(transactionResult); // Or handle more specific result parsing if needed
     } else {
       const viewResult = await currentConnectedAccount.viewFunction({
@@ -392,6 +398,43 @@ ${JSON.stringify(simulationResult)}
   select_contract_for_tools: async function ({ contract_id }) {
     return await setToolContract(contract_id);
   },
+  add_key_for_contract: async function ({ contract_id }) {
+    const keyStore = new keyStores.BrowserLocalStorageKeyStore(
+      localStorage,
+      contract_id,
+    );
+    const wallet = await walletSelector.wallet();
+    const connectedAccount = (await wallet.getAccounts())[0];
+    const existingKey = await keyStore.getKey(
+      nearConnectionConfig.networkId,
+      connectedAccount.accountId,
+    );
+    if (existingKey) {
+      return `An access key for ${contract_id} already exist. Public key is ${existingKey.getPublicKey().toString()}`;
+    } else {
+      const newAccessKey = utils.KeyPairEd25519.fromRandom();
+      keyStore.setKey(
+        nearConnectionConfig.networkId,
+        connectedAccount.accountId,
+        newAccessKey,
+      );
+      await wallet.signAndSendTransaction({
+        actions: [
+          {
+            type: "AddKey",
+            params: {
+              accessKey: {
+                permission: { receiverId: contract_id },
+              },
+              publicKey: newAccessKey.getPublicKey(),
+            },
+          },
+        ],
+        receiverId: connectedAccount.accountId,
+      });
+    }
+    return;
+  },
   inspect_contract_tools: async function ({ contract_id }) {
     if (!connectedAccount) throw new Error("No connected account");
     try {
@@ -413,17 +456,82 @@ ${JSON.stringify(simulationResult)}
 
 // When returning tool definitions, include dynamic ones if set
 export const toolDefinitions = async () => {
-  if (dynamicToolDefinitions.length > 0) {
-    return dynamicToolDefinitions.map((toolFunction) => ({
+  const globalTools = [
+    {
       type: "function",
       function: {
-        name: toolFunction.name,
-        description: toolFunction.description,
-        parameters: toolFunction.parameters,
+        name: "inspect_contract_tools",
+        description:
+          "Fetch and display the tool definitions from a specified NEAR contract without selecting it.",
+        parameters: {
+          type: "object",
+          properties: {
+            contract_id: {
+              type: "string",
+              description: "The NEAR account ID of the contract to inspect.",
+            },
+          },
+          required: ["contract_id"],
+          additionalProperties: false,
+        },
       },
-    }));
+    },
+    {
+      type: "function",
+      function: {
+        name: "select_contract_for_tools",
+        description:
+          "Select which NEAR smart contract to use for fetching tool definitions and tool calls.",
+        parameters: {
+          type: "object",
+          properties: {
+            contract_id: {
+              type: "string",
+              description:
+                "The NEAR account ID of the contract to use for tools.",
+            },
+          },
+          required: ["contract_id"],
+          additionalProperties: false,
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "add_key_for_contract",
+        description:
+          "Add function access key to interact with a specified contract",
+        parameters: {
+          type: "object",
+          properties: {
+            contract_id: {
+              type: "string",
+              description:
+                "The NEAR account ID of the contract to add a function access key",
+            },
+          },
+          required: ["contract_id"],
+          additionalProperties: false,
+        },
+      },
+    },
+  ];
+  if (dynamicToolDefinitions.length > 0) {
+    return [
+      ...globalTools,
+      ...dynamicToolDefinitions.map((toolFunction) => ({
+        type: "function",
+        function: {
+          name: toolFunction.name,
+          description: toolFunction.description,
+          parameters: toolFunction.parameters,
+        },
+      })),
+    ];
   }
   return [
+    ...globalTools,
     {
       type: "function",
       function: {
@@ -537,45 +645,6 @@ export function web4_get() {
           properties: {},
           additionalProperties: false,
           required: [],
-        },
-      },
-    },
-    {
-      type: "function",
-      function: {
-        name: "inspect_contract_tools",
-        description:
-          "Fetch and display the tool definitions from a specified NEAR contract without selecting it.",
-        parameters: {
-          type: "object",
-          properties: {
-            contract_id: {
-              type: "string",
-              description: "The NEAR account ID of the contract to inspect.",
-            },
-          },
-          required: ["contract_id"],
-          additionalProperties: false,
-        },
-      },
-    },
-    {
-      type: "function",
-      function: {
-        name: "select_contract_for_tools",
-        description:
-          "Select which NEAR smart contract to use for fetching tool definitions and tool calls.",
-        parameters: {
-          type: "object",
-          properties: {
-            contract_id: {
-              type: "string",
-              description:
-                "The NEAR account ID of the contract to use for tools.",
-            },
-          },
-          required: ["contract_id"],
-          additionalProperties: false,
         },
       },
     },
