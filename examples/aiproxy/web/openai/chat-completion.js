@@ -194,9 +194,6 @@ export async function handleToolCalls({
       const errorMessage = `Error executing tool ${toolCall.function.name}: ${error.message}`;
       console.error(errorMessage);
       toolResult = errorMessage;
-      if (onError) {
-        onError(errorMessage);
-      }
     }
 
     assistantResponse += `*Function call result is*
