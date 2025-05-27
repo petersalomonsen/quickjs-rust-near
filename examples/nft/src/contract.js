@@ -82,7 +82,7 @@ export function get_locked_content() {
   } else {
     env.value_return(
       JSON.stringify(
-        `Locked content with length ${content.length} can be accessed with the provided signed message`,
+        `Use this signed message for accessing the content: ${env.base64_encode(message)}.${signature}`,
       ),
     );
   }

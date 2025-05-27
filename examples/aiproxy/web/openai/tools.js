@@ -84,7 +84,7 @@ export const setToolContract = async (
 ) => {
   toolContractId = contractId;
   localStorage.setItem("toolContractId", contractId);
-  await fetchToolsFromContract();
+  return await fetchToolsFromContract();
 };
 
 export const getToolContract = () => {
@@ -432,8 +432,8 @@ ${JSON.stringify(simulationResult)}
         ],
         receiverId: connectedAccount.accountId,
       });
+      return `Added access key for ${contract_id} with public key ${newAccessKey.getPublicKey().toString()}`;
     }
-    return;
   },
   inspect_contract_tools: async function ({ contract_id }) {
     if (!connectedAccount) throw new Error("No connected account");

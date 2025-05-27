@@ -95,8 +95,13 @@ test("dynamic tool definitions are included in chat completion request", async (
   // After tool call is completed, test the response handling
   // Expecting a message confirming access, based on verify_only: true
   await expect(
-    await page.getByText(
-      /Locked content with length \d+ can be accessed with the provided signed message/, // Updated expected outcome
-    ),
+    await page
+      .getByText(`Use this signed message for accessing the content`)
+      .nth(0),
+  ).toBeVisible();
+  await expect(
+    await page
+      .getByText(`Use this signed message for accessing the content`)
+      .nth(1),
   ).toBeVisible();
 });

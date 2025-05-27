@@ -267,6 +267,7 @@ const toolCallResponses = {
     };
   },
   get_locked_content: (postdata, lastMessage) => {
+    const accessMessage = lastMessage.content;
     return {
       id: `get_locked_content-${Date.now()}`,
       choices: [
@@ -275,9 +276,9 @@ const toolCallResponses = {
           index: 0,
           logprobs: null,
           message: {
-            content: (lastMessage.content + "").includes("can be accessed")
-              ? "You have access"
-              : "You don't have access",
+            content: accessMessage.includes("Use this signed message")
+              ? accessMessage
+              : "You don't have access.",
             refusal: null,
             role: "assistant",
             audio: null,
