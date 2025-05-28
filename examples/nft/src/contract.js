@@ -34,18 +34,18 @@ export function get_ai_tool_definitions() {
           const { token_id } = args;
           const tokenIdStr = token_id.toString();
 
-          const message = JSON.stringify({ token_id: tokenIdStr });
+          const account_id = await env.callHostAsync({ function_name: "getAccountId" });
+          print("Account ID: " + account_id);
+
+          const message = JSON.stringify({ token_id: tokenIdStr, account_id });
 
           print("Message: " + message);
           const signature = await env.callHostAsync({ function_name: "signMessage", message});
           print("Signature: " + signature);
-          const account_id = await env.callHostAsync({ function_name: "getAccountId" });
 
-          print("Account ID: " + account_id);
           const verificationResult = await env.callHostAsync({ function_name: "callToolOnContract", toolName: "get_locked_content", args: JSON.stringify({
             message,
             signature,
-            account_id,
             token_id: tokenIdStr,
             verify_only: true
           })});
@@ -58,10 +58,8 @@ export function get_ai_tool_definitions() {
 }
 
 export function get_locked_content() {
-  const { message, signature, account_id, verify_only } = JSON.parse(
-    env.input(),
-  );
-  const { token_id } = JSON.parse(message);
+  const { message, signature, verify_only } = JSON.parse(env.input());
+  const { token_id, account_id } = JSON.parse(message);
   const validSignature = env.verify_signed_message(
     message,
     signature,
