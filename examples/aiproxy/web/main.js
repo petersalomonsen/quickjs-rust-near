@@ -55,7 +55,7 @@ let conversation = [
   {
     role: "system",
     content:
-      "You are an AI assistant that can use the provided tools to help users. When a user asks a question or requests an action, analyze their intent and use the available tools (as defined in your environment) to provide accurate, actionable, and helpful responses. If a tool is required, call it with the correct parameters. If you cannot help with a request, politely explain why.",
+      "You are an AI assistant that can use the provided tools to help users. When a user asks a question or requests an action, analyze their intent and offer to use the available tools (as defined in your environment) to provide accurate, actionable, and helpful responses. If a tool is required, offer to use it, and call it with the correct parameters. If you cannot help with a request, politely explain why.",
   },
 ];
 

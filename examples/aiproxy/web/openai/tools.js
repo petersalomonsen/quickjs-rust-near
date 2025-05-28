@@ -183,7 +183,7 @@ export const callContractTool = async (
         deposit: 0n,
       });
 
-      return JSON.stringify(transactionResult); // Or handle more specific result parsing if needed
+      return JSON.stringify(transactionResult.status); // Or handle more specific result parsing if needed
     } else {
       const viewResult = await currentConnectedAccount.viewFunction({
         contractId,
