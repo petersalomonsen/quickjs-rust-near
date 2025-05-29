@@ -114,7 +114,7 @@ describe("NFT contract", () => {
       },
     });
 
-    let message = JSON.stringify({ token_id: "fall" });
+    let message = JSON.stringify({ token_id: "fall", account_id: accountId });
     let keyPair = await account.connection.signer.keyStore.getKey(
       connectionConfig.networkId,
       accountId,
@@ -128,7 +128,6 @@ describe("NFT contract", () => {
       args: {
         function_name: "get_locked_content",
         message,
-        account_id: accountId,
         signature,
       },
     });
@@ -139,6 +138,10 @@ describe("NFT contract", () => {
       connectionConfig.networkId,
       userAccount.accountId,
     );
+    message = JSON.stringify({
+      token_id: "fall",
+      account_id: userAccount.accountId,
+    });
     signatureObj = await keyPair.sign(new TextEncoder().encode(message));
     signature = btoa(String.fromCharCode(...signatureObj.signature));
 
@@ -152,20 +155,22 @@ describe("NFT contract", () => {
       args: {
         function_name: "get_locked_content",
         message,
-        account_id: userAccount.accountId,
         signature,
       },
     });
 
     expect(not_owner_result).to.equal("not owner");
 
+    message = JSON.stringify({
+      token_id: "fall",
+      account_id: account.accountId,
+    });
     const invalid_signature_result = await account.viewFunction({
       contractId: accountId,
       methodName: "call_js_func",
       args: {
         function_name: "get_locked_content",
         message,
-        account_id: accountId,
         signature,
       },
     });
