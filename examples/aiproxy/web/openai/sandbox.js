@@ -119,11 +119,19 @@ export class ToolSandbox {
     // Bind sandbox functions to the QuickJS environment
     quickjs.hostFunctions["signMessage"] = async (params) => {
       const message = quickjs.getObjectPropertyValue(params, "message");
-      return quickjs.allocateJSstring(await this.signMessage(message));
+      try {
+        return quickjs.allocateJSstring(await this.signMessage(message));
+      } catch (e) {
+        return quickjs.allocateJSstring(JSON.stringify(e.toString()));
+      }
     };
 
     quickjs.hostFunctions["getAccountId"] = async () => {
-      return quickjs.allocateJSstring(await this.getAccountId());
+      try {
+        return quickjs.allocateJSstring(await this.getAccountId());
+      } catch (e) {
+        return quickjs.allocateJSstring(JSON.stringify(e.toString()));
+      }
     };
 
     quickjs.hostFunctions["callToolOnContract"] = async (params) => {

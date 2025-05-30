@@ -105,3 +105,49 @@ test("dynamic tool definitions are included in chat completion request", async (
       .nth(1),
   ).toBeVisible();
 });
+
+test("should give clear error message if signing fails because of missing key", async ({
+  page,
+}) => {
+  await setupStorageAndRoutes({ page });
+  await page.waitForTimeout(1000);
+  const questionArea = await page.getByPlaceholder(
+    "Type your question here...",
+  );
+
+  await setupNearAIRoute({ page });
+
+  // Now select the contract for tools
+  await page.waitForTimeout(1000);
+  questionArea.fill(
+    "Please select webassemblymusic.near as the contract for tools",
+  );
+  await page.getByRole("button", { name: "Ask NEAR AI" }).click();
+
+  // Wait for the contract selection confirmation
+  await expect(
+    await page.getByText(
+      "I'll set the webassemblymusic.near contract for tools.",
+    ),
+  ).toBeVisible();
+
+  // Now test using the get_locked_content tool
+  await page.waitForTimeout(1000);
+  questionArea.fill(
+    "Can I access the locked content for my NFT with token_id 123?", // Updated prompt
+  );
+  await page.getByRole("button", { name: "Ask NEAR AI" }).click();
+
+  // Verify tool was called - AI confirms it will check access
+  await expect(
+    await page.getByText(
+      "I'll check if you can access the locked content for your NFT.", // Updated AI response
+    ),
+  ).toBeVisible();
+
+  // After tool call is completed, test the response handling
+  // Expecting a message confirming access, based on verify_only: true
+  await expect(
+    await page.getByText(`You don't have access`).nth(0),
+  ).toBeVisible();
+});
