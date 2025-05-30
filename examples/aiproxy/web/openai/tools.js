@@ -1,7 +1,9 @@
 import { getContractInstanceExports } from "../contract-runner/contract-runner.js";
-import { InMemorySigner, keyStores, connect } from "near-api-js";
+import { InMemorySigner, keyStores, connect, utils } from "near-api-js";
 import { run_javascript_in_web4_simulator } from "./javascriptsimulator.js";
 import { confirmModal } from "../ui/confirm-modal.js";
+import { ToolSandbox } from "./sandbox.js"; // Import ToolSandbox
+import nearConnectionConfig from "../near/config.js";
 
 /**
  * @type {import('@near-wallet-selector/core').WalletSelector}
@@ -9,14 +11,10 @@ import { confirmModal } from "../ui/confirm-modal.js";
 let walletSelector;
 
 const networkId = "mainnet";
-const keyStore = new keyStores.BrowserLocalStorageKeyStore(
-  localStorage,
-  "ai-app",
-);
+const keyStore = new keyStores.BrowserLocalStorageKeyStore(localStorage);
 const signer = new InMemorySigner(keyStore);
 const nearConnection = await connect({
-  networkId,
-  nodeUrl: "http://localhost:14500",
+  ...nearConnectionConfig,
   keyStore,
 });
 
@@ -54,6 +52,176 @@ export async function setWalletSelector(newWalletSelector) {
   }
 }
 
+let toolContractId = null;
+let dynamicToolDefinitions = [];
+
+export const fetchToolsFromContract = async () => {
+  const account = connectedAccount;
+  if (!account) throw new Error("No connected account");
+
+  const contractId = await getToolContract();
+  try {
+    const defs = await account.viewFunction({
+      contractId,
+      methodName: "call_js_func",
+      args: {
+        function_name: "get_ai_tool_definitions",
+      },
+    });
+    dynamicToolDefinitions = defs;
+    return `Tool contract set to ${contractId} and loaded ${defs.length} tool definitions.`;
+  } catch (e) {
+    dynamicToolDefinitions = [];
+    throw new Error(
+      `Failed to fetch tool definitions from ${contractId}: ${e}`,
+    );
+  }
+};
+
+export const setToolContract = async (
+  contractId,
+  account = connectedAccount,
+) => {
+  toolContractId = contractId;
+  localStorage.setItem("toolContractId", contractId);
+  return await fetchToolsFromContract();
+};
+
+export const getToolContract = () => {
+  return (
+    toolContractId ||
+    localStorage.getItem("toolContractId") ||
+    fungible_token_contract_id
+  );
+};
+
+/**
+ * Call a tool function on a contract
+ * @param {string} contractId - The contract ID to call
+ * @param {string} toolName - The name of the tool to call
+ * @param {object} args - The arguments to pass to the tool
+ * @param {import('@near-wallet-selector/core').WalletSelector} [currentWalletSelector=walletSelector] - The current wallet selector instance
+ * @param {import('near-api-js').Account} [currentConnectedAccount=connectedAccount] - The current connected account instance
+ * @param {Array<object>|null} [currentDynamicToolDefinitions=dynamicToolDefinitions] - The current dynamic tool definitions
+ * @param {boolean} [skipClientImplementation=false] - Flag to skip clientImplementation execution (used by sandbox)
+ * @returns {Promise<any>} - The result of the tool call
+ */
+export const callContractTool = async (
+  contractId,
+  toolName,
+  args,
+  currentWalletSelector = walletSelector,
+  currentConnectedAccount = connectedAccount,
+  currentDynamicToolDefinitions = dynamicToolDefinitions,
+  skipClientImplementation = false,
+) => {
+  if (!currentConnectedAccount) {
+    throw new Error("No connected account");
+  }
+
+  const toolDef = (currentDynamicToolDefinitions || []).find(
+    (t) => t.name === toolName,
+  );
+
+  if (!toolDef) {
+    throw new Error(`Tool definition for '${toolName}' not found.`);
+  }
+
+  // Handle clientImplementation if it exists and not skipping
+  if (toolDef.clientImplementation && !skipClientImplementation) {
+    // Pass currentDynamicToolDefinitions to the sandbox constructor
+    const sandbox = new ToolSandbox(
+      currentWalletSelector,
+      currentConnectedAccount,
+      currentDynamicToolDefinitions,
+      callContractTool,
+      getToolContract(),
+    );
+    try {
+      console.log(
+        `Executing clientImplementation for ${toolName} with args:`,
+        args,
+      );
+      // The clientImplementation script itself is now responsible for calling callToolOnContract
+      // which will eventually call this function again but with skipClientImplementation = true.
+      const result = await sandbox.executeClientImplementation(
+        toolDef.clientImplementation,
+        args,
+      );
+      console.log(
+        `clientImplementation for ${toolName} executed successfully, result:`,
+        result,
+      );
+      return JSON.stringify(result);
+    } catch (e) {
+      console.error(`Error executing clientImplementation for ${toolName}:`, e);
+      throw new Error(
+        `Failed to execute client-side logic for tool ${toolName}: ${e.message}`,
+      );
+    }
+  }
+
+  // Proceed with direct contract call if no clientImplementation or if skipped
+  const requiresTx = toolDef.requires_transaction;
+
+  try {
+    if (requiresTx) {
+      const keyStore = new keyStores.BrowserLocalStorageKeyStore(
+        localStorage,
+        contractId,
+      );
+      const connection = await connect({ ...nearConnectionConfig, keyStore });
+      const account = await connection.account(connectedAccount.accountId);
+      const transactionResult = await account.functionCall({
+        contractId,
+        methodName: "call_js_func",
+        args: {
+          function_name: toolName,
+          ...args,
+        },
+        gas: 300_000_000_000_000n,
+        deposit: 0n,
+      });
+
+      return JSON.stringify(transactionResult.status); // Or handle more specific result parsing if needed
+    } else {
+      const viewResult = await currentConnectedAccount.viewFunction({
+        contractId,
+        methodName: "call_js_func",
+        args: {
+          function_name: toolName,
+          ...args,
+        },
+      });
+      return viewResult;
+    }
+  } catch (e) {
+    console.error(
+      `Error calling contract tool ${toolName} on contract ${contractId}:`,
+      e,
+    );
+    if (e.message && e.message.includes("SyntaxError: unexpected token")) {
+      throw new Error(
+        `Failed to call contract tool ${toolName}: The arguments could not be properly parsed by the contract. Please make sure the arguments format is correct. Original error: ${e.message}`,
+      );
+    } else if (
+      e.message &&
+      e.message.includes(
+        "TypeError: Cannot read properties of undefined (reading 'args')",
+      )
+    ) {
+      throw new Error(
+        `Failed to call contract tool ${toolName} on ${contractId}: Contract error, possibly due to incorrect arguments structure or missing arguments. Original error: ${e.message}`,
+      );
+    } else {
+      throw new Error(
+        `Failed to call contract tool ${toolName} on ${contractId}: ${e.message}`,
+      );
+    }
+  }
+};
+
+// Tool implementation
 export const toolImplementations = {
   run_javascript: async function ({ script }) {
     const wasmbinary = new Uint8Array(
@@ -227,33 +395,167 @@ ${JSON.stringify(simulationResult)}
       return `Failed creating new web4 account ${new_account_id}. Here are the receipt statuses ${JSON.stringify(result.receipts_outcome.map((receipt) => receipt.outcome.status))}`;
     }
   },
+  select_contract_for_tools: async function ({ contract_id }) {
+    return await setToolContract(contract_id);
+  },
+  add_key_for_contract: async function ({ contract_id }) {
+    const keyStore = new keyStores.BrowserLocalStorageKeyStore(
+      localStorage,
+      contract_id,
+    );
+    const wallet = await walletSelector.wallet();
+    const connectedAccount = (await wallet.getAccounts())[0];
+    const existingKey = await keyStore.getKey(
+      nearConnectionConfig.networkId,
+      connectedAccount.accountId,
+    );
+    if (existingKey) {
+      return `An access key for ${contract_id} already exist. Public key is ${existingKey.getPublicKey().toString()}`;
+    } else {
+      const newAccessKey = utils.KeyPairEd25519.fromRandom();
+      keyStore.setKey(
+        nearConnectionConfig.networkId,
+        connectedAccount.accountId,
+        newAccessKey,
+      );
+      await wallet.signAndSendTransaction({
+        actions: [
+          {
+            type: "AddKey",
+            params: {
+              accessKey: {
+                permission: { receiverId: contract_id },
+              },
+              publicKey: newAccessKey.getPublicKey(),
+            },
+          },
+        ],
+        receiverId: connectedAccount.accountId,
+      });
+      return `Added access key for ${contract_id} with public key ${newAccessKey.getPublicKey().toString()}`;
+    }
+  },
+  inspect_contract_tools: async function ({ contract_id }) {
+    if (!connectedAccount) throw new Error("No connected account");
+    try {
+      const defs = await connectedAccount.viewFunction({
+        contractId: contract_id,
+        methodName: "call_js_func",
+        args: {
+          function_name: "get_ai_tool_definitions",
+        },
+      });
+      return JSON.stringify(defs);
+    } catch (e) {
+      throw new Error(
+        `Failed to fetch tool definitions from ${contract_id}: ${e}`,
+      );
+    }
+  },
 };
 
-export const toolDefinitions = async () => [
-  {
-    type: "function",
-    function: {
-      name: "run_javascript",
-      description:
-        "Run javascript snippet in a secure sandbox where there is no access to NPM libraries, NodeJS APIs or web APIs. For the result to be passed correctly the snippet needs to end with a `return` statement with the result value.",
-      parameters: {
-        type: "object",
-        properties: {
-          script: {
-            type: "string",
-            description: "Javascript snippet",
+// When returning tool definitions, include dynamic ones if set
+export const toolDefinitions = async () => {
+  const globalTools = [
+    {
+      type: "function",
+      function: {
+        name: "inspect_contract_tools",
+        description:
+          "Fetch and display the tool definitions from a specified NEAR contract without selecting it.",
+        parameters: {
+          type: "object",
+          properties: {
+            contract_id: {
+              type: "string",
+              description: "The NEAR account ID of the contract to inspect.",
+            },
           },
+          required: ["contract_id"],
+          additionalProperties: false,
         },
-        additionalProperties: false,
-        required: ["script"],
       },
     },
-  },
-  {
-    type: "function",
-    function: {
-      name: "run_javascript_in_web4_simulator",
-      description: `Run javascript module in a smart contract simulator that serves a web page through the web4_get function.
+    {
+      type: "function",
+      function: {
+        name: "select_contract_for_tools",
+        description:
+          "Select which NEAR smart contract to use for fetching tool definitions and tool calls.",
+        parameters: {
+          type: "object",
+          properties: {
+            contract_id: {
+              type: "string",
+              description:
+                "The NEAR account ID of the contract to use for tools.",
+            },
+          },
+          required: ["contract_id"],
+          additionalProperties: false,
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "add_key_for_contract",
+        description:
+          "Add function access key to interact with a specified contract",
+        parameters: {
+          type: "object",
+          properties: {
+            contract_id: {
+              type: "string",
+              description:
+                "The NEAR account ID of the contract to add a function access key",
+            },
+          },
+          required: ["contract_id"],
+          additionalProperties: false,
+        },
+      },
+    },
+  ];
+  if (dynamicToolDefinitions.length > 0) {
+    return [
+      ...globalTools,
+      ...dynamicToolDefinitions.map((toolFunction) => ({
+        type: "function",
+        function: {
+          name: toolFunction.name,
+          description: toolFunction.description,
+          parameters: toolFunction.parameters,
+        },
+      })),
+    ];
+  }
+  return [
+    ...globalTools,
+    {
+      type: "function",
+      function: {
+        name: "run_javascript",
+        description:
+          "Run javascript snippet in a secure sandbox where there is no access to NPM libraries, NodeJS APIs or web APIs. For the result to be passed correctly the snippet needs to end with a `return` statement with the result value.",
+        parameters: {
+          type: "object",
+          properties: {
+            script: {
+              type: "string",
+              description: "Javascript snippet",
+            },
+          },
+          additionalProperties: false,
+          required: ["script"],
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "run_javascript_in_web4_simulator",
+        description: `Run javascript module in a smart contract simulator that serves a web page through the web4_get function.
 There is no access to NPM libraries, NodeJS APIs or web APIs.
         
 Here is a minimal example of implementing the \`web4_get\` function:
@@ -278,74 +580,73 @@ export function web4_get() {
     }
     env.value_return(JSON.stringify(response));
 }
-\`\`\`
-        
-`,
-      parameters: {
-        type: "object",
-        properties: {
-          script: {
-            type: "string",
-            description: "Javascript module source",
+\`\`\``,
+        parameters: {
+          type: "object",
+          properties: {
+            script: {
+              type: "string",
+              description: "Javascript module source",
+            },
           },
+          additionalProperties: false,
+          required: ["script"],
         },
-        additionalProperties: false,
-        required: ["script"],
       },
     },
-  },
-  {
-    type: "function",
-    function: {
-      name: "deploy_javascript_to_web4_contract",
-      description: `Deploy javascript to web4 contract on chain. Should be verified in the simulator first.`,
-      parameters: {
-        type: "object",
-        properties: {
-          contract_id: {
-            type: "string",
-            description: "NEAR account ID where web4 contract is deployed",
+    {
+      type: "function",
+      function: {
+        name: "deploy_javascript_to_web4_contract",
+        description: `Deploy javascript to web4 contract on chain. Should be verified in the simulator first.`,
+        parameters: {
+          type: "object",
+          properties: {
+            contract_id: {
+              type: "string",
+              description: "NEAR account ID where web4 contract is deployed",
+            },
+            script: {
+              type: "string",
+              description:
+                "Javascript module source to post to the web4 contract",
+            },
           },
-          script: {
-            type: "string",
-            description:
-              "Javascript module source to post to the web4 contract",
-          },
+          additionalProperties: false,
+          required: ["contract_id", "script"],
         },
-        additionalProperties: false,
-        required: ["contract_id", "script"],
       },
     },
-  },
-  {
-    type: "function",
-    function: {
-      name: "create_new_web4_contract_account",
-      description: `Create a new NEAR account and deploy a web4 contract to it.`,
-      parameters: {
-        type: "object",
-        properties: {
-          new_account_id: {
-            type: "string",
-            description: "id of new NEAR account",
+    {
+      type: "function",
+      function: {
+        name: "create_new_web4_contract_account",
+        description: `Create a new NEAR account and deploy a web4 contract to it.`,
+        parameters: {
+          type: "object",
+          properties: {
+            new_account_id: {
+              type: "string",
+              description: "id of new NEAR account",
+            },
           },
+          additionalProperties: false,
+          required: ["new_account_id"],
         },
-        additionalProperties: false,
-        required: ["new_account_id"],
       },
     },
-  },
-  {
-    type: "function",
-    function: {
-      name: "buy_fungible_tokens",
-      description: `Buy ${ft_metadata?.symbol} fungible tokens to use for ChatGPT conversations. You will get 3 tokens for 0.5 NEAR.`,
-      parameters: {
-        type: "object",
-        properties: {},
-        additionalProperties: false,
-        required: [],
+    {
+      type: "function",
+      function: {
+        name: "buy_fungible_tokens",
+        description: `Buy ${ft_metadata?.symbol} fungible tokens to use for ChatGPT conversations. You will get 3 tokens for 0.5 NEAR.`,
+        parameters: {
+          type: "object",
+          properties: {},
+          additionalProperties: false,
+          required: [],
+        },
       },
     },
-  },
-];
+  ];
+};

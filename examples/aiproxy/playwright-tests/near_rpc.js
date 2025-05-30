@@ -40,6 +40,17 @@ await aiTokenAccount.call(aiTokenAccount.accountId, "new_default_meta", {
   total_supply: 1_000_000_000_000n.toString(),
 });
 
+const nftContract = await worker.rootAccount.importContract({
+  mainnetContract: "webassemblymusic.near",
+  withData: false,
+  blockId: 80283551,
+  initialBalance: 100_000_000_000_000_000_000_000_000n.toString(),
+});
+await nftContract.call(nftContract.accountId, "new", {});
+await nftContract.call(nftContract.accountId, "post_javascript", {
+  javascript: (await readFile("../nft/src/contract.js")).toString(),
+});
+
 const publicKeyBytes = KeyPair.fromString(
   "ed25519:" + process.env.SPIN_VARIABLE_REFUND_SIGNING_KEY,
 ).getPublicKey().data;
@@ -86,6 +97,27 @@ await aiTokenAccount.call(
 
 const unregisteredaiuser = await worker.rootAccount.createAccount(
   "unregisteredaiuser.test.near",
+);
+
+await nftContract.call(
+  nftContract.accountId,
+  "nft_mint",
+  {
+    token_id: `123`,
+    token_owner_id: unregisteredaiuser.accountId,
+    token_metadata: {},
+  },
+  { attachedDeposit: "16250000000000000000000", gas: "300000000000000" },
+);
+
+await nftContract.call(
+  nftContract.accountId,
+  "post_content",
+  {
+    key: "locked-123",
+    valuebase64: btoa("locked content"),
+  },
+  { gas: "300000000000000" },
 );
 
 const functionAccessKeyPair = KeyPairEd25519.fromRandom();

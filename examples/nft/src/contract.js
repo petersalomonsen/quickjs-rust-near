@@ -1,9 +1,65 @@
 const icon_svg_base64 =
   "PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA5IDkiPgogICAgPHJlY3QgeT0iMCIgd2lkdGg9IjkiIGhlaWdodD0iMyIgZmlsbD0iIzBiZiIvPgogICAgPHJlY3QgeT0iMyIgd2lkdGg9IjYiIGhlaWdodD0iMyIgZmlsbD0iI2Y4MiIvPgogICAgPHJlY3QgeD0iNiIgeT0iMyIgd2lkdGg9IjMiIGhlaWdodD0iMyIgZmlsbD0iIzMzMyIgLz4KICAgIDxyZWN0IHk9IjYiIHdpZHRoPSIzIiBoZWlnaHQ9IjMiIGZpbGw9IiMyYWEiLz4KICAgIDxyZWN0IHg9IjMiIHk9IjYiIHdpZHRoPSI2IiBoZWlnaHQ9IjMiIGZpbGw9IiM2NjYiIC8+Cjwvc3ZnPg==";
 
-export function get_synth_wasm() {
-  const { message, signature, account_id } = JSON.parse(env.input());
-  const { token_id } = JSON.parse(message);
+export function get_ai_tool_definitions() {
+  env.value_return(
+    JSON.stringify([
+      {
+        name: "store_signing_key",
+        description:
+          "Stores the signing key for the authenticated user. Must be called before using get_locked_content.",
+        parameters: {
+          type: "object",
+          properties: {},
+          required: [],
+        },
+        requires_transaction: true,
+      },
+      {
+        name: "get_locked_content",
+        description:
+          "Checks if locked content for an NFT is accessible. Requires authentication via a signed message.",
+        parameters: {
+          type: "object",
+          properties: {
+            token_id: {
+              type: "string",
+              description: "The token ID of the NFT.",
+            },
+          },
+          required: ["token_id"],
+        },
+        requires_transaction: false, // This remains false as the actual contract call is a view call
+        clientImplementation: `
+          const { token_id } = args;
+          const tokenIdStr = token_id.toString();
+
+          const account_id = await env.callHostAsync({ function_name: "getAccountId" });
+          print("Account ID: " + account_id);
+
+          const message = JSON.stringify({ token_id: tokenIdStr, account_id });
+
+          print("Message: " + message);
+          const signature = await env.callHostAsync({ function_name: "signMessage", message});
+          print("Signature: " + signature);
+
+          const verificationResult = await env.callHostAsync({ function_name: "callToolOnContract", toolName: "get_locked_content", args: JSON.stringify({
+            message,
+            signature,
+            token_id: tokenIdStr,
+            verify_only: true
+          })});
+          print("Verification result: " + verificationResult);
+          return verificationResult;
+        `,
+      },
+    ]),
+  );
+}
+
+export function get_locked_content() {
+  const { message, signature, verify_only } = JSON.parse(env.input());
+  const { token_id, account_id } = JSON.parse(message);
   const validSignature = env.verify_signed_message(
     message,
     signature,
@@ -18,9 +74,16 @@ export function get_synth_wasm() {
     env.value_return(JSON.stringify("not owner"));
     return;
   }
-  env.value_return(
-    JSON.stringify(env.get_content_base64(`synthwasm-${token_id}`)),
-  );
+  const content = env.get_content_base64(`locked-${token_id}`);
+  if (!verify_only) {
+    env.value_return(JSON.stringify(content));
+  } else {
+    env.value_return(
+      JSON.stringify(
+        `Use this signed message for accessing the content: ${env.base64_encode(message)}.${signature}`,
+      ),
+    );
+  }
 }
 
 export function web4_get() {
@@ -97,6 +160,8 @@ export function web4_get() {
 export function store_signing_key() {
   if (env.nft_supply_for_owner(env.signer_account_id()) > 0) {
     env.store_signing_key(env.block_timestamp_ms() + 24 * 60 * 60 * 1000);
+  } else {
+    env.panic("only NFT owners account can store signing key");
   }
 }
 

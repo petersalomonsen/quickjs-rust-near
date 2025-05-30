@@ -10,6 +10,7 @@ import {
   toolDefinitions,
   toolImplementations,
   setWalletSelector,
+  fetchToolsFromContract,
 } from "./openai/tools.js";
 import { marked } from "marked";
 import {
@@ -18,6 +19,7 @@ import {
   NEAR_AI_AUTH_OBJECT_STORAGE_KEY,
 } from "./nearai/login.js";
 import { getProgressBarHTML } from "./ui/progress-bar.js";
+import nearConnectionConfig from "./near/config.js";
 
 window.Buffer = Buffer;
 
@@ -50,7 +52,11 @@ document
 const baseUrl = "http://localhost:3000"; // Replace with your actual Spin proxy URL
 const proxyUrl = `${baseUrl}/proxy-openai`;
 let conversation = [
-  { role: "system", content: "You are a helpful assistant." },
+  {
+    role: "system",
+    content:
+      "You are an AI assistant that can use the provided tools to help users. When a user asks a question or requests an action, analyze their intent and offer to use the available tools (as defined in your environment) to provide accurate, actionable, and helpful responses. If a tool is required, offer to use it, and call it with the correct parameters. If you cannot help with a request, politely explain why.",
+  },
 ];
 
 const refundMessageArea = document.getElementById("refund_message_area");
@@ -160,7 +166,7 @@ async function startAiProxyConversation() {
       ],
     });
 
-    const transactionStatus = await fetch("http://localhost:14500", {
+    const transactionStatus = await fetch(nearConnectionConfig.nodeUrl, {
       method: "POST",
       headers: {
         "content-type": "application/json",
@@ -322,3 +328,9 @@ document.getElementById("refundButton").addEventListener("click", async () => {
 handleNearAILoginCallback();
 askAIButton.disabled = false;
 askNearAIButton.disabled = false;
+
+try {
+  await fetchToolsFromContract();
+} catch (e) {
+  console.warn(e);
+}

@@ -89,7 +89,7 @@ export const responses = {
                 id: "call_FdOsUSgqIyvbqovn63zrhDdL",
                 function: {
                   arguments:
-                    "{\"script\": \"export function web4_get() {\\n    const request = JSON.parse(env.input()).request;\\n\\n    const accountId = env.current_account_id();\\n    const currentDate = new Date().toISOString().split('T')[0];\\n\\n    const response = {\\n        contentType: \\\"text/html; charset=UTF-8\\\",\\n        body: env.base64_encode(`<!DOCTYPE html>\\n<html>\\n<head>\\n</head>\\n<body>\\n<h1>Account: ${accountId}</h1>\\n<h2>Date: ${currentDate}</h2>\\n</body>\\n</html>`)\\n    };\\n\\n    env.value_return(JSON.stringify(response));\\n}\\n\\n// Dummy functions to simulate the environment\\nconst env = {\\n    input: () => JSON.stringify({ request: { path: '/' } }),\\n    current_account_id: () => 'example-account.near',\\n    base64_encode: (str) => Buffer.from(str).toString('base64'),\\n    value_return: (str) => str\\n};\\n\\nweb4_get();\\nconsole.log(env.value_return());\\n\\n// Output the result to check if it works correctly\\nreturn env.value_return();\\n\\n// Note: In a real web4 contract, you don't need the dummy functions and the final return statement.\"}",
+                    '{"script": "export function web4_get() {\\n    const request = JSON.parse(env.input()).request;\\n\\n    const accountId = env.current_account_id();\\n    const currentDate = new Date().toISOString().split(\'T\')[0];\\n\\n    const response = {\\n        contentType: \\"text/html; charset=UTF-8\\",\\n        body: env.base64_encode(`<!DOCTYPE html>\\n<html>\\n<head>\\n</head>\\n<body>\\n<h1>Account: ${accountId}</h1>\\n<h2>Date: ${currentDate}</h2>\\n</body>\\n</html>`)\\n    };\\n\\n    env.value_return(JSON.stringify(response));\\n}\\n"}',
                   name: "run_javascript_in_web4_simulator",
                 },
                 type: "function",
@@ -151,5 +151,249 @@ export const responses = {
       completion_tokens_details: null,
       prompt_tokens_details: null,
     },
+  },
+  "Which tools do you have?": async ({ postdata }) => {
+    const toolNames = (postdata.tools || []).map((t) => t.function.name);
+    return {
+      id: "tools-list-123",
+      choices: [
+        {
+          finish_reason: "stop",
+          index: 0,
+          logprobs: null,
+          message: {
+            content: `The following tools are available: ${toolNames.join(", ")}.`,
+            refusal: null,
+            role: "assistant",
+            audio: null,
+            function_call: null,
+            tool_calls: null,
+          },
+        },
+      ],
+      created: Date.now() / 1000,
+      model: "accounts/fireworks/models/ai-tools-list",
+      object: "chat.completion",
+      service_tier: null,
+      system_fingerprint: null,
+      usage: {
+        completion_tokens: 10,
+        prompt_tokens: 100,
+        total_tokens: 110,
+        completion_tokens_details: null,
+        prompt_tokens_details: null,
+      },
+    };
+  },
+  "Which tools are available for the contract webassemblymusic.near?": {
+    id: "ec762fa5-d7ff-458e-a17e-2cf8b79a2ccb",
+    choices: [
+      {
+        finish_reason: "tool_calls",
+        index: 0,
+        logprobs: null,
+        message: {
+          content:
+            "I'll check what tools are available for the webassemblymusic.near contract.",
+          refusal: null,
+          role: "assistant",
+          audio: null,
+          function_call: null,
+          tool_calls: [
+            {
+              id: "call_inspect_tools_123",
+              function: {
+                arguments: '{"contract_id": "webassemblymusic.near"}',
+                name: "inspect_contract_tools",
+              },
+              type: "function",
+              index: 0,
+            },
+          ],
+        },
+      },
+    ],
+    created: 1740858973,
+    model: "accounts/fireworks/models/llama-v3p1-70b-instruct",
+    object: "chat.completion",
+    service_tier: null,
+    system_fingerprint: null,
+    usage: {
+      completion_tokens: 17,
+      prompt_tokens: 833,
+      total_tokens: 850,
+      completion_tokens_details: null,
+      prompt_tokens_details: null,
+    },
+  },
+  "Please select webassemblymusic.near as the contract for tools": {
+    id: "sel-contract-tools-123",
+    choices: [
+      {
+        finish_reason: "tool_calls",
+        index: 0,
+        logprobs: null,
+        message: {
+          content: "I'll set the webassemblymusic.near contract for tools.",
+          refusal: null,
+          role: "assistant",
+          tool_calls: [
+            {
+              id: "call_select_contract_456",
+              function: {
+                arguments: '{"contract_id": "webassemblymusic.near"}',
+                name: "select_contract_for_tools",
+              },
+              type: "function",
+              index: 0,
+            },
+          ],
+        },
+      },
+    ],
+    created: 1740858974,
+    model: "accounts/fireworks/models/llama-v3p1-70b-instruct",
+    object: "chat.completion",
+    service_tier: null,
+    system_fingerprint: null,
+    usage: {
+      completion_tokens: 20,
+      prompt_tokens: 830,
+      total_tokens: 850,
+    },
+  },
+  "Please store my signing key for NFT access": {
+    id: "store-key-123",
+    choices: [
+      {
+        finish_reason: "tool_calls",
+        index: 0,
+        logprobs: null,
+        message: {
+          content: "I'll store your signing key for NFT access",
+          refusal: null,
+          role: "assistant",
+          tool_calls: [
+            {
+              id: "call_store_signing_key_789",
+              function: {
+                arguments: "{}", // No arguments for store_signing_key as per its definition
+                name: "store_signing_key", // This will be a dynamic tool
+              },
+              type: "function",
+              index: 0,
+            },
+          ],
+        },
+      },
+    ],
+    created: 1740858975,
+    model: "accounts/fireworks/models/llama-v3p1-70b-instruct",
+    object: "chat.completion",
+    service_tier: null,
+    system_fingerprint: null,
+    usage: {
+      completion_tokens: 20,
+      prompt_tokens: 830,
+      total_tokens: 850,
+    },
+  },
+  "I need the WebAssembly synthesizer for my NFT with token_id 123": {
+    id: "get-synth-123",
+    choices: [
+      {
+        finish_reason: "tool_calls",
+        index: 0,
+        logprobs: null,
+        message: {
+          content:
+            "I'll help you retrieve the WebAssembly synthesizer for your NFT",
+          refusal: null,
+          role: "assistant",
+          tool_calls: [
+            {
+              id: "call_get_synth_wasm_abc",
+              function: {
+                arguments: '{"token_id": "123"}', // AI provides token_id
+                name: "get_synth_wasm", // This is the dynamic tool
+              },
+              type: "function",
+              index: 0,
+            },
+          ],
+        },
+      },
+    ],
+    created: 1740858976,
+    model: "accounts/fireworks/models/llama-v3p1-70b-instruct",
+    object: "chat.completion",
+    service_tier: null,
+    system_fingerprint: null,
+    usage: {
+      completion_tokens: 25,
+      prompt_tokens: 840,
+      total_tokens: 865,
+    },
+  },
+  "Can I access the locked content for my NFT with token_id 123?": {
+    id: "check-locked-content-123",
+    choices: [
+      {
+        finish_reason: "tool_calls",
+        index: 0,
+        logprobs: null,
+        message: {
+          content:
+            "I'll check if you can access the locked content for your NFT.", // AI confirms the action
+          refusal: null,
+          role: "assistant",
+          tool_calls: [
+            {
+              id: "call_get_locked_content_xyz", // New call ID
+              function: {
+                arguments: '{"token_id": "123"}', // AI provides token_id
+                name: "get_locked_content", // New tool name
+              },
+              type: "function",
+              index: 0,
+            },
+          ],
+        },
+      },
+    ],
+    created: 1740858977, // Adjusted timestamp
+    model: "accounts/fireworks/models/llama-v3p1-70b-instruct",
+    object: "chat.completion",
+  },
+  "Please add an accesskey for interacting with webassemblymusic.near": {
+    id: "2cd9dc62-95ca-44e9-aa27-d5fbbbb43c09",
+    choices: [
+      {
+        finish_reason: "tool_calls",
+        index: 0,
+        logprobs: null,
+        message: {
+          content: null,
+          refusal: null,
+          role: "assistant",
+          audio: null,
+          function_call: null,
+          tool_calls: [
+            {
+              id: "call_add_key_for_contract_123",
+              function: {
+                arguments: '{"contract_id": "webassemblymusic.near"}',
+                name: "add_key_for_contract",
+              },
+              type: "function",
+              index: 0,
+            },
+          ],
+        },
+      },
+    ],
+    created: 1740235569,
+    model: "accounts/fireworks/models/qwen2p5-72b-instruct",
+    object: "chat.completion",
   },
 };

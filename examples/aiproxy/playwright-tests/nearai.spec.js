@@ -1,6 +1,13 @@
 import { test, expect } from "@playwright/test";
 import { setupStorage, setupNearAIRoute } from "./nearai.js";
 
+test.beforeEach(async ({ page }) => {
+  await page.route("https://rpc.mainnet.fastnear.com/", async (route) => {
+    const response = await route.fetch({ url: "http://localhost:14500" });
+    await route.fulfill({ response });
+  });
+});
+
 test("start conversation without login", async ({ page }) => {
   await page.goto("/");
   await page.waitForTimeout(1000);
@@ -71,7 +78,27 @@ test("Tool call", async ({ page }) => {
   await setupNearAIRoute({ page });
   await page.getByRole("button", { name: "Ask NEAR AI" }).click();
 
+  await expect(await page.getByText("Function call result is")).toBeVisible();
   await expect(
-    await page.getByText("How can I assist you today?"),
+    await page.getByText("Your script returned HTML content"),
   ).toBeVisible();
+
+  // Get the pre code element containing the HTML result
+  const preCodeElement = await page.locator("pre code").nth(1);
+  await expect(preCodeElement).toBeVisible();
+
+  // Get HTML content and verify structure
+  const htmlContent = await preCodeElement.textContent();
+
+  // Verify it contains the expected HTML structure
+  expect(htmlContent).toContain("<!DOCTYPE html>");
+  expect(htmlContent).toContain("<html>");
+  expect(htmlContent).toContain("<h1>Account: test</h1>");
+
+  // Verify date dynamically - create a date format that matches the expected output
+  const currentDate = new Date();
+  const formattedDate = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, "0")}-${String(currentDate.getDate()).padStart(2, "0")}`;
+
+  // Check that the HTML contains this date
+  expect(htmlContent).toContain(`<h2>Date: ${formattedDate}</h2>`);
 });

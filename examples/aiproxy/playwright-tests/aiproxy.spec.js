@@ -103,6 +103,10 @@ async function setupStorageAndRoute({ page }) {
     const response = await route.fetch({ url: "http://localhost:14500" });
     await route.fulfill({ response });
   });
+  await page.route("https://rpc.mainnet.fastnear.com/", async (route) => {
+    const response = await route.fetch({ url: "http://localhost:14500" });
+    await route.fulfill({ response });
+  });
   return { contractId, accountId, publicKey, functionAccessKeyPair };
 }
 
