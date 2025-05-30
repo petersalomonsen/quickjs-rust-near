@@ -1,6 +1,13 @@
 import { test, expect } from "@playwright/test";
 import { setupStorage, setupNearAIRoute } from "./nearai.js";
 
+test.beforeEach(async ({ page }) => {
+  await page.route("https://rpc.mainnet.fastnear.com/", async (route) => {
+    const response = await route.fetch({ url: "http://localhost:14500" });
+    await route.fulfill({ response });
+  });
+});
+
 test("start conversation without login", async ({ page }) => {
   await page.goto("/");
   await page.waitForTimeout(1000);
@@ -73,9 +80,7 @@ test("Tool call", async ({ page }) => {
 
   await expect(await page.getByText("Function call result is")).toBeVisible();
   await expect(
-    await page.getByText(
-      "I've processed the result of the run_javascript_in_web4_simulator tool call. Thank you.",
-    ),
+    await page.getByText("Your script returned HTML content"),
   ).toBeVisible();
 
   // Get the pre code element containing the HTML result

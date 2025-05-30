@@ -276,9 +276,39 @@ const toolCallResponses = {
           index: 0,
           logprobs: null,
           message: {
-            content: accessMessage.includes("Use this signed message")
+            content: accessMessage?.includes("Use this signed message")
               ? accessMessage
               : "You don't have access.",
+            refusal: null,
+            role: "assistant",
+            audio: null,
+            function_call: null,
+            tool_calls: null,
+          },
+        },
+      ],
+      created: Date.now() / 1000,
+      model: "accounts/fireworks/models/qwen2p5-72b-instruct",
+      object: "chat.completion",
+      usage: {
+        completion_tokens: 25,
+        prompt_tokens: 60,
+        total_tokens: 85,
+      },
+    };
+  },
+  run_javascript_in_web4_simulator: (postdata, lastMessage) => {
+    return {
+      id: `get_locked_content-${Date.now()}`,
+      choices: [
+        {
+          finish_reason: "stop",
+          index: 0,
+          logprobs: null,
+          message: {
+            content: lastMessage.content?.startsWith("<!DOCTYPE html>")
+              ? "Your script returned HTML content"
+              : `Your script returned: \`${JSON.stringify(content)}\``,
             refusal: null,
             role: "assistant",
             audio: null,
