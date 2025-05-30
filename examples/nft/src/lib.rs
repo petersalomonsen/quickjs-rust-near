@@ -125,15 +125,6 @@ impl Contract {
         }
     }
 
-    pub fn get_ai_tool_definitions(&self) {
-        let jsmod = self.load_js_bytecode();
-        let func_str = CString::new("get_ai_tool_definitions").unwrap();
-        unsafe {
-            self.add_js_functions();
-            js_call_function(jsmod, func_str.as_ptr() as i32);
-        }
-    }
-
     pub fn post_quickjs_bytecode(&mut self, bytecodebase64: String) {
         if env::predecessor_account_id() != self.tokens.owner_id {
             env::panic_str("Unauthorized");
@@ -778,34 +769,5 @@ mod tests {
             U128::from(0)
         );
         assert_eq!(contract.nft_total_supply(), U128::from(0));
-    }
-
-    #[test]
-    fn test_get_ai_tool_definitions() {
-        setup_test_env();
-        set_current_account_id(bob());
-        set_predecessor_account_id(bob());
-        let mut contract = Contract::new();
-        // JS module that returns a simple tool definition
-        contract.post_javascript(
-            r#"
-            export function get_ai_tool_definitions() {
-                env.value_return(JSON.stringify([
-                    {
-                        name: 'test_tool',
-                        description: 'A test tool',
-                        parameters: {
-                            type: 'object',
-                            properties: { foo: { type: 'string' } },
-                            required: ['foo']
-                        }
-                    }
-                ]));
-            }
-            "#.to_string(),
-        );
-        contract.get_ai_tool_definitions();
-        assert_latest_return_value_contains("test_tool".to_string());
-        assert_latest_return_value_contains("A test tool".to_string());
     }
 }
