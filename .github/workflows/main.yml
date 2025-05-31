@@ -238,6 +238,7 @@ jobs:
           echo "$(pwd)/bin" >> $GITHUB_PATH
           rustup target add wasm32-wasip1
           rustup target add wasm32-unknown-unknown
+          rustup component add --toolchain 1.86.0-x86_64-unknown-linux-gnu rustfmt
       - name: Build Fungible Token contract
         run: |
           cd examples/fungibletoken
