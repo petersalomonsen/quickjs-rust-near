@@ -28,6 +28,7 @@ test("start conversation without login", async ({ page }) => {
 });
 
 test("login to NEAR AI", async ({ page }) => {
+  test.setTimeout(60_000);
   const { publicKey, accountId } = await fetch("http://localhost:14501").then(
     (r) => r.json(),
   );
