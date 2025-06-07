@@ -3,12 +3,12 @@ import { setupStorage, setupNearAIRoute } from "./nearai.js";
 
 // Helper function to retry page.goto with retry logic
 async function gotoWithRetry(page, url = "/", options = {}) {
-  const defaultOptions = { 
-    waitUntil: "domcontentloaded", 
+  const defaultOptions = {
+    waitUntil: "domcontentloaded",
     timeout: 15000,
-    ...options 
+    ...options,
   };
-  
+
   let retries = 3;
   while (retries > 0) {
     try {
@@ -90,19 +90,19 @@ test("login to NEAR AI", async ({ page }) => {
 
   let questionArea = await page.getByPlaceholder("Type your question here...");
   await expect(questionArea).toBeEnabled();
-  
+
   // Focus the input first
   await questionArea.focus();
   await questionArea.pressSequentially("Hello", { delay: 200 });
   await questionArea.blur();
-  
+
   // Wait longer for form validation in CI environment
   await page.waitForTimeout(1000);
-  
+
   const askNearAiButton = await page.getByRole("button", {
     name: "Ask NEAR AI",
   });
-  
+
   // Wait for the button to be enabled with a longer timeout for CI
   await expect(askNearAiButton).toBeEnabled({ timeout: 10000 });
   await askNearAiButton.click();
@@ -129,7 +129,8 @@ test("login to NEAR AI", async ({ page }) => {
   const secondAskButton = await page.getByRole("button", {
     name: "Ask NEAR AI",
   });
-  await expect(secondAskButton).toBeEnabled();
+
+  await expect(secondAskButton).toBeEnabled({ timeout: 10000 });
   await secondAskButton.click();
 
   await expect(
@@ -149,14 +150,15 @@ test("Tool call", async ({ page }) => {
   await questionArea.focus();
   await questionArea.pressSequentially(
     "Can you create a web4 javascript code that shows the current account and current date?",
-    { delay: 50 }
+    { delay: 50 },
   );
   await questionArea.blur();
   await page.waitForTimeout(1000);
 
   await setupNearAIRoute({ page });
-  
+
   const askButton = await page.getByRole("button", { name: "Ask NEAR AI" });
+
   await expect(askButton).toBeEnabled({ timeout: 10000 });
   await askButton.click();
 
