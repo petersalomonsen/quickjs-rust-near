@@ -1,6 +1,28 @@
 import { test, expect } from "@playwright/test";
 import { setupStorage, setupNearAIRoute } from "./nearai.js";
 
+// Helper function to retry page.goto with retry logic
+async function gotoWithRetry(page, url = "/", options = {}) {
+  const defaultOptions = { 
+    waitUntil: "domcontentloaded", 
+    timeout: 15000,
+    ...options 
+  };
+  
+  let retries = 3;
+  while (retries > 0) {
+    try {
+      await page.goto(url, defaultOptions);
+      return;
+    } catch (error) {
+      retries--;
+      if (retries === 0) throw error;
+      console.log(`Retrying page.goto("${url}") - ${retries} attempts left`);
+      await page.waitForTimeout(2000);
+    }
+  }
+}
+
 test.beforeEach(async ({ page }) => {
   await page.route("https://rpc.mainnet.fastnear.com/", async (route) => {
     const response = await route.fetch({ url: "http://localhost:14500" });
@@ -9,20 +31,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 test("start conversation without login", async ({ page }) => {
-  // Retry page.goto in case server isn't ready
-  let retries = 3;
-  while (retries > 0) {
-    try {
-      await page.goto("/", { waitUntil: "domcontentloaded", timeout: 15000 });
-      break;
-    } catch (error) {
-      retries--;
-      if (retries === 0) throw error;
-      console.log(`Retrying page.goto("/") - ${retries} attempts left`);
-      await page.waitForTimeout(2000);
-    }
-  }
-
+  await gotoWithRetry(page);
   await page.waitForTimeout(1000);
   const questionArea = await page.getByPlaceholder(
     "Type your question here...",
@@ -48,21 +57,9 @@ test("login to NEAR AI", async ({ page }) => {
 
   await setupStorage({ page });
 
-  // Navigate to the page first to get the baseURL with retry logic
-  let baseURL;
-  let retries = 3;
-  while (retries > 0) {
-    try {
-      await page.goto("/", { waitUntil: "domcontentloaded", timeout: 20000 });
-      baseURL = page.url();
-      break;
-    } catch (error) {
-      retries--;
-      if (retries === 0) throw error;
-      console.log(`Retrying page.goto("/") - ${retries} attempts left`);
-      await page.waitForTimeout(2000);
-    }
-  }
+  // Navigate to the page first to get the baseURL
+  await gotoWithRetry(page, "/", { timeout: 20000 });
+  const baseURL = page.url();
 
   await page.route("**/app.mynearwallet.com/**", async (route) => {
     console.log("Route intercepted:", route.request().url());
@@ -93,13 +90,21 @@ test("login to NEAR AI", async ({ page }) => {
 
   let questionArea = await page.getByPlaceholder("Type your question here...");
   await expect(questionArea).toBeEnabled();
+  
+  // Focus the input first
+  await questionArea.focus();
   await questionArea.pressSequentially("Hello", { delay: 200 });
   await questionArea.blur();
-  await page.waitForTimeout(500);
+  
+  // Wait longer for form validation in CI environment
+  await page.waitForTimeout(1000);
+  
   const askNearAiButton = await page.getByRole("button", {
     name: "Ask NEAR AI",
   });
-  await expect(askNearAiButton).toBeEnabled();
+  
+  // Wait for the button to be enabled with a longer timeout for CI
+  await expect(askNearAiButton).toBeEnabled({ timeout: 10000 });
   await askNearAiButton.click();
 
   // Wait for redirect back to the original URL with hash
@@ -134,33 +139,26 @@ test("login to NEAR AI", async ({ page }) => {
 
 test("Tool call", async ({ page }) => {
   await setupStorage({ page, withAuthObject: true });
-
-  // Retry page.goto in case server isn't ready
-  let retries = 3;
-  while (retries > 0) {
-    try {
-      await page.goto("/", { waitUntil: "domcontentloaded", timeout: 15000 });
-      break;
-    } catch (error) {
-      retries--;
-      if (retries === 0) throw error;
-      console.log(`Retrying page.goto("/") - ${retries} attempts left`);
-      await page.waitForTimeout(2000);
-    }
-  }
-
+  await gotoWithRetry(page);
   await page.waitForTimeout(1000);
   const questionArea = await page.getByPlaceholder(
     "Type your question here...",
   );
 
-  questionArea.fill(
+  // Focus the input field and type with proper timing
+  await questionArea.focus();
+  await questionArea.pressSequentially(
     "Can you create a web4 javascript code that shows the current account and current date?",
+    { delay: 50 }
   );
+  await questionArea.blur();
   await page.waitForTimeout(1000);
 
   await setupNearAIRoute({ page });
-  await page.getByRole("button", { name: "Ask NEAR AI" }).click();
+  
+  const askButton = await page.getByRole("button", { name: "Ask NEAR AI" });
+  await expect(askButton).toBeEnabled({ timeout: 10000 });
+  await askButton.click();
 
   await expect(await page.getByText("Function call result is")).toBeVisible();
   await expect(
