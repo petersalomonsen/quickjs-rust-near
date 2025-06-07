@@ -70,7 +70,11 @@ test("login to NEAR AI", async ({ page }) => {
   await expect(questionArea).toBeEnabled();
   await questionArea.fill("Hello");
   await page.waitForTimeout(500);
-  await page.getByRole("button", { name: "Ask NEAR AI" }).click();
+  const askNearAiButton = await page.getByRole("button", {
+    name: "Ask NEAR AI",
+  });
+  await expect(askNearAiButton).toBeEnabled();
+  await askNearAiButton.click();
 
   // Wait for redirect back to the original URL with hash
   await page.waitForURL(/.*#accountId=.*/);
