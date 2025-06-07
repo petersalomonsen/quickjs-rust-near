@@ -68,7 +68,8 @@ test("login to NEAR AI", async ({ page }) => {
 
   let questionArea = await page.getByPlaceholder("Type your question here...");
   await expect(questionArea).toBeEnabled();
-  await questionArea.fill("Hello");
+  await questionArea.pressSequentially("Hello", { delay: 200 });
+  await questionArea.blur();
   await page.waitForTimeout(500);
   const askNearAiButton = await page.getByRole("button", {
     name: "Ask NEAR AI",
