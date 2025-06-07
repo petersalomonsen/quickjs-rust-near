@@ -1,28 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { setupStorage, setupNearAIRoute } from "./nearai.js";
 
-// Helper function to retry page.goto with retry logic
-async function gotoWithRetry(page, url = "/", options = {}) {
-  const defaultOptions = {
-    waitUntil: "domcontentloaded",
-    timeout: 15000,
-    ...options,
-  };
-
-  let retries = 3;
-  while (retries > 0) {
-    try {
-      await page.goto(url, defaultOptions);
-      return;
-    } catch (error) {
-      retries--;
-      if (retries === 0) throw error;
-      console.log(`Retrying page.goto("${url}") - ${retries} attempts left`);
-      await page.waitForTimeout(2000);
-    }
-  }
-}
-
 test.beforeEach(async ({ page }) => {
   await page.route("https://rpc.mainnet.fastnear.com/", async (route) => {
     const response = await route.fetch({ url: "http://localhost:14500" });
@@ -31,7 +9,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 test("start conversation without login", async ({ page }) => {
-  await gotoWithRetry(page);
+  await page.goto("/");
   await page.waitForTimeout(1000);
   const questionArea = await page.getByPlaceholder(
     "Type your question here...",
@@ -58,7 +36,7 @@ test("login to NEAR AI", async ({ page }) => {
   await setupStorage({ page });
 
   // Navigate to the page first to get the baseURL
-  await gotoWithRetry(page, "/", { timeout: 20000 });
+  await page.goto("/");
   const baseURL = page.url();
 
   await page.route("**/app.mynearwallet.com/**", async (route) => {
@@ -140,7 +118,7 @@ test("login to NEAR AI", async ({ page }) => {
 
 test("Tool call", async ({ page }) => {
   await setupStorage({ page, withAuthObject: true });
-  await gotoWithRetry(page);
+  await page.goto("/");
   await page.waitForTimeout(1000);
   const questionArea = await page.getByPlaceholder(
     "Type your question here...",
