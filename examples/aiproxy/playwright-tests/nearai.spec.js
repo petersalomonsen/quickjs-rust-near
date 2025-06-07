@@ -9,7 +9,20 @@ test.beforeEach(async ({ page }) => {
 });
 
 test("start conversation without login", async ({ page }) => {
-  await page.goto("/");
+  // Retry page.goto in case server isn't ready
+  let retries = 3;
+  while (retries > 0) {
+    try {
+      await page.goto("/", { waitUntil: "domcontentloaded", timeout: 15000 });
+      break;
+    } catch (error) {
+      retries--;
+      if (retries === 0) throw error;
+      console.log(`Retrying page.goto("/") - ${retries} attempts left`);
+      await page.waitForTimeout(2000);
+    }
+  }
+
   await page.waitForTimeout(1000);
   const questionArea = await page.getByPlaceholder(
     "Type your question here...",
@@ -35,9 +48,21 @@ test("login to NEAR AI", async ({ page }) => {
 
   await setupStorage({ page });
 
-  // Navigate to the page first to get the baseURL
-  await page.goto("/");
-  const baseURL = page.url();
+  // Navigate to the page first to get the baseURL with retry logic
+  let baseURL;
+  let retries = 3;
+  while (retries > 0) {
+    try {
+      await page.goto("/", { waitUntil: "domcontentloaded", timeout: 20000 });
+      baseURL = page.url();
+      break;
+    } catch (error) {
+      retries--;
+      if (retries === 0) throw error;
+      console.log(`Retrying page.goto("/") - ${retries} attempts left`);
+      await page.waitForTimeout(2000);
+    }
+  }
 
   await page.route("**/app.mynearwallet.com/**", async (route) => {
     console.log("Route intercepted:", route.request().url());
@@ -80,12 +105,27 @@ test("login to NEAR AI", async ({ page }) => {
   // Wait for redirect back to the original URL with hash
   await page.waitForURL(/.*#accountId=.*/);
 
+  // Wait for the page to fully reload after redirect
+  await page.waitForTimeout(1000);
+
   questionArea = await page.getByPlaceholder("Type your question here...");
   await expect(questionArea).toBeEnabled();
-  questionArea.fill("Hello again");
+
+  // Clear and fill the input field with proper typing simulation
+  await questionArea.clear();
+  await questionArea.pressSequentially("Hello again", { delay: 100 });
+  await questionArea.blur();
+
+  // Wait a bit for the form validation to process
+  await page.waitForTimeout(500);
 
   await setupNearAIRoute({ page });
-  await page.getByRole("button", { name: "Ask NEAR AI" }).click();
+
+  const secondAskButton = await page.getByRole("button", {
+    name: "Ask NEAR AI",
+  });
+  await expect(secondAskButton).toBeEnabled();
+  await secondAskButton.click();
 
   await expect(
     await page.getByText("How can I assist you today?"),
@@ -94,6 +134,21 @@ test("login to NEAR AI", async ({ page }) => {
 
 test("Tool call", async ({ page }) => {
   await setupStorage({ page, withAuthObject: true });
+
+  // Retry page.goto in case server isn't ready
+  let retries = 3;
+  while (retries > 0) {
+    try {
+      await page.goto("/", { waitUntil: "domcontentloaded", timeout: 15000 });
+      break;
+    } catch (error) {
+      retries--;
+      if (retries === 0) throw error;
+      console.log(`Retrying page.goto("/") - ${retries} attempts left`);
+      await page.waitForTimeout(2000);
+    }
+  }
+
   await page.waitForTimeout(1000);
   const questionArea = await page.getByPlaceholder(
     "Type your question here...",
