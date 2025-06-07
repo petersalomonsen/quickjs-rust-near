@@ -4,6 +4,9 @@ import path from "path";
 import dotenv from "dotenv";
 import { fileURLToPath } from "url";
 
+process.env.NEAR_CLI_MAINNET_RPC_SERVER_URL =
+  "https://archival-rpc.mainnet.fastnear.com";
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -36,7 +39,7 @@ export default defineConfig({
     video: "off",
     headless: true,
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
-    trace: "on-first-retry",
+    trace: "retain-on-failure",
   },
 
   /* Configure projects for major browsers */
