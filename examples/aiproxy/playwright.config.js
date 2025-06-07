@@ -4,6 +4,9 @@ import path from "path";
 import dotenv from "dotenv";
 import { fileURLToPath } from "url";
 
+process.env.NEAR_CLI_MAINNET_RPC_SERVER_URL =
+  "https://rpc.mainnet.fastnear.com";
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
