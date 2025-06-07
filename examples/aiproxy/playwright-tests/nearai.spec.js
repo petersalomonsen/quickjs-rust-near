@@ -35,25 +35,48 @@ test("login to NEAR AI", async ({ page }) => {
 
   await setupStorage({ page });
 
-  let questionArea = await page.getByPlaceholder("Type your question here...");
-  questionArea.fill("Hello");
-
+  // Navigate to the page first to get the baseURL
+  await page.goto("/");
   const baseURL = page.url();
+
+  await page.route("**/app.mynearwallet.com/**", async (route) => {
+    console.log("Route intercepted:", route.request().url());
+    const redirectUrl = `${baseURL}#accountId=${accountId}&publicKey=${publicKey}&signature=abcd`;
+    console.log("Redirecting to:", redirectUrl);
+
+    await route.fulfill({
+      status: 200,
+      contentType: "text/html",
+      body: `
+        <!DOCTYPE html>
+        <html>
+        <head><title>NEAR Wallet Mock</title></head>
+        <body>
+        <h1>Mock NEAR Wallet</h1>
+        <script>
+        console.log("Mock wallet page loaded");
+        console.log("Redirecting to: ${redirectUrl}");
+        setTimeout(() => {
+          window.location.replace("${redirectUrl}");
+        }, 1000);
+        </script>
+        </body>
+        </html>
+      `,
+    });
+  });
+
+  let questionArea = await page.getByPlaceholder("Type your question here...");
+  await expect(questionArea).toBeEnabled();
+  await questionArea.fill("Hello");
+  await page.waitForTimeout(500);
   await page.getByRole("button", { name: "Ask NEAR AI" }).click();
 
-  await page.waitForURL("https://app.mynearwallet.com/");
-
-  const redirectUrl = `${baseURL}#accountId=${accountId}&publicKey=${publicKey}&signature=abcd`;
-  await page.evaluate(async (redirectUrl) => {
-    console.log("Redirected to wallet");
-    await new Promise((resolve) => setTimeout(() => resolve(), 500));
-    console.log("Wallet callback to", redirectUrl);
-    location.href = redirectUrl;
-  }, redirectUrl);
-
-  await page.waitForURL(`${baseURL}#`);
+  // Wait for redirect back to the original URL with hash
+  await page.waitForURL(/.*#accountId=.*/);
 
   questionArea = await page.getByPlaceholder("Type your question here...");
+  await expect(questionArea).toBeEnabled();
   questionArea.fill("Hello again");
 
   await setupNearAIRoute({ page });
