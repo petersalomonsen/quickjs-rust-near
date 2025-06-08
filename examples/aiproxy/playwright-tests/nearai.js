@@ -1,3 +1,4 @@
+import { cacheCDN } from "./util.js";
 import { responses } from "./nearairesponses.js";
 
 /**
@@ -8,6 +9,7 @@ import { responses } from "./nearairesponses.js";
  * @returns {Promise<Object>} The setup data including contractId, accountId, and publicKey.
  */
 export async function setupStorage({ page, withAuthObject = false }) {
+  await cacheCDN(page);
   const { functionAccessKeyPair, publicKey, accountId, contractId } =
     await fetch("http://localhost:14501").then((r) => r.json());
 
