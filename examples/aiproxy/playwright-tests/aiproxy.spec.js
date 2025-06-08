@@ -217,7 +217,7 @@ test("conversation with tool calls", async ({ page }) => {
     await page.getByText(
       `Function call result is [0,1,1,2,3,5,8,13,21,34,55,89]`,
     ),
-  ).toBeVisible();
+  ).toBeVisible({ timeout: 10_000 });
   await expect(
     await page.getByText(
       "The Fibonacci numbers up to 100 are:\n\n[0, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89]",
