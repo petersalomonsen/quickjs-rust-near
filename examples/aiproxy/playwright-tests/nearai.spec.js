@@ -36,7 +36,6 @@ test("login to NEAR AI", async ({ page }) => {
   await setupStorage({ page });
 
   // Navigate to the page first to get the baseURL
-  await page.goto("/");
   const baseURL = page.url();
 
   await page.route("**/app.mynearwallet.com/**", async (route) => {
@@ -118,7 +117,7 @@ test("login to NEAR AI", async ({ page }) => {
 
 test("Tool call", async ({ page }) => {
   await setupStorage({ page, withAuthObject: true });
-  await page.goto("/");
+
   await page.waitForTimeout(1000);
   const questionArea = await page.getByPlaceholder(
     "Type your question here...",
