@@ -1,5 +1,10 @@
 import { utils } from "near-api-js";
 
+/**
+ * Set up local storage with full access key pair
+ * @param {Object} params - The parameters for the setup.
+ * @param {import('playwright').Page} params.page - The Playwright page object.
+ */
 export async function setupStorageAndRoutes({ page }) {
   const rpc_url = "http://localhost:14500";
   const { contractId, unregisteredaiuser } = await fetch(
@@ -64,4 +69,5 @@ export async function setupStorageAndRoutes({ page }) {
   );
 
   await page.reload();
+  await page.waitForLoadState("networkidle");
 }

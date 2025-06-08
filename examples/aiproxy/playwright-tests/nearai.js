@@ -57,6 +57,7 @@ export async function setupStorage({ page, withAuthObject = false }) {
   );
 
   await page.reload();
+  await page.waitForLoadState("networkidle");
   return { contractId, accountId, publicKey, functionAccessKeyPair };
 }
 
