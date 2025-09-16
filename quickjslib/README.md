@@ -21,6 +21,9 @@ import { createQuickJS } from "./quickjs.js";
 
 // Create a QuickJS instance
 const quickjs = await createQuickJS();
+if (!quickjs || typeof quickjs.evalSource !== "function") {
+  throw new Error("Failed to create QuickJS instance");
+}
 ```
 
 ### Evaluating JavaScript
@@ -28,6 +31,7 @@ const quickjs = await createQuickJS();
 ```javascript
 // Evaluate JavaScript code directly
 const result = quickjs.evalSource("42;"); // returns 42
+if (result !== 42) throw new Error("Expected 42, got " + result);
 ```
 
 ### Compiling and Running Bytecode
@@ -35,9 +39,11 @@ const result = quickjs.evalSource("42;"); // returns 42
 ```javascript
 // Compile JavaScript to bytecode
 const bytecode = quickjs.compileToByteCode("42;");
+if (!bytecode || bytecode.length === 0) throw new Error("Failed to compile bytecode");
 
 // Execute bytecode
 const result = quickjs.evalByteCode(bytecode); // returns 42
+if (result !== 42) throw new Error("Expected 42, got " + result);
 ```
 
 ## Working with Modules
@@ -57,9 +63,11 @@ const bytecode = quickjs.compileToByteCode(
 
 // Load the module
 const mod = quickjs.loadByteCode(bytecode);
+if (typeof mod !== "bigint") throw new Error("Expected module handle to be bigint");
 
 // Call a function from the module
 const result = quickjs.callModFunction(mod, "getNumber"); // returns 42
+if (result !== 42) throw new Error("Expected 42, got " + result);
 ```
 
 ## Working with Promises
@@ -86,6 +94,7 @@ const promise = quickjs.callModFunction(mod, "test");
 
 // Get the result of the promise
 const result = quickjs.getPromiseResult(promise); // returns 883
+if (result !== 883) throw new Error("Expected 883, got " + result);
 ```
 
 ## Interacting with Host Functions
@@ -120,6 +129,7 @@ await quickjs.waitForPendingAsyncInvocations();
 
 // Get the result
 const result = quickjs.getPromiseResult(promise); // "Slept for 500 ms"
+if (result !== "Slept for 500 ms") throw new Error("Expected 'Slept for 500 ms', got " + result);
 ```
 
 ## API Reference
@@ -131,7 +141,7 @@ const result = quickjs.getPromiseResult(promise); // "Slept for 500 ms"
 - `compileToByteCode(code, filename?)`: Compiles JavaScript code to bytecode
 - `evalByteCode(bytecode)`: Executes bytecode
 - `loadByteCode(bytecode)`: Loads a module from bytecode
-- `callModFunction(module, functionName, args?)`: Calls a function in a module
+- `callModFunction(module, functionName)`: Calls a function in a module (note: arguments are not currently supported)
 
 ### Promise Handling
 
@@ -154,6 +164,7 @@ const result = quickjs.getPromiseResult(promise); // "Slept for 500 ms"
 ```javascript
 const quickjs = await createQuickJS();
 const result = quickjs.evalSource("40 + 2"); // returns 42
+if (result !== 42) throw new Error("Expected 42, got " + result);
 ```
 
 ### Module Example
@@ -161,12 +172,13 @@ const result = quickjs.evalSource("40 + 2"); // returns 42
 ```javascript
 const quickjs = await createQuickJS();
 const bytecode = quickjs.compileToByteCode(`
-  export function greet(name) {
-    return "Hello, " + name + "!";
+  export function greet() {
+    return "Hello, World!";
   }
-`);
+`, "greet.js");
 const mod = quickjs.loadByteCode(bytecode);
-const greeting = quickjs.callModFunction(mod, "greet", ["World"]); // returns "Hello, World!"
+const greeting = quickjs.callModFunction(mod, "greet"); // returns "Hello, World!"
+if (greeting !== "Hello, World!") throw new Error("Expected 'Hello, World!', got " + greeting);
 ```
 
 ### Async Example with Host Functions
@@ -185,16 +197,20 @@ quickjs.hostFunctions["fetchData"] = async (params) => {
 // Create and run code that uses the host function
 const bytecode = quickjs.compileToByteCode(`
   export async function getData() {
-    const data = await env.callHostAsync({ 
-      function_name: "fetchData", 
-      url: "https://api.example.com/data" 
+    const data = await env.callHostAsync({
+      function_name: "fetchData",
+      url: "https://api.example.com/data"
     });
-    return JSON.parse(data);
+    return data; // Return as string, objects become bigint references
   }
-`);
+`, "fetch.js");
 
 const mod = quickjs.loadByteCode(bytecode);
 const promise = quickjs.callModFunction(mod, "getData");
 await quickjs.waitForPendingAsyncInvocations();
-const result = quickjs.getPromiseResult(promise);
+const result = quickjs.getPromiseResult(promise); // Returns JSON string
+const parsedResult = JSON.parse(result); // Parse on the host side
+if (!parsedResult.status || parsedResult.status !== "success") {
+  throw new Error("Expected success status in result");
+}
 ```
