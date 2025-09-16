@@ -39,7 +39,8 @@ if (result !== 42) throw new Error("Expected 42, got " + result);
 ```javascript
 // Compile JavaScript to bytecode
 const bytecode = quickjs.compileToByteCode("42;");
-if (!bytecode || bytecode.length === 0) throw new Error("Failed to compile bytecode");
+if (!bytecode || bytecode.length === 0)
+  throw new Error("Failed to compile bytecode");
 
 // Execute bytecode
 const result = quickjs.evalByteCode(bytecode); // returns 42
@@ -63,7 +64,8 @@ const bytecode = quickjs.compileToByteCode(
 
 // Load the module
 const mod = quickjs.loadByteCode(bytecode);
-if (typeof mod !== "bigint") throw new Error("Expected module handle to be bigint");
+if (typeof mod !== "bigint")
+  throw new Error("Expected module handle to be bigint");
 
 // Call a function from the module
 const result = quickjs.callModFunction(mod, "getNumber"); // returns 42
@@ -129,7 +131,8 @@ await quickjs.waitForPendingAsyncInvocations();
 
 // Get the result
 const result = quickjs.getPromiseResult(promise); // "Slept for 500 ms"
-if (result !== "Slept for 500 ms") throw new Error("Expected 'Slept for 500 ms', got " + result);
+if (result !== "Slept for 500 ms")
+  throw new Error("Expected 'Slept for 500 ms', got " + result);
 ```
 
 ## API Reference
@@ -171,14 +174,18 @@ if (result !== 42) throw new Error("Expected 42, got " + result);
 
 ```javascript
 const quickjs = await createQuickJS();
-const bytecode = quickjs.compileToByteCode(`
+const bytecode = quickjs.compileToByteCode(
+  `
   export function greet() {
     return "Hello, World!";
   }
-`, "greet.js");
+`,
+  "greet.js",
+);
 const mod = quickjs.loadByteCode(bytecode);
 const greeting = quickjs.callModFunction(mod, "greet"); // returns "Hello, World!"
-if (greeting !== "Hello, World!") throw new Error("Expected 'Hello, World!', got " + greeting);
+if (greeting !== "Hello, World!")
+  throw new Error("Expected 'Hello, World!', got " + greeting);
 ```
 
 ### Async Example with Host Functions
@@ -195,7 +202,8 @@ quickjs.hostFunctions["fetchData"] = async (params) => {
 };
 
 // Create and run code that uses the host function
-const bytecode = quickjs.compileToByteCode(`
+const bytecode = quickjs.compileToByteCode(
+  `
   export async function getData() {
     const data = await env.callHostAsync({
       function_name: "fetchData",
@@ -203,7 +211,9 @@ const bytecode = quickjs.compileToByteCode(`
     });
     return data; // Return as string, objects become bigint references
   }
-`, "fetch.js");
+`,
+  "fetch.js",
+);
 
 const mod = quickjs.loadByteCode(bytecode);
 const promise = quickjs.callModFunction(mod, "getData");
