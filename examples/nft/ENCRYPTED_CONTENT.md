@@ -1166,6 +1166,8 @@ env.storage_write(`encryption_key:${caller}`, ristretto_pubkey);
 
 Question: Should we implement deterministic derivation (Option B) or direct conversion (Option A)?
 
+**Answer**: Let's just leave it to the owners to generate random keypairs off-chain that will be used for content. Let's not  connect it to NEAR keys.
+
 ---
 3. AES-GCM with IV Storage - Implementation
 
@@ -1208,6 +1210,8 @@ const secret_scalar = aes_gcm_decrypt(ciphertext, aes_key, iv, tag);
 
 Confirmed: This approach works for your needs?
 
+**Answer**: Yes!
+
 ---
 4. Content Encryption Key Storage
 
@@ -1227,6 +1231,8 @@ pubkey
 }
 
 Question: Is this the right structure? Or should we group these fields differently?
+
+**Answer**: Yes, but do you think the nonce is needed is still needed, given the answer to question one?
 
 ---
 5. Host Functions - Additional Ones Needed
@@ -1249,3 +1255,5 @@ Question: Should AES-GCM be:
 - B) Client-side library only (like noble-curves or tweetnacl)
 
 I'd recommend B (client-side only) since the contract only needs to verify proofs, not encrypt/decrypt.
+
+**Answer**: Yes B, client-side only
