@@ -217,8 +217,250 @@ export function nft_payout() {
     }
     payout[account] += amount;
   };
-  addPayout(token_owner_id, (balance * BigInt(80_00)) / BigInt(100_00));
-  addPayout(contract_owner, (balance * BigInt(20_00)) / BigInt(100_00));
+  // Check if this token has encrypted content
+  const has_encrypted_content = env.storage_read(`encrypted-scalar:${args.token_id}`) !== null;
+
+  if (has_encrypted_content) {
+    // Hold funds in escrow (pay to contract)
+    // Seller will get paid after finalize_reencryption
+    addPayout(env.current_account_id(), balance);
+
+    // Store escrow info
+    const escrow_data = {
+      token_id: args.token_id,
+      previous_owner: token_owner_id,
+      balance: args.balance,
+      payout: {
+        [token_owner_id]: ((balance * 80n) / 100n).toString(),
+        [contract_owner]: ((balance * 20n) / 100n).toString(),
+      },
+    };
+    env.storage_write(`escrow:${args.token_id}`, JSON.stringify(escrow_data));
+  } else {
+    // Regular payout (no encrypted content)
+    addPayout(token_owner_id, (balance * BigInt(80_00)) / BigInt(100_00));
+    addPayout(contract_owner, (balance * BigInt(20_00)) / BigInt(100_00));
+  }
+
   Object.keys(payout).forEach((k) => (payout[k] = payout[k].toString()));
   return JSON.stringify({ payout });
+}
+
+// ============================================================================
+// Encrypted Content Functions
+// ============================================================================
+
+/**
+ * Register encryption public key for the caller
+ * Must be called before receiving encrypted NFTs
+ */
+export function register_encryption_pubkey() {
+  const { pubkey_base64 } = JSON.parse(env.input());
+  const caller = env.signer_account_id();
+
+  // Validate pubkey is 32 bytes (compressed Ristretto point)
+  const decoded = env.base64_decode(pubkey_base64);
+  if (decoded.length !== 32) {
+    env.panic("Invalid pubkey: must be 32 bytes");
+  }
+
+  // Store: account → ristretto public key mapping
+  env.storage_write(`encryption_key:${caller}`, pubkey_base64);
+}
+
+/**
+ * Get registered encryption public key for an account
+ */
+export function get_encryption_pubkey() {
+  const { account_id } = JSON.parse(env.input());
+  const pubkey = env.storage_read(`encryption_key:${account_id}`);
+
+  if (!pubkey) {
+    return JSON.stringify(null);
+  }
+
+  return JSON.stringify({ pubkey_base64: pubkey });
+}
+
+/**
+ * Mint NFT with encrypted content
+ * Caller must provide encrypted content and ElGamal ciphertext
+ */
+export function nft_mint_with_encrypted_content() {
+  const caller = env.signer_account_id();
+
+  // Only contract account can mint
+  if (caller !== env.current_account_id()) {
+    env.panic("only contract account can mint");
+  }
+
+  const {
+    token_id,
+    token_owner_id,
+    token_metadata,
+    encrypted_content_base64,      // Encrypted with AES-GCM key
+    encrypted_scalar_base64,       // 92 bytes: IV + encrypted (secret_scalar + randomness) + tag
+    elgamal_ciphertext_c1_base64,  // 32 bytes
+    elgamal_ciphertext_c2_base64,  // 32 bytes
+    owner_pubkey_base64,           // 32 bytes: owner's Ristretto pubkey
+  } = JSON.parse(env.input());
+
+  // Verify owner has registered encryption key
+  const registered_pubkey = env.storage_read(`encryption_key:${token_owner_id}`);
+  if (!registered_pubkey) {
+    env.panic(`Owner ${token_owner_id} has not registered encryption key`);
+  }
+
+  if (registered_pubkey !== owner_pubkey_base64) {
+    env.panic("Provided pubkey does not match registered key");
+  }
+
+  // Store encrypted content data
+  env.storage_write(`locked-content:${token_id}`, encrypted_content_base64);
+  env.storage_write(`encrypted-scalar:${token_id}`, encrypted_scalar_base64);
+  env.storage_write(`elgamal-ciphertext-c1:${token_id}`, elgamal_ciphertext_c1_base64);
+  env.storage_write(`elgamal-ciphertext-c2:${token_id}`, elgamal_ciphertext_c2_base64);
+  env.storage_write(`owner-pubkey:${token_id}`, owner_pubkey_base64);
+
+  // Return the token metadata for minting
+  return JSON.stringify(token_metadata);
+}
+
+/**
+ * Finalize re-encryption and release escrow payment
+ * Called by previous owner after transfer
+ */
+export function finalize_reencryption() {
+  const {
+    token_id,
+    new_ciphertext_c1_base64,
+    new_ciphertext_c2_base64,
+    proof,
+  } = JSON.parse(env.input());
+
+  const caller = env.signer_account_id();
+
+  // Load escrow data
+  const escrow_json = env.storage_read(`escrow:${token_id}`);
+  if (!escrow_json) {
+    env.panic(`No pending escrow for token ${token_id}`);
+  }
+
+  const escrow = JSON.parse(escrow_json);
+
+  // Verify caller is the previous owner
+  if (caller !== escrow.previous_owner) {
+    env.panic("Only previous owner can finalize re-encryption");
+  }
+
+  // Load stored encryption state
+  const old_ciphertext_c1 = env.storage_read(`elgamal-ciphertext-c1:${token_id}`);
+  const old_ciphertext_c2 = env.storage_read(`elgamal-ciphertext-c2:${token_id}`);
+  const old_pubkey = env.storage_read(`owner-pubkey:${token_id}`);
+
+  // Get new owner's registered pubkey
+  const token = JSON.parse(env.nft_token(token_id));
+  const new_owner = token.owner_id;
+  const new_pubkey = env.storage_read(`encryption_key:${new_owner}`);
+
+  if (!new_pubkey) {
+    env.panic(`New owner ${new_owner} has not registered encryption key`);
+  }
+
+  // Verify zero-knowledge proof
+  const is_valid = env.verify_reencryption_proof(
+    old_ciphertext_c1,
+    old_ciphertext_c2,
+    old_pubkey,
+    new_ciphertext_c1_base64,
+    new_ciphertext_c2_base64,
+    new_pubkey,
+    proof.commit_r_old_base64,
+    proof.commit_s_old_base64,
+    proof.commit_r_new_base64,
+    proof.commit_s_new_base64,
+    proof.response_s_base64,
+    proof.response_r_old_base64,
+    proof.response_r_new_base64
+  );
+
+  if (!is_valid) {
+    env.panic("Invalid re-encryption proof");
+  }
+
+  // Update stored ciphertext for new owner
+  env.storage_write(`elgamal-ciphertext-c1:${token_id}`, new_ciphertext_c1_base64);
+  env.storage_write(`elgamal-ciphertext-c2:${token_id}`, new_ciphertext_c2_base64);
+  env.storage_write(`owner-pubkey:${token_id}`, new_pubkey);
+
+  // Release escrow payment
+  Object.entries(escrow.payout).forEach(([account, amount]) => {
+    env.promise_batch_action_transfer(account, amount);
+  });
+
+  // Clear escrow
+  env.storage_remove(`escrow:${token_id}`);
+
+  return JSON.stringify({ success: true });
+}
+
+/**
+ * Cancel transfer and refund if seller never provides re-encryption
+ * Can only be called by new owner
+ */
+export function cancel_transfer_and_refund() {
+  const { token_id } = JSON.parse(env.input());
+  const caller = env.signer_account_id();
+
+  // Load escrow data
+  const escrow_json = env.storage_read(`escrow:${token_id}`);
+  if (!escrow_json) {
+    env.panic(`No pending escrow for token ${token_id}`);
+  }
+
+  const escrow = JSON.parse(escrow_json);
+
+  // Verify caller is the current (new) owner
+  const token = JSON.parse(env.nft_token(token_id));
+  if (caller !== token.owner_id) {
+    env.panic("Only current owner can cancel transfer");
+  }
+
+  // Revert ownership back to previous owner
+  // Note: This would require access to nft_transfer_internal which we don't have from JS
+  // For now, we'll panic with a message
+  env.panic("Cancel transfer not yet implemented - requires internal NFT transfer access");
+
+  // TODO: When implemented:
+  // env.nft_transfer_internal(token_id, escrow.previous_owner);
+  // env.promise_batch_action_transfer(caller, escrow.balance);
+  // env.storage_remove(`escrow:${token_id}`);
+}
+
+/**
+ * Get encrypted content for an NFT
+ * Only returns data, decryption happens client-side
+ */
+export function get_encrypted_content_data() {
+  const { token_id } = JSON.parse(env.input());
+
+  const encrypted_content = env.storage_read(`locked-content:${token_id}`);
+  const encrypted_scalar = env.storage_read(`encrypted-scalar:${token_id}`);
+  const ciphertext_c1 = env.storage_read(`elgamal-ciphertext-c1:${token_id}`);
+  const ciphertext_c2 = env.storage_read(`elgamal-ciphertext-c2:${token_id}`);
+  const owner_pubkey = env.storage_read(`owner-pubkey:${token_id}`);
+
+  if (!encrypted_content) {
+    return JSON.stringify({ error: "No encrypted content for this token" });
+  }
+
+  return JSON.stringify({
+    encrypted_content_base64: encrypted_content,
+    encrypted_scalar_base64: encrypted_scalar,
+    elgamal_ciphertext: {
+      c1_base64: ciphertext_c1,
+      c2_base64: ciphertext_c2,
+    },
+    owner_pubkey_base64: owner_pubkey,
+  });
 }
