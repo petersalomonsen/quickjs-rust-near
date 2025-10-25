@@ -1,4 +1,5 @@
 mod payouts;
+mod crypto;
 use near_contract_standards::non_fungible_token::events::NftBurn;
 use near_contract_standards::non_fungible_token::metadata::{
     NFTContractMetadata, NonFungibleTokenMetadataProvider, TokenMetadata, NFT_METADATA_SPEC,
@@ -94,6 +95,116 @@ impl Contract {
                 return to_js_string(ctx, str);
             },
             3,
+        );
+
+        // Crypto functions for encrypted content
+        add_function_to_js(
+            "ristretto_basepoint_mul",
+            |ctx: i32, _this_val: i64, _argc: i32, argv: i32| -> i64 {
+                let scalar_b64 = arg_to_str(ctx, 0, argv);
+                let scalar_bytes = base64::decode(&scalar_b64).unwrap_or_else(|_| vec![]);
+
+                match crypto::ristretto_basepoint_mul(&scalar_bytes) {
+                    Ok(result) => to_js_string(ctx, base64::encode(result)),
+                    Err(e) => {
+                        env::log_str(&format!("ristretto_basepoint_mul error: {}", e));
+                        to_js_string(ctx, String::new())
+                    }
+                }
+            },
+            1,
+        );
+
+        add_function_to_js(
+            "ristretto_scalar_mul",
+            |ctx: i32, _this_val: i64, _argc: i32, argv: i32| -> i64 {
+                let scalar_b64 = arg_to_str(ctx, 0, argv);
+                let point_b64 = arg_to_str(ctx, 1, argv);
+                let scalar_bytes = base64::decode(&scalar_b64).unwrap_or_else(|_| vec![]);
+                let point_bytes = base64::decode(&point_b64).unwrap_or_else(|_| vec![]);
+
+                match crypto::ristretto_scalar_mul(&scalar_bytes, &point_bytes) {
+                    Ok(result) => to_js_string(ctx, base64::encode(result)),
+                    Err(e) => {
+                        env::log_str(&format!("ristretto_scalar_mul error: {}", e));
+                        to_js_string(ctx, String::new())
+                    }
+                }
+            },
+            2,
+        );
+
+        add_function_to_js(
+            "ristretto_point_add",
+            |ctx: i32, _this_val: i64, _argc: i32, argv: i32| -> i64 {
+                let point1_b64 = arg_to_str(ctx, 0, argv);
+                let point2_b64 = arg_to_str(ctx, 1, argv);
+                let point1_bytes = base64::decode(&point1_b64).unwrap_or_else(|_| vec![]);
+                let point2_bytes = base64::decode(&point2_b64).unwrap_or_else(|_| vec![]);
+
+                match crypto::ristretto_point_add(&point1_bytes, &point2_bytes) {
+                    Ok(result) => to_js_string(ctx, base64::encode(result)),
+                    Err(e) => {
+                        env::log_str(&format!("ristretto_point_add error: {}", e));
+                        to_js_string(ctx, String::new())
+                    }
+                }
+            },
+            2,
+        );
+
+        add_function_to_js(
+            "ristretto_point_sub",
+            |ctx: i32, _this_val: i64, _argc: i32, argv: i32| -> i64 {
+                let point1_b64 = arg_to_str(ctx, 0, argv);
+                let point2_b64 = arg_to_str(ctx, 1, argv);
+                let point1_bytes = base64::decode(&point1_b64).unwrap_or_else(|_| vec![]);
+                let point2_bytes = base64::decode(&point2_b64).unwrap_or_else(|_| vec![]);
+
+                match crypto::ristretto_point_sub(&point1_bytes, &point2_bytes) {
+                    Ok(result) => to_js_string(ctx, base64::encode(result)),
+                    Err(e) => {
+                        env::log_str(&format!("ristretto_point_sub error: {}", e));
+                        to_js_string(ctx, String::new())
+                    }
+                }
+            },
+            2,
+        );
+
+        add_function_to_js(
+            "verify_reencryption_proof",
+            |ctx: i32, _this_val: i64, _argc: i32, argv: i32| -> i64 {
+                let old_c1 = arg_to_str(ctx, 0, argv);
+                let old_c2 = arg_to_str(ctx, 1, argv);
+                let old_pk = arg_to_str(ctx, 2, argv);
+                let new_c1 = arg_to_str(ctx, 3, argv);
+                let new_c2 = arg_to_str(ctx, 4, argv);
+                let new_pk = arg_to_str(ctx, 5, argv);
+                let commit_r_old = arg_to_str(ctx, 6, argv);
+                let commit_s_old = arg_to_str(ctx, 7, argv);
+                let commit_r_new = arg_to_str(ctx, 8, argv);
+                let commit_s_new = arg_to_str(ctx, 9, argv);
+                let response_s = arg_to_str(ctx, 10, argv);
+                let response_r_old = arg_to_str(ctx, 11, argv);
+                let response_r_new = arg_to_str(ctx, 12, argv);
+
+                match crypto::verify_reencryption_proof_base64(
+                    &old_c1, &old_c2, &old_pk,
+                    &new_c1, &new_c2, &new_pk,
+                    &commit_r_old, &commit_s_old,
+                    &commit_r_new, &commit_s_new,
+                    &response_s, &response_r_old, &response_r_new,
+                ) {
+                    Ok(true) => 1i64,
+                    Ok(false) => 0i64,
+                    Err(e) => {
+                        env::log_str(&format!("verify_reencryption_proof error: {}", e));
+                        0i64
+                    }
+                }
+            },
+            13,
         );
     }
 

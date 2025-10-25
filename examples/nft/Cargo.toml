@@ -12,6 +12,8 @@ crate-type = ["cdylib"]
 near-sdk = "5.5.0"
 lazy_static = "1.4.0"
 ed25519-dalek = "1.0.1"
+curve25519-dalek = "4.1.1"
+sha2 = "0.10"
 quickjs-rust-near = { path = "../../", features=["library"] }
 quickjs-rust-near-testenv = { path = "../../testenv" }
 near-contract-standards = "5.5.0"
