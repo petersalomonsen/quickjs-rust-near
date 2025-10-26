@@ -402,48 +402,67 @@ function decryptContent(encryptedContentBase64, aesKey) {
 
 /**
  * Generate a zero-knowledge proof of re-encryption
- * Proves that old_ciphertext and new_ciphertext encrypt the same message
- * without revealing the message or the randomness used
+ * Proves that old_ciphertext and new_ciphertext encrypt the same secret_scalar
+ * without revealing the secret_scalar or the randomness used
+ *
+ * This matches the verification in examples/nft/src/crypto.rs:159-245
  */
 function generateReencryptionProof(
-  messageScalar,           // The AES key being encrypted (as scalar)
+  secretScalar,            // The secret_scalar being encrypted (32 bytes)
+  oldCiphertextC1Base64,   // C1 of old ciphertext
+  oldCiphertextC2Base64,   // C2 of old ciphertext
   oldRandomness,           // r_old used in old ciphertext
+  oldPubkeyBase64,         // Old owner's public key
+  newCiphertextC1Base64,   // C1 of new ciphertext
+  newCiphertextC2Base64,   // C2 of new ciphertext
   newRandomness,           // r_new used in new ciphertext
-  oldPubkeyBase64,
-  newPubkeyBase64
+  newPubkeyBase64          // New owner's public key
 ) {
+  // Parse inputs
   const oldPubkey = RistrettoPoint.fromHex(Buffer.from(oldPubkeyBase64, 'base64'));
   const newPubkey = RistrettoPoint.fromHex(Buffer.from(newPubkeyBase64, 'base64'));
 
-  const m = bufferToScalar(messageScalar);
+  const oldC1 = Buffer.from(oldCiphertextC1Base64, 'base64');
+  const oldC2 = Buffer.from(oldCiphertextC2Base64, 'base64');
+  const newC1 = Buffer.from(newCiphertextC1Base64, 'base64');
+  const newC2 = Buffer.from(newCiphertextC2Base64, 'base64');
+
+  const m = bufferToScalar(secretScalar);
   const r_old = bufferToScalar(oldRandomness);
   const r_new = bufferToScalar(newRandomness);
 
-  // Generate random blinding factors
-  const alpha_r_old = bufferToScalar(crypto.randomBytes(32));
-  const alpha_r_new = bufferToScalar(crypto.randomBytes(32));
-  const alpha_s = bufferToScalar(crypto.randomBytes(32));
+  // Generate random blinding factors (nonces for zero-knowledge)
+  const t_r_old = bufferToScalar(crypto.randomBytes(32));
+  const t_r_new = bufferToScalar(crypto.randomBytes(32));
+  const t_s = bufferToScalar(crypto.randomBytes(32));
 
-  // Compute commitments
-  const commit_r_old = RistrettoPoint.BASE.multiply(alpha_r_old);
-  const commit_r_new = RistrettoPoint.BASE.multiply(alpha_r_new);
-  const commit_s_old = RistrettoPoint.BASE.multiply(alpha_s).add(oldPubkey.multiply(alpha_r_old));
-  const commit_s_new = RistrettoPoint.BASE.multiply(alpha_s).add(newPubkey.multiply(alpha_r_new));
+  // Compute commitments (first message in Sigma protocol)
+  const commit_r_old = RistrettoPoint.BASE.multiply(t_r_old);
+  const commit_r_new = RistrettoPoint.BASE.multiply(t_r_new);
+  const commit_s_old = RistrettoPoint.BASE.multiply(t_s).add(oldPubkey.multiply(t_r_old));
+  const commit_s_new = RistrettoPoint.BASE.multiply(t_s).add(newPubkey.multiply(t_r_new));
 
-  // Compute challenge using SHA-256 (simplified - in production would hash all public parameters)
-  const challengeInput = Buffer.concat([
-    commit_r_old.toRawBytes(),
-    commit_s_old.toRawBytes(),
-    commit_r_new.toRawBytes(),
-    commit_s_new.toRawBytes(),
-  ]);
-  const challengeHash = crypto.createHash('sha256').update(challengeInput).digest();
+  // Compute challenge hash (matches crypto.rs compute_challenge function)
+  // Hash all public inputs to create Fiat-Shamir challenge
+  const challengeHash = crypto.createHash('sha256')
+    .update(oldC1)                                      // old_ct.c1
+    .update(oldC2)                                      // old_ct.c2
+    .update(Buffer.from(oldPubkey.toRawBytes()))        // old_pk
+    .update(newC1)                                      // new_ct.c1
+    .update(newC2)                                      // new_ct.c2
+    .update(Buffer.from(newPubkey.toRawBytes()))        // new_pk
+    .update(Buffer.from(commit_r_old.toRawBytes()))     // commit_r_old
+    .update(Buffer.from(commit_s_old.toRawBytes()))     // commit_s_old
+    .update(Buffer.from(commit_r_new.toRawBytes()))     // commit_r_new
+    .update(Buffer.from(commit_s_new.toRawBytes()))     // commit_s_new
+    .digest();
   const challenge = bufferToScalar(challengeHash);
 
-  // Compute responses (modulo curve order)
-  const response_s = (alpha_s + challenge * m) % CURVE_ORDER;
-  const response_r_old = (alpha_r_old + challenge * r_old) % CURVE_ORDER;
-  const response_r_new = (alpha_r_new + challenge * r_new) % CURVE_ORDER;
+  // Compute responses (challenge response in Sigma protocol)
+  // These satisfy the verification equations without revealing the secrets
+  const response_r_old = (t_r_old + challenge * r_old) % CURVE_ORDER;
+  const response_r_new = (t_r_new + challenge * r_new) % CURVE_ORDER;
+  const response_s = (t_s + challenge * m) % CURVE_ORDER;  // Same for both - proves same message!
 
   return {
     commit_r_old_base64: Buffer.from(commit_r_old.toRawBytes()).toString('base64'),
@@ -691,12 +710,51 @@ try {
   console.log("  ✅ Bob can decrypt the content!");
   console.log("    - Content matches:", contentPlaintext === bobDecryptedContent ? "✅ YES" : "❌ NO");
 
-  console.log("\n💡 Note: ZK proof integration coming next");
-  console.log("  The architecture now matches ENCRYPTED_CONTENT.md perfectly:");
-  console.log("  - Exponential ElGamal encrypts secret_scalar");
-  console.log("  - Decryption gives secret_point = secret_scalar * G");
-  console.log("  - AES key derived via Hash(secret_point)");
-  console.log("  - ZK proof will verify re-encryption of the SAME secret_scalar");
+  console.log("\n🔐 Step 10: Generate and Verify ZK Proof");
+  // Generate zero-knowledge proof that both ciphertexts encrypt the same secret_scalar
+  const proof = generateReencryptionProof(
+    secretScalar,                    // The secret_scalar being encrypted
+    aliceCiphertext.c1_base64,       // Old ciphertext C1 (Alice)
+    aliceCiphertext.c2_base64,       // Old ciphertext C2 (Alice)
+    aliceRandomness,                 // Randomness used for Alice's encryption
+    aliceKeys.publicKey,             // Alice's public key
+    bobCiphertext.c1_base64,         // New ciphertext C1 (Bob)
+    bobCiphertext.c2_base64,         // New ciphertext C2 (Bob)
+    bobRandomness,                   // Randomness used for Bob's encryption
+    bobKeys.publicKey                // Bob's public key
+  );
+  console.log("  ✅ Generated ZK proof");
+
+  // Complete the encrypted transfer with proof verification
+  const completeResult = await functionCall(
+    "alice.test.near",
+    "nft.test.near",
+    "call_js_func",
+    {
+      function_name: "complete_encrypted_transfer",
+      token_id: "encrypted-nft-1",
+      new_ciphertext_c1_base64: bobCiphertext.c1_base64,
+      new_ciphertext_c2_base64: bobCiphertext.c2_base64,
+      proof: {
+        commit_r_old_base64: proof.commit_r_old_base64,
+        commit_s_old_base64: proof.commit_s_old_base64,
+        commit_r_new_base64: proof.commit_r_new_base64,
+        commit_s_new_base64: proof.commit_s_new_base64,
+        response_s_base64: proof.response_s_base64,
+        response_r_old_base64: proof.response_r_old_base64,
+        response_r_new_base64: proof.response_r_new_base64,
+      },
+    }
+  );
+  console.log("  ✅ ZK proof verified successfully!");
+  console.log("    - Transfer completed with cryptographic proof");
+  console.log("    - Proof guarantees Alice and Bob have the same secret_scalar");
+
+  console.log("\n💡 What the ZK Proof Proves:");
+  console.log("  ✓ Both ciphertexts encrypt the SAME secret_scalar");
+  console.log("  ✓ Without revealing secret_scalar to anyone");
+  console.log("  ✓ Using Sigma protocol with Fiat-Shamir heuristic");
+  console.log("  ✓ Verified on-chain using Rust Ristretto255 operations");
 
   console.log("\n✅ =================================================");
   console.log("✅ ALL TESTS PASSED!");
@@ -706,15 +764,19 @@ try {
   console.log("  ✅ Ristretto255 keypair generation: SUCCESS");
   console.log("  ✅ Encryption key registration: SUCCESS");
   console.log("  ✅ AES-256-GCM content encryption: SUCCESS");
-  console.log("  ✅ Hybrid ElGamal key encryption (ECIES-style): SUCCESS");
+  console.log("  ✅ Exponential ElGamal encryption: SUCCESS");
   console.log("  ✅ Encrypted NFT minting: SUCCESS");
   console.log("  ✅ Content data retrieval: SUCCESS");
-  console.log("  ✅ ElGamal decryption (AES key recovery): SUCCESS");
+  console.log("  ✅ ElGamal decryption (secret_point recovery): SUCCESS");
+  console.log("  ✅ AES key derivation from Hash(secret_point): SUCCESS");
   console.log("  ✅ AES-GCM content decryption: SUCCESS");
   console.log("  ✅ End-to-end encryption/decryption: SUCCESS");
   console.log("  ✅ Re-encryption for new owner: SUCCESS");
-  console.log("\n🎉 Full encryption/decryption cycle validated!");
+  console.log("  ✅ Zero-knowledge proof generation: SUCCESS");
+  console.log("  ✅ On-chain ZK proof verification: SUCCESS");
+  console.log("\n🎉 Full encrypted NFT system validated!");
   console.log("✅ All cryptographic primitives working correctly!");
+  console.log("🔐 ZK proofs ensure secure NFT transfers without revealing secrets!");
 
 } catch (error) {
   console.error("\n❌ Test failed:", error);
