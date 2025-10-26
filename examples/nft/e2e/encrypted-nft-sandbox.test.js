@@ -274,12 +274,37 @@ function mockElGamalEncrypt() {
   };
 }
 
-function mockEncryptScalar() {
+// Real AES-GCM encryption for content
+function encryptContent(content) {
+  const aesKey = crypto.randomBytes(32); // 256-bit AES key
+  const iv = crypto.randomBytes(12); // 96-bit IV for GCM
+
+  const cipher = crypto.createCipheriv('aes-256-gcm', aesKey, iv);
+  const encrypted = Buffer.concat([cipher.update(content, 'utf8'), cipher.final()]);
+  const tag = cipher.getAuthTag();
+
+  // Combine: IV + ciphertext + tag
+  const combined = Buffer.concat([iv, encrypted, tag]);
+
+  return {
+    encryptedContent: combined.toString('base64'),
+    aesKey: aesKey, // This will be encrypted with the secret scalar
+  };
+}
+
+// Real AES-GCM encryption for secret_scalar + randomness
+function encryptScalar(secretScalar, randomness, aesKey) {
   // 92 bytes: IV (12) + ciphertext (64) + tag (16)
   const iv = crypto.randomBytes(12);
-  const ciphertext = crypto.randomBytes(64);
-  const tag = crypto.randomBytes(16);
-  const combined = Buffer.concat([iv, ciphertext, tag]);
+
+  // Combine secret_scalar (32 bytes) and randomness (32 bytes)
+  const plaintext = Buffer.concat([secretScalar, randomness]);
+
+  const cipher = crypto.createCipheriv('aes-256-gcm', aesKey, iv);
+  const encrypted = Buffer.concat([cipher.update(plaintext), cipher.final()]);
+  const tag = cipher.getAuthTag();
+
+  const combined = Buffer.concat([iv, encrypted, tag]);
   return combined.toString("base64");
 }
 
@@ -342,9 +367,23 @@ try {
   console.log("  ✅ Alice's key verified:", alicePubkey.pubkey_base64 === aliceKeys.publicKey);
 
   console.log("\n🎨 Step 6: Mint Encrypted NFT");
-  const encryptedContent = Buffer.from("Secret music file content!").toString("base64");
+
+  // 1. Encrypt the content with AES-GCM
+  const contentPlaintext = "Secret music file content!";
+  const { encryptedContent, aesKey } = encryptContent(contentPlaintext);
+  console.log("  ✅ Content encrypted with AES-256-GCM");
+
+  // 2. Generate secret scalar and randomness (these would be used for ElGamal encryption)
+  const secretScalar = crypto.randomBytes(32);
+  const randomness = crypto.randomBytes(32);
+
+  // 3. Encrypt secret_scalar + randomness with the AES key
+  const encryptedScalarData = encryptScalar(secretScalar, randomness, aesKey);
+  console.log("  ✅ Secret scalar encrypted");
+
+  // 4. Mock ElGamal ciphertext (in production, this would be ElGamal encryption of the secret scalar)
   const aliceCiphertext = mockElGamalEncrypt();
-  const encryptedScalar = mockEncryptScalar();
+  console.log("  ✅ ElGamal ciphertext generated (mock)");
 
   // First, mint the NFT using the standard nft_mint function
   await functionCall(
@@ -373,7 +412,7 @@ try {
         description: "A music NFT with encrypted content",
       },
       encrypted_content_base64: encryptedContent,
-      encrypted_scalar_base64: encryptedScalar,
+      encrypted_scalar_base64: encryptedScalarData,
       elgamal_ciphertext_c1_base64: aliceCiphertext.c1_base64,
       elgamal_ciphertext_c2_base64: aliceCiphertext.c2_base64,
       owner_pubkey_base64: aliceKeys.publicKey,
