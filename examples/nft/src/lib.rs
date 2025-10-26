@@ -22,6 +22,7 @@ use std::ffi::CString;
 
 const JS_BYTECODE_STORAGE_KEY: &[u8] = b"JS";
 const JS_CONTENT_RESOURCE_PREFIX: &str = "JSC_";
+const ENCRYPTED_CONTENT_STORAGE_PREFIX: &str = "ENC_";
 
 #[derive(BorshSerialize, BorshStorageKey)]
 #[borsh(crate="near_sdk::borsh")]
@@ -205,6 +206,55 @@ impl Contract {
                 }
             },
             13,
+        );
+
+        // Storage functions for encrypted content (with ENC_ prefix for isolation)
+        add_function_to_js(
+            "storage_read",
+            |ctx: i32, _this_val: i64, _argc: i32, argv: i32| -> i64 {
+                let key = arg_to_str(ctx, 0, argv);
+                let mut prefixed_key = ENCRYPTED_CONTENT_STORAGE_PREFIX.to_owned();
+                prefixed_key.push_str(&key);
+
+                match env::storage_read(prefixed_key.as_bytes()) {
+                    Some(value) => {
+                        // Return the value as a string
+                        match String::from_utf8(value) {
+                            Ok(s) => to_js_string(ctx, s),
+                            Err(_) => 0i64 // Return null for invalid UTF-8
+                        }
+                    }
+                    None => 0i64 // Return JS null for non-existent keys
+                }
+            },
+            1,
+        );
+
+        add_function_to_js(
+            "storage_write",
+            |ctx: i32, _this_val: i64, _argc: i32, argv: i32| -> i64 {
+                let key = arg_to_str(ctx, 0, argv);
+                let value = arg_to_str(ctx, 1, argv);
+                let mut prefixed_key = ENCRYPTED_CONTENT_STORAGE_PREFIX.to_owned();
+                prefixed_key.push_str(&key);
+
+                env::storage_write(prefixed_key.as_bytes(), value.as_bytes());
+                0i64 // Return undefined
+            },
+            2,
+        );
+
+        add_function_to_js(
+            "storage_remove",
+            |ctx: i32, _this_val: i64, _argc: i32, argv: i32| -> i64 {
+                let key = arg_to_str(ctx, 0, argv);
+                let mut prefixed_key = ENCRYPTED_CONTENT_STORAGE_PREFIX.to_owned();
+                prefixed_key.push_str(&key);
+
+                env::storage_remove(prefixed_key.as_bytes());
+                0i64 // Return undefined
+            },
+            1,
         );
     }
 

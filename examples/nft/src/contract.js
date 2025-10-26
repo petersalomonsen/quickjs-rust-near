@@ -259,9 +259,10 @@ export function register_encryption_pubkey() {
   const caller = env.signer_account_id();
 
   // Validate pubkey is 32 bytes (compressed Ristretto point)
-  const decoded = env.base64_decode(pubkey_base64);
-  if (decoded.length !== 32) {
-    env.panic("Invalid pubkey: must be 32 bytes");
+  // 32 bytes in base64 = 44 characters (with padding)
+  // Allow for URL-safe base64 which might not have padding (43 chars minimum)
+  if (pubkey_base64.length < 43 || pubkey_base64.length > 44) {
+    env.panic("Invalid pubkey: must be 32 bytes (44 chars base64)");
   }
 
   // Store: account → ristretto public key mapping
@@ -276,10 +277,11 @@ export function get_encryption_pubkey() {
   const pubkey = env.storage_read(`encryption_key:${account_id}`);
 
   if (!pubkey) {
-    return JSON.stringify(null);
+    env.value_return(JSON.stringify(null));
+    return;
   }
 
-  return JSON.stringify({ pubkey_base64: pubkey });
+  env.value_return(JSON.stringify({ pubkey_base64: pubkey }));
 }
 
 /**
@@ -451,10 +453,11 @@ export function get_encrypted_content_data() {
   const owner_pubkey = env.storage_read(`owner-pubkey:${token_id}`);
 
   if (!encrypted_content) {
-    return JSON.stringify({ error: "No encrypted content for this token" });
+    env.value_return(JSON.stringify({ error: "No encrypted content for this token" }));
+    return;
   }
 
-  return JSON.stringify({
+  env.value_return(JSON.stringify({
     encrypted_content_base64: encrypted_content,
     encrypted_scalar_base64: encrypted_scalar,
     elgamal_ciphertext: {
@@ -462,5 +465,5 @@ export function get_encrypted_content_data() {
       c2_base64: ciphertext_c2,
     },
     owner_pubkey_base64: owner_pubkey,
-  });
+  }));
 }
