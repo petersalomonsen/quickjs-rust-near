@@ -744,6 +744,8 @@ try {
   console.log("  ✅ Transfer finalized with cryptographic proof");
   console.log("  ✅ New ciphertext should be stored for Bob");
 
+  await new Promise(resolve => setTimeout(resolve, 1000));
+  
   console.log("\n📥 Step 12: Bob Retrieves Ciphertext from Contract");
   // Bob retrieves the encrypted content data from the contract
   const bobContentData = await viewFunction("nft.test.near", "call_js_func", {
