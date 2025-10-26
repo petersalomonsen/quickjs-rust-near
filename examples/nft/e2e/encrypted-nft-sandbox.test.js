@@ -306,13 +306,13 @@ function generateRistrettoKeypair() {
 }
 
 /**
- * ElGamal encryption on Ristretto255 (hybrid mode)
- * Uses ECIES-style encryption: derive symmetric key from shared secret
- * @param {Buffer} message - Data to encrypt (e.g., AES key)
+ * ElGamal encryption on Ristretto255 (exponential ElGamal)
+ * Encrypts a scalar m by computing: C2 = m*G + r*PK
+ * @param {Buffer} messageScalar - 32-byte scalar to encrypt (secret_scalar)
  * @param {string} publicKeyBase64 - Recipient's public key (compressed Ristretto point)
  * @returns {{c1_base64: string, c2_base64: string, randomness: Buffer}}
  */
-function elgamalEncrypt(message, publicKeyBase64) {
+function elgamalEncrypt(messageScalar, publicKeyBase64) {
   // Decode recipient's public key
   const publicKeyBytes = Buffer.from(publicKeyBase64, 'base64');
   const publicKeyPoint = RistrettoPoint.fromHex(publicKeyBytes);
@@ -320,58 +320,45 @@ function elgamalEncrypt(message, publicKeyBase64) {
   // Generate random scalar r for encryption
   const r = bufferToScalar(crypto.randomBytes(32));
 
-  // Compute shared secret: s = r * PK
-  const sharedSecretPoint = publicKeyPoint.multiply(r);
-  const sharedSecretBytes = Buffer.from(sharedSecretPoint.toRawBytes());
+  // Convert message to scalar m
+  const m = bufferToScalar(messageScalar);
 
-  // Derive encryption key from shared secret using SHA-256
-  const encryptionKey = crypto.createHash('sha256').update(sharedSecretBytes).digest();
-
-  // XOR message with derived key (simple but effective for fixed-size keys)
-  const encrypted = Buffer.alloc(message.length);
-  for (let i = 0; i < message.length; i++) {
-    encrypted[i] = message[i] ^ encryptionKey[i % 32];
-  }
-
-  // C1 = r * G (ephemeral public key)
+  // Compute C1 = r * G
   const c1Point = RistrettoPoint.BASE.multiply(r);
+
+  // Compute C2 = m * G + r * PK (exponential ElGamal)
+  const c2Point = RistrettoPoint.BASE.multiply(m).add(publicKeyPoint.multiply(r));
 
   return {
     c1_base64: Buffer.from(c1Point.toRawBytes()).toString('base64'),
-    c2_base64: encrypted.toString('base64'), // Now C2 is encrypted data, not a point
+    c2_base64: Buffer.from(c2Point.toRawBytes()).toString('base64'),
     randomness: scalarToBuffer(r),
   };
 }
 
 /**
- * ElGamal decryption on Ristretto255 (hybrid mode)
- * @param {string} c1Base64 - Ephemeral public key (r*G)
- * @param {string} c2Base64 - Encrypted message
+ * ElGamal decryption on Ristretto255 (exponential ElGamal)
+ * Returns the decrypted point: secret_point = C2 - sk*C1 = m*G
+ * @param {string} c1Base64 - C1 component (r*G)
+ * @param {string} c2Base64 - C2 component (m*G + r*PK)
  * @param {string} privateKeyBase64 - Recipient's private key
- * @returns {Buffer} - Decrypted message
+ * @returns {Buffer} - Decrypted point (m*G) as 32 bytes
  */
 function elgamalDecrypt(c1Base64, c2Base64, privateKeyBase64) {
-  // Decode C1 (ephemeral public key)
+  // Decode ciphertext components
   const c1Point = RistrettoPoint.fromHex(Buffer.from(c1Base64, 'base64'));
-  const encrypted = Buffer.from(c2Base64, 'base64');
+  const c2Point = RistrettoPoint.fromHex(Buffer.from(c2Base64, 'base64'));
 
   // Decode private key
   const sk = bufferToScalar(Buffer.from(privateKeyBase64, 'base64'));
 
-  // Compute shared secret: s = sk * C1 = sk * r * G = r * PK
-  const sharedSecretPoint = c1Point.multiply(sk);
-  const sharedSecretBytes = Buffer.from(sharedSecretPoint.toRawBytes());
+  // Decrypt: secret_point = C2 - sk * C1
+  //         = (m*G + r*PK) - sk*(r*G)
+  //         = m*G + r*sk*G - sk*r*G
+  //         = m*G
+  const secretPoint = c2Point.subtract(c1Point.multiply(sk));
 
-  // Derive decryption key (same as encryption key)
-  const decryptionKey = crypto.createHash('sha256').update(sharedSecretBytes).digest();
-
-  // XOR to decrypt
-  const decrypted = Buffer.alloc(encrypted.length);
-  for (let i = 0; i < encrypted.length; i++) {
-    decrypted[i] = encrypted[i] ^ decryptionKey[i % 32];
-  }
-
-  return decrypted;
+  return Buffer.from(secretPoint.toRawBytes());
 }
 
 // Real AES-GCM encryption for content
@@ -529,22 +516,50 @@ try {
 
   console.log("\n🎨 Step 6: Mint Encrypted NFT");
 
-  // 1. Encrypt the content with AES-GCM
-  const contentPlaintext = "Secret music file content!";
-  const { encryptedContent, aesKey } = encryptContent(contentPlaintext);
-  console.log("  ✅ Content encrypted with AES-256-GCM");
+  // Following the architecture from ENCRYPTED_CONTENT.md:
+
+  // 1. Generate random secret_scalar
+  const secretScalar = crypto.randomBytes(32);
+  console.log("  ✅ Generated secret_scalar");
+
+  // 2. Compute secret_point = secret_scalar * G
+  const secretScalarBigInt = bufferToScalar(secretScalar);
+  const secretPoint = RistrettoPoint.BASE.multiply(secretScalarBigInt);
+  const secretPointBytes = Buffer.from(secretPoint.toRawBytes());
+  console.log("  ✅ Computed secret_point = secret_scalar * G");
+
+  // 3. Derive aes_key = Hash(secret_point)
+  const aesKey = crypto.createHash('sha256').update(secretPointBytes).digest();
+  console.log("  ✅ Derived aes_key = Hash(secret_point)");
   console.log("  📊 AES key (hex):", aesKey.toString('hex').substring(0, 16) + "...");
 
-  // 2. ElGamal-encrypt the AES key using Alice's public key
-  const aliceCiphertext = elgamalEncrypt(aesKey, aliceKeys.publicKey);
-  const aliceRandomness = aliceCiphertext.randomness; // Save for re-encryption proof
-  console.log("  ✅ AES key encrypted with ElGamal for Alice");
-  console.log("  📊 C1:", aliceCiphertext.c1_base64.substring(0, 16) + "...");
-  console.log("  📊 C2:", aliceCiphertext.c2_base64.substring(0, 16) + "...");
+  // 4. Encrypt NFT content with aes_key
+  const contentPlaintext = "Secret music file content!";
+  const encryptedContent = (() => {
+    const iv = crypto.randomBytes(12);
+    const cipher = crypto.createCipheriv('aes-256-gcm', aesKey, iv);
+    const encrypted = Buffer.concat([cipher.update(contentPlaintext, 'utf8'), cipher.final()]);
+    const tag = cipher.getAuthTag();
+    return Buffer.concat([iv, encrypted, tag]).toString('base64');
+  })();
+  console.log("  ✅ Content encrypted with AES-256-GCM");
 
-  // 3. For encrypted_scalar_base64, we'll store a marker (this field is for legacy compatibility)
-  // In the simplified architecture, the AES key is only stored in the ElGamal ciphertext
-  const encryptedScalarData = Buffer.from(aesKey).toString('base64'); // Just store the key as-is for now
+  // 5. Encrypt secret_scalar with AES (for proof generation later)
+  const encryptedScalarData = (() => {
+    const iv = crypto.randomBytes(12);
+    const cipher = crypto.createCipheriv('aes-256-gcm', aesKey, iv);
+    const encrypted = Buffer.concat([cipher.update(secretScalar), cipher.final()]);
+    const tag = cipher.getAuthTag();
+    return Buffer.concat([iv, encrypted, tag]).toString('base64');
+  })();
+  console.log("  ✅ Encrypted secret_scalar with AES for storage");
+
+  // 6. ElGamal encrypt the secret_scalar using Alice's public key
+  const aliceCiphertext = elgamalEncrypt(secretScalar, aliceKeys.publicKey);
+  const aliceRandomness = aliceCiphertext.randomness;
+  console.log("  ✅ ElGamal encrypted secret_scalar for Alice");
+  console.log("  📊 C1:", aliceCiphertext.c1_base64.substring(0, 16) + "...");
+  console.log("  📊 C2 (point):", aliceCiphertext.c2_base64.substring(0, 16) + "...");
 
   // First, mint the NFT using the standard nft_mint function
   await functionCall(
@@ -591,18 +606,27 @@ try {
   console.log("    - Encrypted content length:", aliceContentData.encrypted_content_base64.length);
 
   console.log("\n🔓 Step 7b: Alice Decrypts the Content");
-  // 1. Decrypt the ElGamal ciphertext to recover the AES key
-  const recoveredAesKey = elgamalDecrypt(
+  // Following the OWNERSHIP section from ENCRYPTED_CONTENT.md:
+
+  // 1. ElGamal decrypt to get secret_point (NOT secret_scalar!)
+  const recoveredSecretPoint = elgamalDecrypt(
     aliceContentData.elgamal_ciphertext.c1_base64,
     aliceContentData.elgamal_ciphertext.c2_base64,
     aliceKeys.privateKey
   );
-  console.log("  ✅ AES key decrypted from ElGamal ciphertext");
+  console.log("  ✅ ElGamal decrypted to recover secret_point");
+  console.log("    - Original secret_point:", secretPointBytes.toString('hex').substring(0, 32) + "...");
+  console.log("    - Recovered secret_point:", recoveredSecretPoint.toString('hex').substring(0, 32) + "...");
+  console.log("    - Points match:", secretPointBytes.equals(recoveredSecretPoint) ? "✅ YES" : "❌ NO");
+
+  // 2. Derive aes_key = Hash(secret_point)
+  const recoveredAesKey = crypto.createHash('sha256').update(recoveredSecretPoint).digest();
+  console.log("  ✅ Derived aes_key = Hash(secret_point)");
   console.log("    - Original AES key:", aesKey.toString('hex').substring(0, 32) + "...");
   console.log("    - Recovered AES key:", recoveredAesKey.toString('hex').substring(0, 32) + "...");
   console.log("    - Keys match:", aesKey.equals(recoveredAesKey) ? "✅ YES" : "❌ NO");
 
-  // 2. Use the recovered AES key to decrypt the content
+  // 3. Decrypt content with aes_key
   const decryptedContent = decryptContent(
     aliceContentData.encrypted_content_base64,
     recoveredAesKey
@@ -637,27 +661,42 @@ try {
   console.log(`  ✅ NFT owner is now: ${token.owner_id}`);
   console.log(`  ✅ Transfer successful: ${token.owner_id === "bob.test.near"}`);
 
-  console.log("\n🔐 Step 9: Re-encrypt AES Key for Bob");
-  // Re-encrypt the same AES key for Bob using his public key
-  const bobCiphertext = elgamalEncrypt(aesKey, bobKeys.publicKey);
-  console.log("  ✅ AES key re-encrypted for Bob");
-  console.log("    - Bob C1:", bobCiphertext.c1_base64.substring(0, 16) + "...");
-  console.log("    - Bob C2:", bobCiphertext.c2_base64.substring(0, 16) + "...");
+  console.log("\n🔐 Step 9: Re-encrypt Secret for Bob");
+  // Following the TRANSFER section from ENCRYPTED_CONTENT.md:
 
-  // Verify Bob can decrypt it
-  const bobRecoveredKey = elgamalDecrypt(
+  // Re-encrypt the secret_scalar (not AES key!) for Bob
+  const bobCiphertext = elgamalEncrypt(secretScalar, bobKeys.publicKey);
+  const bobRandomness = bobCiphertext.randomness;
+  console.log("  ✅ secret_scalar re-encrypted for Bob");
+  console.log("    - Bob C1:", bobCiphertext.c1_base64.substring(0, 16) + "...");
+  console.log("    - Bob C2 (point):", bobCiphertext.c2_base64.substring(0, 16) + "...");
+
+  // Verify Bob can decrypt to get secret_point and derive AES key
+  const bobRecoveredSecretPoint = elgamalDecrypt(
     bobCiphertext.c1_base64,
     bobCiphertext.c2_base64,
     bobKeys.privateKey
   );
-  console.log("  ✅ Bob can decrypt the AES key");
-  console.log("    - Bob's recovered key matches original:", aesKey.equals(bobRecoveredKey) ? "✅ YES" : "❌ NO");
+  const bobRecoveredAesKey = crypto.createHash('sha256').update(bobRecoveredSecretPoint).digest();
 
-  console.log("\n💡 Note: ZK proof verification is temporarily disabled");
-  console.log("  The encryption scheme was changed from exponential ElGamal to hybrid ElGamal");
-  console.log("  (ECIES-style), which requires a different ZK proof structure.");
-  console.log("  The proof would need to show equality of XOR'd plaintexts rather than");
-  console.log("  discrete log equality. This is a known TODO for production deployment.");
+  console.log("  ✅ Bob decrypted secret_point and derived AES key");
+  console.log("    - Bob's secret_point matches:", secretPointBytes.equals(bobRecoveredSecretPoint) ? "✅ YES" : "❌ NO");
+  console.log("    - Bob's AES key matches:", aesKey.equals(bobRecoveredAesKey) ? "✅ YES" : "❌ NO");
+
+  // Bob can now decrypt the content!
+  const bobDecryptedContent = decryptContent(
+    aliceContentData.encrypted_content_base64,
+    bobRecoveredAesKey
+  );
+  console.log("  ✅ Bob can decrypt the content!");
+  console.log("    - Content matches:", contentPlaintext === bobDecryptedContent ? "✅ YES" : "❌ NO");
+
+  console.log("\n💡 Note: ZK proof integration coming next");
+  console.log("  The architecture now matches ENCRYPTED_CONTENT.md perfectly:");
+  console.log("  - Exponential ElGamal encrypts secret_scalar");
+  console.log("  - Decryption gives secret_point = secret_scalar * G");
+  console.log("  - AES key derived via Hash(secret_point)");
+  console.log("  - ZK proof will verify re-encryption of the SAME secret_scalar");
 
   console.log("\n✅ =================================================");
   console.log("✅ ALL TESTS PASSED!");
