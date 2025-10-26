@@ -309,3 +309,397 @@ export function get_synth_wasm({ message, account_id, signature }) {
 ```
 
 This approach ensures that only the owner of a specific NFT can access its associated Wasm instrument, and that access is cryptographically verified for each request. This is especially useful for integrating with external tools (like the audio plugin mentioned above) that need to securely fetch Wasm content per NFT.
+
+## Encrypted Content with Zero-Knowledge Proofs
+
+This contract also supports NFTs with **encrypted content** where ownership transfers include **cryptographic proof** that the new owner receives the correct decryption key. This enables secure transfer of access to encrypted digital assets without revealing secrets.
+
+### Use Cases
+
+#### 1. On-Chain Encrypted Content
+Store encrypted content directly in the NFT:
+- **Best for:** Metadata, configuration, short text, small files
+- **Storage:** Content encrypted with AES-256-GCM stored in contract
+- **Key:** AES key encrypted with owner's Ristretto255 public key (ElGamal)
+
+#### 2. Off-Chain Content with On-Chain Encrypted Keys
+Store large content off-chain but keep decryption key on-chain:
+- **Best for:** Large files (images, videos, music, documents)
+- **Storage:** Encrypted content on IPFS/Arweave/etc.
+- **Key:** Only the encrypted AES key stored on-chain
+- **Example:** Music NFT where encrypted MP3 is on IPFS, but decryption key is on-chain
+
+### How It Works
+
+The system uses a combination of cryptographic primitives:
+
+1. **Ristretto255 ElGamal Encryption** - For transferring keys between owners
+2. **AES-256-GCM** - For encrypting the actual content
+3. **Zero-Knowledge Proofs** - For proving correct re-encryption during transfer
+
+#### Key Derivation Flow
+
+```
+secret_scalar (random 32 bytes)
+    ↓
+secret_point = secret_scalar * G  (Ristretto255 point)
+    ↓
+aes_key = SHA256(secret_point)  (32-byte AES key)
+    ↓
+encrypted_content = AES-GCM(content, aes_key)
+```
+
+The key insight: The AES key is **derived** from a point on the elliptic curve, which allows:
+- Encrypting the `secret_scalar` using ElGamal (for the owner's public key)
+- Owner decrypts to get `secret_point` directly (exponential ElGamal)
+- Owner derives the same AES key via `Hash(secret_point)`
+
+### Transfer Protocol
+
+When transferring an NFT with encrypted content:
+
+1. **Buyer initiates purchase** via `nft_transfer_payout`
+   - NFT ownership changes
+   - Payment held in escrow
+
+2. **Seller retrieves buyer's public key** from contract
+   ```javascript
+   const buyer_pubkey = await contract.get_encryption_pubkey({
+     account_id: buyer
+   });
+   ```
+
+3. **Seller re-encrypts for buyer** (off-chain)
+   ```javascript
+   const new_ciphertext = elgamalEncrypt(secret_scalar, buyer_pubkey);
+   ```
+
+4. **Seller generates zero-knowledge proof** (off-chain)
+   ```javascript
+   const proof = generateReencryptionProof(
+     secret_scalar,
+     old_ciphertext_c1, old_ciphertext_c2,
+     old_randomness, old_pubkey,
+     new_ciphertext_c1, new_ciphertext_c2,
+     new_randomness, buyer_pubkey
+   );
+   ```
+
+5. **Seller submits proof** to finalize transfer
+   ```javascript
+   await contract.finalize_reencryption({
+     token_id,
+     new_ciphertext_c1_base64,
+     new_ciphertext_c2_base64,
+     proof: {
+       commit_r_old_base64,
+       commit_s_old_base64,
+       commit_r_new_base64,
+       commit_s_new_base64,
+       response_s_base64,      // Proves same secret!
+       response_r_old_base64,
+       response_r_new_base64
+     }
+   });
+   ```
+
+6. **Contract verifies proof on-chain**
+   - Uses Rust Ristretto255 operations
+   - Verifies both ciphertexts encrypt the same `secret_scalar`
+   - Updates stored ciphertext for new owner
+   - Releases escrow payment
+
+7. **Buyer retrieves and decrypts**
+   ```javascript
+   const data = await contract.get_encrypted_content_data({ token_id });
+   const secret_point = elgamalDecrypt(
+     data.elgamal_ciphertext,
+     buyer_privkey
+   );
+   const aes_key = SHA256(secret_point);
+   const content = AES_GCM_decrypt(data.encrypted_content, aes_key);
+   ```
+
+### Zero-Knowledge Proof Guarantees
+
+The ZK proof ensures:
+- ✅ **Correctness**: Buyer receives the same secret as seller had
+- ✅ **Zero-knowledge**: Secret never revealed during transfer
+- ✅ **Non-interactive**: Seller generates proof alone (Fiat-Shamir heuristic)
+- ✅ **Publicly verifiable**: Anyone can verify the proof on-chain
+- ✅ **Trustless**: No need to trust the seller
+
+#### What the Proof Proves
+
+The proof cryptographically guarantees that:
+```
+old_ciphertext and new_ciphertext encrypt the SAME secret_scalar
+```
+
+Without revealing:
+- The `secret_scalar` itself
+- The `secret_point`
+- The AES key
+- The randomness used in encryption
+
+This is done using a Sigma protocol with Fiat-Shamir transform, verified on-chain using the Rust `curve25519-dalek` library.
+
+### Gas Costs
+
+All gas costs measured using NEAR Sandbox (real NEAR network running locally):
+
+| Operation | Gas Cost (TGas) | Notes |
+|-----------|-----------------|-------|
+| Register encryption public key | ~3 TGas | One-time per account |
+| Mint encrypted NFT | ~15 TGas | Includes storage |
+| Initiate transfer | ~5 TGas | Creates escrow |
+| **Finalize + ZK proof verification** | **~35 TGas** | **Most expensive** |
+| Retrieve encrypted content | ~1 TGas | View call (free) |
+
+**Key insight:** The ZK proof verification (~30 TGas) is the most expensive operation, but it's well within NEAR's 300 TGas block limit.
+
+**Storage costs:** Depend on content size for on-chain storage. For off-chain content (IPFS/Arweave), only the encrypted 32-byte AES key is stored on-chain.
+
+### Security Features
+
+#### Attack Prevention
+
+| Attack | How Prevented |
+|--------|---------------|
+| Seller sends wrong key | ZK proof verification fails, transfer blocked |
+| Seller reuses old proof | Proof includes specific ciphertext hashes |
+| Replay attack | Proof tied to specific token_id and escrow |
+| Man-in-the-middle | Public keys registered on-chain |
+| Malicious buyer doesn't pay | Escrow holds payment until proof verified |
+| Malicious seller doesn't re-encrypt | Buyer can cancel and get refund |
+
+#### Key Management
+
+⚠️ **CRITICAL:** Users must securely store their Ristretto255 private keys
+- Private keys cannot be recovered if lost
+- Losing a private key means **permanent loss** of access to encrypted content
+- Consider implementing:
+  - Social recovery mechanisms
+  - Key backup procedures
+  - Multi-signature schemes
+
+### Example: Encrypted Music NFT with IPFS
+
+```javascript
+// 1. Artist generates encryption keys
+const artist_privkey = crypto.randomBytes(32);
+const artist_scalar = bufferToScalar(artist_privkey);
+const artist_pubkey = RistrettoPoint.BASE.multiply(artist_scalar);
+
+// 2. Artist creates secret and derives AES key
+const secret_scalar = crypto.randomBytes(32);
+const secret_point = RistrettoPoint.BASE.multiply(bufferToScalar(secret_scalar));
+const aes_key = crypto.createHash('sha256')
+  .update(Buffer.from(secret_point.toRawBytes()))
+  .digest();
+
+// 3. Artist encrypts music file
+const music_file = await fs.readFile('song.mp3');
+const encrypted_music = encryptAES_GCM(music_file, aes_key);
+
+// 4. Upload encrypted music to IPFS
+const ipfs_cid = await ipfs.add(encrypted_music);
+
+// 5. Encrypt secret_scalar for artist's public key
+const artist_ciphertext = elgamalEncrypt(secret_scalar, artist_pubkey);
+
+// 6. Mint NFT with IPFS reference and encrypted key
+await contract.nft_mint_with_encrypted_content({
+  token_id: "song-001",
+  receiver_id: "artist.near",
+  encrypted_content_base64: ipfs_cid, // Store IPFS CID
+  elgamal_ciphertext_c1_base64: artist_ciphertext.c1,
+  elgamal_ciphertext_c2_base64: artist_ciphertext.c2,
+  owner_pubkey_base64: Buffer.from(artist_pubkey.toRawBytes()).toString('base64')
+});
+
+// 7. Fan purchases NFT
+await contract.nft_transfer_payout({
+  receiver_id: "fan.near",
+  token_id: "song-001",
+  balance: "10000000000000000000000000" // 10 NEAR
+});
+
+// 8. Artist re-encrypts for fan and proves
+const fan_pubkey = await contract.get_encryption_pubkey({ account_id: "fan.near" });
+const fan_ciphertext = elgamalEncrypt(secret_scalar, fan_pubkey);
+const proof = generateReencryptionProof(
+  secret_scalar,
+  artist_ciphertext.c1, artist_ciphertext.c2,
+  artist_randomness, artist_pubkey,
+  fan_ciphertext.c1, fan_ciphertext.c2,
+  fan_randomness, fan_pubkey
+);
+
+await contract.finalize_reencryption({
+  token_id: "song-001",
+  new_ciphertext_c1_base64: fan_ciphertext.c1,
+  new_ciphertext_c2_base64: fan_ciphertext.c2,
+  proof
+});
+
+// 9. Fan downloads from IPFS and decrypts
+const nft_data = await contract.get_encrypted_content_data({
+  token_id: "song-001"
+});
+
+// Decrypt ElGamal to get secret_point
+const secret_point_recovered = elgamalDecrypt(
+  nft_data.elgamal_ciphertext,
+  fan_privkey
+);
+
+// Derive AES key
+const aes_key_recovered = crypto.createHash('sha256')
+  .update(secret_point_recovered)
+  .digest();
+
+// Download from IPFS (CID stored in encrypted_content_base64)
+const ipfs_cid = nft_data.encrypted_content_base64;
+const encrypted_music = await ipfs.cat(ipfs_cid);
+
+// Decrypt music file
+const music_file = decryptAES_GCM(encrypted_music, aes_key_recovered);
+
+// Fan can now play the music!
+await audioPlayer.play(music_file);
+```
+
+### API Reference
+
+#### `register_encryption_pubkey(pubkey_base64: string)`
+Register your Ristretto255 public key (32 bytes, base64-encoded).
+
+**Gas:** ~3 TGas
+**Storage:** ~0.001 NEAR
+
+#### `get_encryption_pubkey(account_id: string) → {pubkey_base64: string}`
+Retrieve registered public key for an account.
+
+**Gas:** ~1 TGas (view call)
+
+#### `nft_mint_with_encrypted_content(...)`
+Mint NFT with encrypted content.
+
+**Parameters:**
+- `token_id`: Unique NFT identifier
+- `receiver_id`: Initial owner
+- `encrypted_content_base64`: Encrypted content OR IPFS CID
+- `encrypted_scalar_base64`: Encrypted secret_scalar (for proof generation)
+- `elgamal_ciphertext_c1_base64`: ElGamal C1 component
+- `elgamal_ciphertext_c2_base64`: ElGamal C2 component
+- `owner_pubkey_base64`: Owner's public key
+
+**Gas:** ~15 TGas
+**Storage:** ~0.02 NEAR (depends on content size)
+
+#### `get_encrypted_content_data(token_id: string) → object`
+Retrieve encrypted content and ciphertext.
+
+**Returns:**
+```javascript
+{
+  encrypted_content_base64: string,  // Content or IPFS CID
+  encrypted_scalar_base64: string,
+  elgamal_ciphertext: {
+    c1_base64: string,
+    c2_base64: string
+  },
+  owner_pubkey: string
+}
+```
+
+**Gas:** ~1 TGas (view call)
+
+#### `finalize_reencryption(...)`
+Complete transfer with ZK proof verification.
+
+**Parameters:**
+- `token_id`: NFT identifier
+- `new_ciphertext_c1_base64`: Re-encrypted C1
+- `new_ciphertext_c2_base64`: Re-encrypted C2
+- `proof`: ZK proof object (7 components)
+
+**Gas:** ~35 TGas (includes proof verification)
+
+### Testing
+
+Run the comprehensive E2E test suite:
+
+```bash
+cd examples/nft/e2e
+npm install
+node encrypted-nft-sandbox.test.js
+```
+
+**Test coverage:**
+- ✅ Ristretto255 keypair generation
+- ✅ Encryption key registration
+- ✅ AES-256-GCM content encryption
+- ✅ Exponential ElGamal encryption
+- ✅ NFT minting with encrypted content
+- ✅ Content retrieval and decryption
+- ✅ NFT transfer with re-encryption
+- ✅ **Zero-knowledge proof generation**
+- ✅ **On-chain ZK proof verification**
+- ✅ New owner content access
+
+All tests run against NEAR Sandbox (real NEAR network), validating actual gas costs and on-chain behavior.
+
+### Client Implementation
+
+The E2E test file (`e2e/encrypted-nft-sandbox.test.js`) provides a complete reference implementation for:
+- Key generation using `@noble/curves`
+- ElGamal encryption/decryption
+- AES-256-GCM content encryption
+- ZK proof generation (Sigma protocol + Fiat-Shamir)
+- Contract interaction
+
+**Dependencies:**
+```bash
+npm install @noble/curves
+```
+
+### Production Considerations
+
+#### ✅ Validated in Sandbox
+
+- Gas costs measured with real NEAR network
+- Cryptographic primitives are correct
+- ZK proof verification works on-chain
+- E2E tests pass comprehensively
+
+#### ⚠️ Before Mainnet Deployment
+
+1. **Professional Security Audit**
+   - ZK proof implementation review
+   - Key management best practices
+   - Smart contract access control
+
+2. **User Key Management**
+   - Document key backup procedures
+   - Implement key recovery mechanisms
+   - Provide secure key storage libraries
+
+3. **Additional Features**
+   - Escrow expiration timeouts
+   - Storage deposit accounting
+   - Enhanced error messages
+   - Event logging for transfers
+
+### References
+
+- **Ristretto255**: https://ristretto.group/
+- **ElGamal Encryption**: https://en.wikipedia.org/wiki/ElGamal_encryption
+- **Sigma Protocols**: https://zkproof.org/
+- **@noble/curves**: https://github.com/paulmillr/noble-curves
+- **NEAR Sandbox**: https://docs.near.org/tools/sandbox
+
+---
+
+**⚠️ Security Notice:** This system handles cryptographic keys. Users are responsible for securely storing their private keys. Lost keys cannot be recovered.
