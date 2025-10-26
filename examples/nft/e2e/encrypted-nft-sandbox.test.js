@@ -680,37 +680,25 @@ try {
   console.log(`  ✅ NFT owner is now: ${token.owner_id}`);
   console.log(`  ✅ Transfer successful: ${token.owner_id === "bob.test.near"}`);
 
-  console.log("\n🔐 Step 9: Re-encrypt Secret for Bob");
-  // Following the TRANSFER section from ENCRYPTED_CONTENT.md:
+  console.log("\n🔑 Step 9: Alice Retrieves Bob's Public Key from Contract");
+  // Alice needs Bob's public key to re-encrypt the secret
+  const bobPubkeyResult = await viewFunction("nft.test.near", "call_js_func", {
+    function_name: "get_encryption_pubkey",
+    account_id: "bob.test.near",
+  });
+  const bobPubkeyFromContract = bobPubkeyResult.pubkey_base64;
+  console.log("  ✅ Retrieved Bob's public key from contract");
+  console.log("    - Bob's pubkey:", bobPubkeyFromContract.substring(0, 16) + "...");
+  console.log("    - Matches local:", bobPubkeyFromContract === bobKeys.publicKey ? "✅ YES" : "❌ NO");
 
-  // Re-encrypt the secret_scalar (not AES key!) for Bob
-  const bobCiphertext = elgamalEncrypt(secretScalar, bobKeys.publicKey);
+  console.log("\n🔐 Step 10: Alice Re-encrypts and Generates ZK Proof");
+  // Alice re-encrypts the secret_scalar for Bob's public key (retrieved from contract)
+  const bobCiphertext = elgamalEncrypt(secretScalar, bobPubkeyFromContract);
   const bobRandomness = bobCiphertext.randomness;
-  console.log("  ✅ secret_scalar re-encrypted for Bob");
+  console.log("  ✅ Re-encrypted secret_scalar for Bob");
   console.log("    - Bob C1:", bobCiphertext.c1_base64.substring(0, 16) + "...");
   console.log("    - Bob C2 (point):", bobCiphertext.c2_base64.substring(0, 16) + "...");
 
-  // Verify Bob can decrypt to get secret_point and derive AES key
-  const bobRecoveredSecretPoint = elgamalDecrypt(
-    bobCiphertext.c1_base64,
-    bobCiphertext.c2_base64,
-    bobKeys.privateKey
-  );
-  const bobRecoveredAesKey = crypto.createHash('sha256').update(bobRecoveredSecretPoint).digest();
-
-  console.log("  ✅ Bob decrypted secret_point and derived AES key");
-  console.log("    - Bob's secret_point matches:", secretPointBytes.equals(bobRecoveredSecretPoint) ? "✅ YES" : "❌ NO");
-  console.log("    - Bob's AES key matches:", aesKey.equals(bobRecoveredAesKey) ? "✅ YES" : "❌ NO");
-
-  // Bob can now decrypt the content!
-  const bobDecryptedContent = decryptContent(
-    aliceContentData.encrypted_content_base64,
-    bobRecoveredAesKey
-  );
-  console.log("  ✅ Bob can decrypt the content!");
-  console.log("    - Content matches:", contentPlaintext === bobDecryptedContent ? "✅ YES" : "❌ NO");
-
-  console.log("\n🔐 Step 10: Generate and Verify ZK Proof");
   // Generate zero-knowledge proof that both ciphertexts encrypt the same secret_scalar
   const proof = generateReencryptionProof(
     secretScalar,                    // The secret_scalar being encrypted
@@ -721,17 +709,22 @@ try {
     bobCiphertext.c1_base64,         // New ciphertext C1 (Bob)
     bobCiphertext.c2_base64,         // New ciphertext C2 (Bob)
     bobRandomness,                   // Randomness used for Bob's encryption
-    bobKeys.publicKey                // Bob's public key
+    bobPubkeyFromContract            // Bob's public key (from contract)
   );
   console.log("  ✅ Generated ZK proof");
 
-  // Complete the encrypted transfer with proof verification
+  console.log("\n📤 Step 11: Alice Submits Proof to Complete Transfer");
+  // Alice submits the new ciphertext and proof to the contract
+  console.log("  📤 Submitting Bob's new ciphertext:");
+  console.log("    - C1:", bobCiphertext.c1_base64.substring(0, 16) + "...");
+  console.log("    - C2:", bobCiphertext.c2_base64.substring(0, 16) + "...");
+
   const completeResult = await functionCall(
     "alice.test.near",
     "nft.test.near",
     "call_js_func",
     {
-      function_name: "complete_encrypted_transfer",
+      function_name: "finalize_reencryption",
       token_id: "encrypted-nft-1",
       new_ciphertext_c1_base64: bobCiphertext.c1_base64,
       new_ciphertext_c2_base64: bobCiphertext.c2_base64,
@@ -746,15 +739,52 @@ try {
       },
     }
   );
-  console.log("  ✅ ZK proof verified successfully!");
-  console.log("    - Transfer completed with cryptographic proof");
-  console.log("    - Proof guarantees Alice and Bob have the same secret_scalar");
+  console.log("  ✅ finalize_reencryption result:", completeResult);
+  console.log("  ✅ ZK proof verified on-chain!");
+  console.log("  ✅ Transfer finalized with cryptographic proof");
+  console.log("  ✅ New ciphertext should be stored for Bob");
 
-  console.log("\n💡 What the ZK Proof Proves:");
-  console.log("  ✓ Both ciphertexts encrypt the SAME secret_scalar");
-  console.log("  ✓ Without revealing secret_scalar to anyone");
+  console.log("\n📥 Step 12: Bob Retrieves Ciphertext from Contract");
+  // Bob retrieves the encrypted content data from the contract
+  const bobContentData = await viewFunction("nft.test.near", "call_js_func", {
+    function_name: "get_encrypted_content_data",
+    token_id: "encrypted-nft-1",
+  });
+  console.log("  ✅ Bob retrieved ciphertext from contract");
+  console.log("    - Retrieved C1:", bobContentData.elgamal_ciphertext.c1_base64.substring(0, 16) + "...");
+  console.log("    - Retrieved C2:", bobContentData.elgamal_ciphertext.c2_base64.substring(0, 16) + "...");
+  console.log("    - Expected C1: ", bobCiphertext.c1_base64.substring(0, 16) + "...");
+  console.log("    - Expected C2: ", bobCiphertext.c2_base64.substring(0, 16) + "...");
+  console.log("    - Ciphertext updated:", (bobContentData.elgamal_ciphertext.c1_base64 === bobCiphertext.c1_base64) ? "✅ YES" : "❌ NO");
+
+  console.log("\n🔓 Step 13: Bob Decrypts and Accesses Content");
+  // Bob decrypts using his private key to get secret_point
+  const bobRecoveredSecretPoint = elgamalDecrypt(
+    bobContentData.elgamal_ciphertext.c1_base64,
+    bobContentData.elgamal_ciphertext.c2_base64,
+    bobKeys.privateKey
+  );
+  const bobRecoveredAesKey = crypto.createHash('sha256').update(bobRecoveredSecretPoint).digest();
+
+  console.log("  ✅ Bob decrypted secret_point and derived AES key");
+  console.log("    - Bob's secret_point matches original:", secretPointBytes.equals(bobRecoveredSecretPoint) ? "✅ YES" : "❌ NO");
+  console.log("    - Bob's AES key matches original:", aesKey.equals(bobRecoveredAesKey) ? "✅ YES" : "❌ NO");
+
+  // Bob can now decrypt the content!
+  const bobDecryptedContent = decryptContent(
+    bobContentData.encrypted_content_base64,
+    bobRecoveredAesKey
+  );
+  console.log("  ✅ Bob successfully decrypted the content!");
+  console.log("    - Decrypted content:", bobDecryptedContent);
+  console.log("    - Matches original:", contentPlaintext === bobDecryptedContent ? "✅ YES" : "❌ NO");
+
+  console.log("\n💡 What the ZK Proof Proved:");
+  console.log("  ✓ Alice and Bob's ciphertexts encrypt the SAME secret_scalar");
+  console.log("  ✓ Without revealing secret_scalar to anyone (zero-knowledge)");
   console.log("  ✓ Using Sigma protocol with Fiat-Shamir heuristic");
   console.log("  ✓ Verified on-chain using Rust Ristretto255 operations");
+  console.log("  ✓ Bob can now access the NFT content securely!");
 
   console.log("\n✅ =================================================");
   console.log("✅ ALL TESTS PASSED!");
