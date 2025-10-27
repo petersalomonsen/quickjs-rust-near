@@ -218,7 +218,8 @@ export function nft_payout() {
     payout[account] += amount;
   };
   // Check if this token has encrypted content
-  const has_encrypted_content = env.storage_read(`encrypted-scalar:${args.token_id}`) !== null;
+  const has_encrypted_content =
+    env.storage_read(`encrypted-scalar:${args.token_id}`) !== null;
 
   if (has_encrypted_content) {
     // Hold funds in escrow (pay to contract)
@@ -300,15 +301,17 @@ export function nft_mint_with_encrypted_content() {
     token_id,
     token_owner_id,
     token_metadata,
-    encrypted_content_base64,      // Encrypted with AES-GCM key
-    encrypted_scalar_base64,       // 92 bytes: IV + encrypted (secret_scalar + randomness) + tag
-    elgamal_ciphertext_c1_base64,  // 32 bytes
-    elgamal_ciphertext_c2_base64,  // 32 bytes
-    owner_pubkey_base64,           // 32 bytes: owner's Ristretto pubkey
+    encrypted_content_base64, // Encrypted with AES-GCM key
+    encrypted_scalar_base64, // 92 bytes: IV + encrypted (secret_scalar + randomness) + tag
+    elgamal_ciphertext_c1_base64, // 32 bytes
+    elgamal_ciphertext_c2_base64, // 32 bytes
+    owner_pubkey_base64, // 32 bytes: owner's Ristretto pubkey
   } = JSON.parse(env.input());
 
   // Verify owner has registered encryption key
-  const registered_pubkey = env.storage_read(`encryption_key:${token_owner_id}`);
+  const registered_pubkey = env.storage_read(
+    `encryption_key:${token_owner_id}`,
+  );
   if (!registered_pubkey) {
     env.panic(`Owner ${token_owner_id} has not registered encryption key`);
   }
@@ -320,8 +323,14 @@ export function nft_mint_with_encrypted_content() {
   // Store encrypted content data
   env.storage_write(`locked-content:${token_id}`, encrypted_content_base64);
   env.storage_write(`encrypted-scalar:${token_id}`, encrypted_scalar_base64);
-  env.storage_write(`elgamal-ciphertext-c1:${token_id}`, elgamal_ciphertext_c1_base64);
-  env.storage_write(`elgamal-ciphertext-c2:${token_id}`, elgamal_ciphertext_c2_base64);
+  env.storage_write(
+    `elgamal-ciphertext-c1:${token_id}`,
+    elgamal_ciphertext_c1_base64,
+  );
+  env.storage_write(
+    `elgamal-ciphertext-c2:${token_id}`,
+    elgamal_ciphertext_c2_base64,
+  );
   env.storage_write(`owner-pubkey:${token_id}`, owner_pubkey_base64);
 
   // Return the token metadata for minting
@@ -356,8 +365,12 @@ export function finalize_reencryption() {
   }
 
   // Load stored encryption state
-  const old_ciphertext_c1 = env.storage_read(`elgamal-ciphertext-c1:${token_id}`);
-  const old_ciphertext_c2 = env.storage_read(`elgamal-ciphertext-c2:${token_id}`);
+  const old_ciphertext_c1 = env.storage_read(
+    `elgamal-ciphertext-c1:${token_id}`,
+  );
+  const old_ciphertext_c2 = env.storage_read(
+    `elgamal-ciphertext-c2:${token_id}`,
+  );
   const old_pubkey = env.storage_read(`owner-pubkey:${token_id}`);
 
   // Get new owner's registered pubkey
@@ -383,7 +396,7 @@ export function finalize_reencryption() {
     proof.commit_s_new_base64,
     proof.response_s_base64,
     proof.response_r_old_base64,
-    proof.response_r_new_base64
+    proof.response_r_new_base64,
   );
 
   if (!is_valid) {
@@ -391,8 +404,14 @@ export function finalize_reencryption() {
   }
 
   // Update stored ciphertext for new owner
-  env.storage_write(`elgamal-ciphertext-c1:${token_id}`, new_ciphertext_c1_base64);
-  env.storage_write(`elgamal-ciphertext-c2:${token_id}`, new_ciphertext_c2_base64);
+  env.storage_write(
+    `elgamal-ciphertext-c1:${token_id}`,
+    new_ciphertext_c1_base64,
+  );
+  env.storage_write(
+    `elgamal-ciphertext-c2:${token_id}`,
+    new_ciphertext_c2_base64,
+  );
   env.storage_write(`owner-pubkey:${token_id}`, new_pubkey);
 
   // Release escrow payment
@@ -431,7 +450,9 @@ export function cancel_transfer_and_refund() {
   // Revert ownership back to previous owner
   // Note: This would require access to nft_transfer_internal which we don't have from JS
   // For now, we'll panic with a message
-  env.panic("Cancel transfer not yet implemented - requires internal NFT transfer access");
+  env.panic(
+    "Cancel transfer not yet implemented - requires internal NFT transfer access",
+  );
 
   // TODO: When implemented:
   // env.nft_transfer_internal(token_id, escrow.previous_owner);
@@ -453,17 +474,21 @@ export function get_encrypted_content_data() {
   const owner_pubkey = env.storage_read(`owner-pubkey:${token_id}`);
 
   if (!encrypted_content) {
-    env.value_return(JSON.stringify({ error: "No encrypted content for this token" }));
+    env.value_return(
+      JSON.stringify({ error: "No encrypted content for this token" }),
+    );
     return;
   }
 
-  env.value_return(JSON.stringify({
-    encrypted_content_base64: encrypted_content,
-    encrypted_scalar_base64: encrypted_scalar,
-    elgamal_ciphertext: {
-      c1_base64: ciphertext_c1,
-      c2_base64: ciphertext_c2,
-    },
-    owner_pubkey_base64: owner_pubkey,
-  }));
+  env.value_return(
+    JSON.stringify({
+      encrypted_content_base64: encrypted_content,
+      encrypted_scalar_base64: encrypted_scalar,
+      elgamal_ciphertext: {
+        c1_base64: ciphertext_c1,
+        c2_base64: ciphertext_c2,
+      },
+      owner_pubkey_base64: owner_pubkey,
+    }),
+  );
 }
