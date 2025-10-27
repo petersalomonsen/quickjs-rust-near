@@ -632,9 +632,17 @@ Complete transfer with ZK proof verification.
 Run the comprehensive E2E test suite:
 
 ```bash
-cd examples/nft/e2e
-npm install
-node encrypted-nft-sandbox.test.js
+# From repository root
+yarn install
+yarn test-examples-nft-e2e
+```
+
+Or run the test directly:
+
+```bash
+# From repository root
+yarn install
+cd examples/nft && ./build.sh && node --test e2e/*
 ```
 
 **Test coverage:**
