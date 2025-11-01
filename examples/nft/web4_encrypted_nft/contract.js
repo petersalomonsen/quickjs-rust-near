@@ -1,7 +1,7 @@
 const icon_svg_base64 =
   "PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA5IDkiPgogICAgPHJlY3QgeT0iMCIgd2lkdGg9IjkiIGhlaWdodD0iMyIgZmlsbD0iIzBiZiIvPgogICAgPHJlY3QgeT0iMyIgd2lkdGg9IjYiIGhlaWdodD0iMyIgZmlsbD0iI2Y4MiIvPgogICAgPHJlY3QgeD0iNiIgeT0iMyIgd2lkdGg9IjMiIGhlaWdodD0iMyIgZmlsbD0iIzMzMyIgLz4KICAgIDxyZWN0IHk9IjYiIHdpZHRoPSIzIiBoZWlnaHQ9IjMiIGZpbGw9IiMyYWEiLz4KICAgIDxyZWN0IHg9IjMiIHk9IjYiIHdpZHRoPSI2IiBoZWlnaHQ9IjMiIGZpbGw9IiM2NjYiIC8+Cjwvc3ZnPg==";
 
-// This will be replaced by the build script with the minified and base64 encoded HTML
+// This will be replaced by the build script with the base64 encoded minified HTML
 const VIEWER_HTML_BASE64 = "__VIEWER_HTML_BASE64__";
 
 /**
@@ -16,7 +16,7 @@ export function web4_get() {
     env.value_return(
       JSON.stringify({
         contentType: "text/html; charset=UTF-8",
-        bodyBase64: VIEWER_HTML_BASE64,
+        body: VIEWER_HTML_BASE64,
       })
     );
   } else {

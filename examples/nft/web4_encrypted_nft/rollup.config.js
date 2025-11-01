@@ -18,17 +18,18 @@ export default {
 
         console.log('📄 Minified HTML size:', htmlContent.length, 'bytes');
 
-        // Base64 encode
-        const base64 = Buffer.from(htmlContent).toString('base64');
-        console.log('📦 Base64 encoded size:', base64.length, 'bytes');
-
         // Read contract template
         const contractTemplate = readFileSync("./contract.js").toString();
+
+        // Base64 encode the HTML
+        const base64Html = Buffer.from(htmlContent).toString('base64');
+
+        console.log('📦 Base64 encoded size:', base64Html.length, 'bytes');
 
         // Replace placeholder with base64 encoded HTML
         const contract = contractTemplate.replace(
           '"__VIEWER_HTML_BASE64__"',
-          '`' + base64 + '`'
+          '"' + base64Html + '"'
         );
 
         // Write the bundled contract
@@ -38,8 +39,8 @@ export default {
         console.log('\n✅ Contract bundle created:', outputPath);
         console.log('   Total size:', contract.length, 'bytes');
         console.log('\n💡 To deploy:');
-        console.log('   cp web4_encrypted_nft/contract-bundle.js src/contract.js');
-        console.log('   ./build.sh');
+        console.log('   yarn examples-nft-encrypted-web4bundle');
+        console.log('   Then upload with post_javascript');
       },
     },
   ],
