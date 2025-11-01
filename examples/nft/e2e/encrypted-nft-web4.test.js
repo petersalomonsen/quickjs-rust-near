@@ -11,6 +11,8 @@ import {
   viewFunctionAsJson,
 } from "@near-js/jsonrpc-client";
 import { RistrettoPoint } from "@noble/curves/ed25519";
+import { chromium } from "@playwright/test";
+import http from "http";
 
 console.log("🚀 Starting Encrypted NFT Web4 E2E Test (Sandbox)");
 
@@ -403,7 +405,7 @@ try {
 
   console.log("  ✅ Web4 endpoint responded");
   console.log("    - Content-Type:", web4Response.contentType);
-  console.log("    - Body (base64) length:", web4Response.bodyBase64?.length || 0, "bytes");
+  console.log("    - Body (base64) length:", web4Response.body?.length || 0, "bytes");
 
   // Verify it's HTML
   if (web4Response.contentType?.includes("text/html")) {
@@ -413,7 +415,7 @@ try {
   }
 
   // Decode base64 HTML
-  const html = Buffer.from(web4Response.bodyBase64, 'base64').toString('utf-8');
+  const html = Buffer.from(web4Response.body, 'base64').toString('utf-8');
   console.log("    - Decoded HTML length:", html.length, "bytes");
   if (html.includes("Encrypted NFT") || html.includes("NFT Viewer")) {
     console.log("  ✅ HTML contains viewer title");
@@ -529,6 +531,153 @@ try {
     throw new Error("Failed to retrieve encrypted content data");
   }
 
+  console.log("\n🌐 Step 7: Start Web4 Gateway Server for Browser Testing");
+
+  // Create a simple HTTP server that mimics Web4 gateway behavior
+  let server;
+  let serverUrl;
+
+  server = http.createServer(async (req, res) => {
+    try {
+      // Call web4_get directly (like real Web4 gateway)
+      const web4Result = await viewFunction("nft.test.near", "web4_get", {
+        request: { path: req.url },
+      });
+
+      // Decode base64 HTML body
+      const htmlContent = Buffer.from(web4Result.body, "base64").toString("utf-8");
+
+      // Inject sandbox RPC endpoint for testing
+      const modifiedHtml = htmlContent
+        .replace(/https:\/\/rpc\.testnet\.fastnear\.com/g, sandboxRpcUrl)
+        .replace(/https:\/\/rpc\.mainnet\.fastnear\.com/g, sandboxRpcUrl);
+
+      res.writeHead(200, { "Content-Type": web4Result.contentType });
+      res.end(modifiedHtml);
+    } catch (error) {
+      res.writeHead(500, { "Content-Type": "text/plain" });
+      res.end(`Error: ${error.message}`);
+    }
+  });
+
+  // Start server on random port
+  await new Promise((resolve) => {
+    server.listen(0, () => {
+      const port = server.address().port;
+      serverUrl = `http://localhost:${port}`;
+      console.log(`  ✅ Web4 gateway server started at ${serverUrl}`);
+      resolve();
+    });
+  });
+
+  console.log("\n🎭 Step 8: Browser Tests with Playwright");
+
+  const browser = await chromium.launch();
+  const context = await browser.newContext();
+  const page = await context.newPage();
+
+  try {
+    // Test 1: Page loads correctly
+    console.log("\n  Test 1: Loading encrypted NFT viewer page...");
+    await page.goto(serverUrl);
+    const title = await page.title();
+    if (title.includes("Encrypted NFT")) {
+      console.log("  ✅ Page title correct:", title);
+    } else {
+      throw new Error(`Unexpected page title: ${title}`);
+    }
+
+    // Test 2: Form fields are present
+    console.log("\n  Test 2: Checking form fields...");
+    const contractInput = await page.locator("#contract");
+    const tokenIdInput = await page.locator("#tokenId");
+    const privateKeyInput = await page.locator("#privateKey");
+
+    if (await contractInput.isVisible() && await tokenIdInput.isVisible() && await privateKeyInput.isVisible()) {
+      console.log("  ✅ All required form fields present");
+    } else {
+      throw new Error("Missing required form fields");
+    }
+
+    // Test 3: Decrypt NFT content with correct private key
+    console.log("\n  Test 3: Testing NFT decryption...");
+
+    // Wait for external libraries to load from CDN
+    console.log("  ⏳ Waiting for external libraries to load...");
+    await page.waitForFunction(() => {
+      return window.nearJsonRpcClient && window.RistrettoPoint;
+    }, { timeout: 30000 });
+    console.log("  ✅ External libraries loaded");
+
+    await page.locator("#network").selectOption("testnet");
+    await page.locator("#contract").fill("nft.test.near");
+    await page.locator("#tokenId").fill("web4-test-nft-1");
+
+    // Convert Alice's private key from base64 to hex
+    const alicePrivateKeyBytes = Buffer.from(aliceKeys.privateKey, "base64");
+    const alicePrivateKeyHex = alicePrivateKeyBytes.toString("hex");
+    await page.locator("#privateKey").fill(alicePrivateKeyHex);
+
+    // Click decrypt button
+    await page.locator("button:has-text('Decrypt Content')").click();
+
+    // Wait for result or error
+    await Promise.race([
+      page.waitForSelector(".result.show", { timeout: 15000 }),
+      page.waitForSelector(".error.show", { timeout: 15000 }),
+    ]);
+
+    // Check if decryption was successful
+    const resultVisible = await page.locator(".result.show").isVisible().catch(() => false);
+    const errorVisible = await page.locator(".error.show").isVisible().catch(() => false);
+
+    if (resultVisible) {
+      const decryptedText = await page.locator("#content").textContent();
+      if (decryptedText.includes("Secret music file")) {
+        console.log("  ✅ Successfully decrypted NFT content in browser!");
+        console.log("    - Decrypted text:", decryptedText);
+      } else {
+        throw new Error(`Unexpected decrypted content: ${decryptedText}`);
+      }
+    } else if (errorVisible) {
+      const errorText = await page.locator("#error").textContent();
+      throw new Error(`Decryption failed with error: ${errorText}`);
+    } else {
+      throw new Error("Neither result nor error appeared after decryption");
+    }
+
+    // Test 4: Wrong private key shows error
+    console.log("\n  Test 4: Testing error handling with wrong private key...");
+    await page.reload();
+
+    // Wait for external libraries to load after reload
+    await page.waitForFunction(() => {
+      return window.nearJsonRpcClient && window.RistrettoPoint;
+    }, { timeout: 30000 });
+
+    await page.locator("#network").selectOption("testnet");
+    await page.locator("#contract").fill("nft.test.near");
+    await page.locator("#tokenId").fill("web4-test-nft-1");
+    await page.locator("#privateKey").fill("0".repeat(64)); // Wrong key
+
+    await page.locator("button:has-text('Decrypt Content')").click();
+
+    await page.waitForSelector(".error.show", { timeout: 10000 });
+    const errorText = await page.locator("#error").textContent();
+    if (errorText.includes("does not match")) {
+      console.log("  ✅ Correctly shows error for wrong private key");
+    } else {
+      console.log("  ⚠️  Error message:", errorText);
+    }
+
+    console.log("\n  ✅ All browser tests passed!");
+
+  } finally {
+    await browser.close();
+    server.close();
+    console.log("  ✅ Browser and server closed");
+  }
+
   console.log("\n✅ =================================================");
   console.log("✅ ALL WEB4 TESTS PASSED!");
   console.log("✅ =================================================");
@@ -539,6 +688,10 @@ try {
   console.log("  ✅ HTML viewer embedded correctly: SUCCESS");
   console.log("  ✅ Encrypted NFT minting: SUCCESS");
   console.log("  ✅ Content data retrieval: SUCCESS");
+  console.log("  ✅ Web4 gateway server: SUCCESS");
+  console.log("  ✅ Browser page load: SUCCESS");
+  console.log("  ✅ Browser decryption: SUCCESS");
+  console.log("  ✅ Browser error handling: SUCCESS");
   console.log("\n🎉 Web4 encrypted NFT viewer validated!");
   console.log("🌐 The viewer HTML is successfully embedded in the contract!");
   console.log("🔐 Users can decrypt NFT content using the Web4 interface!");

@@ -1,50 +1,51 @@
-import { readFileSync, writeFileSync } from 'fs';
-import { minify } from 'html-minifier-terser';
+import { readFileSync, writeFileSync, mkdirSync } from "fs";
+import { minify } from "html-minifier-terser";
 
-console.log('🔨 Building encrypted NFT contract with embedded viewer...\n');
+console.log('🔨 Bundling encrypted NFT viewer into contract...\n');
 
 // Read the HTML file
-const htmlPath = './decrypt_nft_viewer.html';
-const html = readFileSync(htmlPath, 'utf-8');
+const htmlContent = readFileSync("./decrypt_nft_viewer.html", "utf-8");
 
-console.log('📄 Read HTML file:', htmlPath);
-console.log('   Original size:', html.length, 'bytes');
+console.log('📄 Original HTML size:', htmlContent.length, 'bytes');
 
-// Minify HTML
-const minified = await minify(html, {
+// Minify the HTML (keep CDN script imports intact)
+const minifiedHtml = await minify(htmlContent, {
   collapseWhitespace: true,
   removeComments: true,
-  removeRedundantAttributes: true,
-  removeScriptTypeAttributes: true,
-  removeStyleLinkTypeAttributes: true,
-  useShortDoctype: true,
   minifyCSS: true,
   minifyJS: true,
+  // Don't remove script type="module" attributes
+  removeAttributeQuotes: false,
+  // Keep external script sources
+  removeScriptTypeAttributes: false,
 });
 
-console.log('   Minified size:', minified.length, 'bytes');
-console.log('   Reduction:', ((1 - minified.length / html.length) * 100).toFixed(1) + '%');
+console.log('📄 Minified HTML size:', minifiedHtml.length, 'bytes');
 
-// Base64 encode
-const base64 = Buffer.from(minified).toString('base64');
-console.log('   Base64 size:', base64.length, 'bytes');
+// Create dist directory
+mkdirSync("dist", { recursive: true });
+writeFileSync("dist/decrypt_nft_viewer.html", minifiedHtml);
 
 // Read contract template
-const contractTemplate = readFileSync('./contract.js', 'utf-8');
+const contractTemplate = readFileSync("./contract.js", "utf-8");
+
+// Base64 encode the minified HTML
+const base64Html = Buffer.from(minifiedHtml).toString('base64');
+
+console.log('📦 Base64 encoded size:', base64Html.length, 'bytes');
 
 // Replace placeholder with base64 encoded HTML
 const contract = contractTemplate.replace(
   '"__VIEWER_HTML_BASE64__"',
-  '`' + base64 + '`'
+  '"' + base64Html + '"'
 );
 
-// Write output
-const outputPath = './contract-bundle.js';
+// Write the bundled contract
+const outputPath = "./contract-bundle.js";
 writeFileSync(outputPath, contract);
 
 console.log('\n✅ Contract bundle created:', outputPath);
 console.log('   Total size:', contract.length, 'bytes');
-console.log('\n💡 Next steps:');
-console.log('   1. Copy this to ../src/contract.js');
-console.log('   2. Run ./build.sh to compile');
-console.log('   3. Deploy to NEAR');
+console.log('\n💡 To deploy:');
+console.log('   yarn examples-nft-encrypted-web4bundle');
+console.log('   Then upload with post_javascript');

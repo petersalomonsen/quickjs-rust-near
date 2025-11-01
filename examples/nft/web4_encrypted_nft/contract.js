@@ -50,52 +50,19 @@ export function nft_metadata() {
 
 /**
  * Basic NFT mint function
- * Only the contract account can mint
+ * Just returns metadata - Rust code handles storage
  */
 export function nft_mint() {
-  const caller = env.signer_account_id();
-
-  // Only contract account can mint
-  if (caller !== env.current_account_id()) {
+  if (env.signer_account_id() != env.current_account_id()) {
     env.panic("only contract account can mint");
   }
+  const args = JSON.parse(env.input());
 
-  const { token_id, token_owner_id } = JSON.parse(env.input());
-
-  // Check if token already exists
-  const existing = env.storage_read(`nft:${token_id}`);
-  if (existing) {
-    env.panic("token already exists");
-  }
-
-  // Calculate required storage deposit
-  const storage_bytes = 200; // Approximate bytes needed
-  const storage_cost_per_byte = 10000000000000000000; // 0.00001 NEAR per byte
-  const required_deposit = BigInt(storage_bytes) * BigInt(storage_cost_per_byte);
-  const attached = BigInt(env.attached_deposit());
-
-  if (attached < required_deposit) {
-    const required_near = Number(required_deposit) / 1e24;
-    env.panic(`Must attach ${required_near.toFixed(4)} NEAR to cover storage`);
-  }
-
-  // Store NFT ownership
-  env.storage_write(`nft:${token_id}`, token_owner_id);
-
-  // Update owner's token count
-  const owner_count_key = `owner_count:${token_owner_id}`;
-  const current_count = env.storage_read(owner_count_key) || "0";
-  const new_count = (parseInt(current_count) + 1).toString();
-  env.storage_write(owner_count_key, new_count);
-
-  // Emit NFT mint event (NEP-171)
-  const event = {
-    standard: "nep171",
-    version: "1.0.0",
-    event: "nft_mint",
-    data: [{ owner_id: token_owner_id, token_ids: [token_id] }],
-  };
-  env.log(`EVENT_JSON:${JSON.stringify(event)}`);
+  return JSON.stringify({
+    title: `Encrypted NFT #${args.token_id}`,
+    description: "NFT with encrypted content",
+    media: `data:image/svg+xml;base64,${icon_svg_base64}`,
+  });
 }
 
 /**
