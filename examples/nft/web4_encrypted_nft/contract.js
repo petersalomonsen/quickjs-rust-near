@@ -63,7 +63,7 @@ export function nft_mint() {
     const {
       token_id,
       encrypted_content_base64,
-      encrypted_scalar_base64,
+      encrypted_scalar_base64, // 92 bytes: IV (12) + AES-encrypted(secret_scalar + randomness)(64) + tag (16)
       elgamal_ciphertext_c1_base64,
       elgamal_ciphertext_c2_base64,
       owner_pubkey_base64,

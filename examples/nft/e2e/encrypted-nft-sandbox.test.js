@@ -652,23 +652,27 @@ try {
   })();
   console.log("  ✅ Content encrypted with AES-256-GCM");
 
-  // 5. Encrypt secret_scalar with AES (for proof generation later)
-  const encryptedScalarData = (() => {
-    const iv = crypto.randomBytes(12);
-    const cipher = crypto.createCipheriv("aes-256-gcm", aesKey, iv);
-    const encrypted = Buffer.concat([
-      cipher.update(secretScalar),
-      cipher.final(),
-    ]);
-    const tag = cipher.getAuthTag();
-    return Buffer.concat([iv, encrypted, tag]).toString("base64");
-  })();
-  console.log("  ✅ Encrypted secret_scalar with AES for storage");
-
-  // 6. ElGamal encrypt the secret_scalar using Alice's public key
+  // 5. ElGamal encrypt the secret_scalar using Alice's public key
   const aliceCiphertext = elgamalEncrypt(secretScalar, aliceKeys.publicKey);
   const aliceRandomness = aliceCiphertext.randomness;
   console.log("  ✅ ElGamal encrypted secret_scalar for Alice");
+
+  // 6. Encrypt BOTH secret_scalar AND randomness with AES (92 bytes total)
+  // This allows recovery of both values for re-encryption proofs
+  const encryptedScalarData = (() => {
+    const scalarAndRandomness = Buffer.concat([secretScalar, aliceRandomness]);
+    const iv = crypto.randomBytes(12);
+    const cipher = crypto.createCipheriv("aes-256-gcm", aesKey, iv);
+    const encrypted = Buffer.concat([
+      cipher.update(scalarAndRandomness),
+      cipher.final(),
+    ]);
+    const tag = cipher.getAuthTag();
+    const result = Buffer.concat([iv, encrypted, tag]);
+    console.log(`  📊 Encrypted blob size: ${result.length} bytes (12 IV + 64 encrypted + 16 tag)`);
+    return result.toString("base64");
+  })();
+  console.log("  ✅ Encrypted secret_scalar + randomness with AES for storage");
   console.log("  📊 C1:", aliceCiphertext.c1_base64.substring(0, 16) + "...");
   console.log(
     "  📊 C2 (point):",
@@ -821,9 +825,58 @@ try {
     bobPubkeyFromContract === bobKeys.publicKey ? "✅ YES" : "❌ NO",
   );
 
-  console.log("\n🔐 Step 10: Alice Re-encrypts and Generates ZK Proof");
-  // Alice re-encrypts the secret_scalar for Bob's public key (retrieved from contract)
-  const bobCiphertext = elgamalEncrypt(secretScalar, bobPubkeyFromContract);
+  console.log("\n🔐 Step 10: Alice Recovers Data from Contract for Re-encryption");
+  // Alice retrieves her encrypted content data from the contract
+  const aliceReencryptData = await viewFunction("nft.test.near", "call_js_func", {
+    function_name: "get_encrypted_content_data",
+    token_id: "encrypted-nft-1",
+  });
+  console.log("  ✅ Retrieved encrypted content data from contract");
+
+  // Decrypt ElGamal ciphertext to recover secret point
+  const aliceReencryptC1 = RistrettoPoint.fromHex(
+    Buffer.from(aliceReencryptData.elgamal_ciphertext.c1_base64, "base64")
+  );
+  const aliceReencryptC2 = RistrettoPoint.fromHex(
+    Buffer.from(aliceReencryptData.elgamal_ciphertext.c2_base64, "base64")
+  );
+  const aliceReencryptSharedSecret = aliceReencryptC1.multiply(
+    bufferToScalar(Buffer.from(aliceKeys.privateKey, "base64"))
+  );
+  const aliceReencryptSecretPoint = aliceReencryptC2.subtract(aliceReencryptSharedSecret);
+  console.log("  ✅ Decrypted ElGamal ciphertext to recover secret point");
+
+  // Derive AES key from secret point
+  const aliceReencryptAesKey = crypto
+    .createHash("sha256")
+    .update(Buffer.from(aliceReencryptSecretPoint.toRawBytes()))
+    .digest();
+  console.log("  ✅ Derived AES key from secret point");
+
+  // Decrypt encrypted_scalar to recover BOTH secret_scalar AND randomness
+  const encryptedScalarBuffer = Buffer.from(
+    aliceReencryptData.encrypted_scalar_base64,
+    "base64"
+  );
+  const scalarIv = encryptedScalarBuffer.subarray(0, 12);
+  const scalarTag = encryptedScalarBuffer.subarray(-16);
+  const scalarCiphertext = encryptedScalarBuffer.subarray(12, -16);
+
+  const scalarDecipher = crypto.createDecipheriv("aes-256-gcm", aliceReencryptAesKey, scalarIv);
+  scalarDecipher.setAuthTag(scalarTag);
+  const recoveredData = Buffer.concat([
+    scalarDecipher.update(scalarCiphertext),
+    scalarDecipher.final(),
+  ]);
+
+  // Extract secret_scalar and randomness from the 64-byte blob
+  const recoveredSecretScalar = recoveredData.subarray(0, 32);
+  const recoveredAliceRandomness = recoveredData.subarray(32, 64);
+  console.log(`  ✅ Decrypted ${recoveredData.length} bytes from contract`);
+  console.log("  ✅ Recovered secret_scalar and randomness from on-chain data");
+
+  // Re-encrypt the secret_scalar for Bob's public key (retrieved from contract)
+  const bobCiphertext = elgamalEncrypt(recoveredSecretScalar, bobPubkeyFromContract);
   const bobRandomness = bobCiphertext.randomness;
   console.log("  ✅ Re-encrypted secret_scalar for Bob");
   console.log(
@@ -837,17 +890,17 @@ try {
 
   // Generate zero-knowledge proof that both ciphertexts encrypt the same secret_scalar
   const proof = generateReencryptionProof(
-    secretScalar, // The secret_scalar being encrypted
-    aliceCiphertext.c1_base64, // Old ciphertext C1 (Alice)
-    aliceCiphertext.c2_base64, // Old ciphertext C2 (Alice)
-    aliceRandomness, // Randomness used for Alice's encryption
-    aliceKeys.publicKey, // Alice's public key
+    recoveredSecretScalar, // The secret_scalar (recovered from contract)
+    aliceReencryptData.elgamal_ciphertext.c1_base64, // Old ciphertext C1 (Alice, from contract)
+    aliceReencryptData.elgamal_ciphertext.c2_base64, // Old ciphertext C2 (Alice, from contract)
+    recoveredAliceRandomness, // Randomness used for Alice's encryption (recovered from contract)
+    aliceReencryptData.owner_pubkey_base64, // Alice's public key (from contract)
     bobCiphertext.c1_base64, // New ciphertext C1 (Bob)
     bobCiphertext.c2_base64, // New ciphertext C2 (Bob)
     bobRandomness, // Randomness used for Bob's encryption
     bobPubkeyFromContract, // Bob's public key (from contract)
   );
-  console.log("  ✅ Generated ZK proof");
+  console.log("  ✅ Generated ZK proof using data recovered from contract");
 
   console.log("\n📤 Step 11: Alice Submits Proof to Complete Transfer");
   // Alice submits the new ciphertext and proof to the contract
