@@ -324,8 +324,8 @@ export function buy() {
 
 /**
  * Complete sale by re-encrypting content for the new buyer
- * Seller provides re-encrypted data and proof
- * Funds are released from escrow to seller
+ * Seller provides re-encrypted data and zero-knowledge proof
+ * Funds are released from escrow to seller only if proof is valid
  */
 export function complete_sale() {
   const {
@@ -335,6 +335,14 @@ export function complete_sale() {
     elgamal_ciphertext_c1_base64,
     elgamal_ciphertext_c2_base64,
     buyer_pubkey_base64,
+    // Zero-knowledge proof parameters
+    proof_commit_r_old,
+    proof_commit_s_old,
+    proof_commit_r_new,
+    proof_commit_s_new,
+    proof_response_s,
+    proof_response_r_old,
+    proof_response_r_new,
   } = JSON.parse(env.input());
 
   const caller = env.signer_account_id();
@@ -355,6 +363,36 @@ export function complete_sale() {
   // Verify buyer pubkey matches
   if (buyer_pubkey_base64 !== escrow.buyer_pubkey) {
     env.panic("Buyer pubkey does not match escrow record");
+  }
+
+  // Get old ciphertext from storage
+  const old_c1 = env.storage_read(`elgamal-ciphertext-c1:${token_id}`);
+  const old_c2 = env.storage_read(`elgamal-ciphertext-c2:${token_id}`);
+  const old_pk = env.storage_read(`owner-pubkey:${token_id}`);
+
+  if (!old_c1 || !old_c2 || !old_pk) {
+    env.panic("Original ciphertext not found");
+  }
+
+  // Verify re-encryption proof
+  const proof_valid = env.verify_reencryption_proof(
+    old_c1,
+    old_c2,
+    old_pk,
+    elgamal_ciphertext_c1_base64,
+    elgamal_ciphertext_c2_base64,
+    buyer_pubkey_base64,
+    proof_commit_r_old,
+    proof_commit_s_old,
+    proof_commit_r_new,
+    proof_commit_s_new,
+    proof_response_s,
+    proof_response_r_old,
+    proof_response_r_new
+  );
+
+  if (!proof_valid) {
+    env.panic("Invalid re-encryption proof - seller must provide valid proof");
   }
 
   // Store new encrypted content

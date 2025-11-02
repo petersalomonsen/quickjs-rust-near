@@ -361,6 +361,86 @@ function elgamalEncrypt(messageScalar, publicKeyBase64) {
   };
 }
 
+/**
+ * Generate zero-knowledge proof that two ElGamal ciphertexts encrypt the same secret
+ * Proves that old_ciphertext and new_ciphertext encrypt the same secret_scalar
+ * without revealing the secret_scalar or the randomness used
+ */
+function generateReencryptionProof(
+  secretScalar, // The secret_scalar being encrypted (32 bytes)
+  oldCiphertextC1Base64, // C1 of old ciphertext
+  oldCiphertextC2Base64, // C2 of old ciphertext
+  oldRandomness, // r_old used in old ciphertext
+  oldPubkeyBase64, // Old owner's public key
+  newCiphertextC1Base64, // C1 of new ciphertext
+  newCiphertextC2Base64, // C2 of new ciphertext
+  newRandomness, // r_new used in new ciphertext
+  newPubkeyBase64, // New owner's public key
+) {
+  // Parse inputs
+  const oldPubkey = RistrettoPoint.fromHex(
+    Buffer.from(oldPubkeyBase64, "base64"),
+  );
+  const newPubkey = RistrettoPoint.fromHex(
+    Buffer.from(newPubkeyBase64, "base64"),
+  );
+
+  const oldC1 = Buffer.from(oldCiphertextC1Base64, "base64");
+  const oldC2 = Buffer.from(oldCiphertextC2Base64, "base64");
+  const newC1 = Buffer.from(newCiphertextC1Base64, "base64");
+  const newC2 = Buffer.from(newCiphertextC2Base64, "base64");
+
+  const m = bufferToScalar(secretScalar);
+  const r_old = bufferToScalar(oldRandomness);
+  const r_new = bufferToScalar(newRandomness);
+
+  // Generate random blinding factors (nonces for zero-knowledge)
+  const t_r_old = bufferToScalar(crypto.randomBytes(32));
+  const t_r_new = bufferToScalar(crypto.randomBytes(32));
+  const t_s = bufferToScalar(crypto.randomBytes(32));
+
+  // Compute commitments (first message in Sigma protocol)
+  const commit_r_old = RistrettoPoint.BASE.multiply(t_r_old);
+  const commit_r_new = RistrettoPoint.BASE.multiply(t_r_new);
+  const commit_s_old = RistrettoPoint.BASE.multiply(t_s).add(
+    oldPubkey.multiply(t_r_old),
+  );
+  const commit_s_new = RistrettoPoint.BASE.multiply(t_s).add(
+    newPubkey.multiply(t_r_new),
+  );
+
+  // Compute challenge hash (matches crypto.rs compute_challenge function)
+  const challengeHash = crypto
+    .createHash("sha256")
+    .update(oldC1)
+    .update(oldC2)
+    .update(Buffer.from(oldPubkey.toRawBytes()))
+    .update(newC1)
+    .update(newC2)
+    .update(Buffer.from(newPubkey.toRawBytes()))
+    .update(Buffer.from(commit_r_old.toRawBytes()))
+    .update(Buffer.from(commit_s_old.toRawBytes()))
+    .update(Buffer.from(commit_r_new.toRawBytes()))
+    .update(Buffer.from(commit_s_new.toRawBytes()))
+    .digest();
+  const challenge = bufferToScalar(challengeHash);
+
+  // Compute responses
+  const response_r_old = (t_r_old + challenge * r_old) % CURVE_ORDER;
+  const response_r_new = (t_r_new + challenge * r_new) % CURVE_ORDER;
+  const response_s = (t_s + challenge * m) % CURVE_ORDER;
+
+  return {
+    commit_r_old_base64: Buffer.from(commit_r_old.toRawBytes()).toString("base64"),
+    commit_s_old_base64: Buffer.from(commit_s_old.toRawBytes()).toString("base64"),
+    commit_r_new_base64: Buffer.from(commit_r_new.toRawBytes()).toString("base64"),
+    commit_s_new_base64: Buffer.from(commit_s_new.toRawBytes()).toString("base64"),
+    response_s_base64: Buffer.from(scalarToBuffer(response_s)).toString("base64"),
+    response_r_old_base64: Buffer.from(scalarToBuffer(response_r_old)).toString("base64"),
+    response_r_new_base64: Buffer.from(scalarToBuffer(response_r_new)).toString("base64"),
+  };
+}
+
 // ============================================================================
 // Test Execution
 // ============================================================================
@@ -777,53 +857,48 @@ try {
   const c1Point = RistrettoPoint.fromHex(c1Bytes);
   const c2Point = RistrettoPoint.fromHex(c2Bytes);
 
+  // Decrypt ElGamal ciphertext to get the secret POINT (not scalar!)
   const recoveredSecretPoint = c2Point.subtract(c1Point.multiply(alicePrivateKeyScalar));
-  const recoveredSecretBytes = Buffer.from(recoveredSecretPoint.toRawBytes());
-  const recoveredAesKey = crypto.createHash("sha256").update(recoveredSecretBytes).digest();
+  const recoveredSecretPointBytes = Buffer.from(recoveredSecretPoint.toRawBytes());
 
-  // Decrypt content
-  const encryptedContentBuffer = Buffer.from(encryptedContent, "base64");
-  const ivDecrypt = encryptedContentBuffer.subarray(0, 12);
-  const tagDecrypt = encryptedContentBuffer.subarray(-16);
-  const ciphertextDecrypt = encryptedContentBuffer.subarray(12, -16);
+  // Derive AES key from the secret point
+  const recoveredAesKey = crypto.createHash("sha256").update(recoveredSecretPointBytes).digest();
 
-  const decipher = crypto.createDecipheriv("aes-256-gcm", recoveredAesKey, ivDecrypt);
-  decipher.setAuthTag(tagDecrypt);
-  const decryptedContent = Buffer.concat([
-    decipher.update(ciphertextDecrypt),
-    decipher.final(),
-  ]).toString("utf8");
+  // Decrypt the encrypted_scalar_base64 to get the original secret SCALAR
+  const encryptedScalarBuffer = Buffer.from(encryptedScalarData, "base64");
+  const scalarIv = encryptedScalarBuffer.subarray(0, 12);
+  const scalarTag = encryptedScalarBuffer.subarray(-16);
+  const scalarCiphertext = encryptedScalarBuffer.subarray(12, -16);
 
-  console.log("  ✅ Alice decrypted original content:", decryptedContent);
-
-  // Re-encrypt for Bob
-  const newSecretScalar = crypto.randomBytes(32);
-  const newSecretScalarBigInt = bufferToScalar(newSecretScalar);
-  const newSecretPoint = RistrettoPoint.BASE.multiply(newSecretScalarBigInt);
-  const newSecretPointBytes = Buffer.from(newSecretPoint.toRawBytes());
-  const newAesKey = crypto.createHash("sha256").update(newSecretPointBytes).digest();
-
-  const newIv = crypto.randomBytes(12);
-  const newCipher = crypto.createCipheriv("aes-256-gcm", newAesKey, newIv);
-  const newEncrypted = Buffer.concat([
-    newCipher.update(decryptedContent, "utf8"),
-    newCipher.final(),
+  const scalarDecipher = crypto.createDecipheriv("aes-256-gcm", recoveredAesKey, scalarIv);
+  scalarDecipher.setAuthTag(scalarTag);
+  const recoveredSecretScalarBytes = Buffer.concat([
+    scalarDecipher.update(scalarCiphertext),
+    scalarDecipher.final(),
   ]);
-  const newTag = newCipher.getAuthTag();
-  const newEncryptedContent = Buffer.concat([newIv, newEncrypted, newTag]).toString("base64");
 
-  const newIv2 = crypto.randomBytes(12);
-  const newCipher2 = crypto.createCipheriv("aes-256-gcm", newAesKey, newIv2);
-  const newEncryptedScalarData = Buffer.concat([
-    newIv2,
-    newCipher2.update(newSecretScalar),
-    newCipher2.final(),
-    newCipher2.getAuthTag(),
-  ]).toString("base64");
+  console.log("  ✅ Alice recovered original secret scalar");
 
-  const bobCiphertext = elgamalEncrypt(newSecretScalar, bobKeys.publicKey);
+  // Re-encrypt the SAME secret scalar for Bob (not the content!)
+  // The encrypted_content and encrypted_scalar stay the same - only the ElGamal ciphertext changes
+  const bobCiphertext = elgamalEncrypt(recoveredSecretScalarBytes, bobKeys.publicKey);
 
-  console.log("  ✅ Re-encrypted content for Bob");
+  console.log("  ✅ Re-encrypted secret scalar for Bob");
+
+  // Generate zero-knowledge proof that old and new ciphertexts encrypt the same secret
+  const proof = generateReencryptionProof(
+    recoveredSecretScalarBytes, // The secret_scalar being encrypted
+    aliceCiphertext.c1_base64, // Old ciphertext C1 (Alice)
+    aliceCiphertext.c2_base64, // Old ciphertext C2 (Alice)
+    aliceCiphertext.randomness, // Randomness used for Alice's encryption
+    aliceKeys.publicKey, // Alice's public key
+    bobCiphertext.c1_base64, // New ciphertext C1 (Bob)
+    bobCiphertext.c2_base64, // New ciphertext C2 (Bob)
+    bobCiphertext.randomness, // Randomness used for Bob's encryption
+    bobKeys.publicKey, // Bob's public key
+  );
+
+  console.log("  ✅ Generated zero-knowledge re-encryption proof");
 
   // Complete sale - transfer ownership and release funds from escrow
   await functionCall(
@@ -833,14 +908,22 @@ try {
     {
       function_name: "complete_sale",
       token_id: "web4-test-nft-1",
-      encrypted_content_base64: newEncryptedContent,
-      encrypted_scalar_base64: newEncryptedScalarData,
+      encrypted_content_base64: encryptedContent, // Keep original encrypted content
+      encrypted_scalar_base64: encryptedScalarData, // Keep original encrypted scalar
       elgamal_ciphertext_c1_base64: bobCiphertext.c1_base64,
       elgamal_ciphertext_c2_base64: bobCiphertext.c2_base64,
       buyer_pubkey_base64: bobKeys.publicKey,
+      // Add zero-knowledge proof parameters
+      proof_commit_r_old: proof.commit_r_old_base64,
+      proof_commit_s_old: proof.commit_s_old_base64,
+      proof_commit_r_new: proof.commit_r_new_base64,
+      proof_commit_s_new: proof.commit_s_new_base64,
+      proof_response_s: proof.response_s_base64,
+      proof_response_r_old: proof.response_r_old_base64,
+      proof_response_r_new: proof.response_r_new_base64,
     },
   );
-  console.log("  ✅ Alice completed sale transaction - ownership transferred, funds released");
+  console.log("  ✅ Alice completed sale transaction with proof - ownership transferred, funds released");
 
   // Check Alice's balance after
   await new Promise((resolve) => setTimeout(resolve, 2000));
