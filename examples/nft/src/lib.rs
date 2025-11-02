@@ -10,7 +10,7 @@ use near_sdk::borsh::{BorshDeserialize, BorshSerialize};
 use near_sdk::json_types::U128;
 use near_sdk::{near,
     assert_one_yocto, base64, env, near_bindgen, serde_json, AccountId, BorshStorageKey,
-    PanicOnDefault, Promise, PromiseOrValue,
+    NearToken, PanicOnDefault, Promise, PromiseOrValue,
 };
 use payouts::{Payout, Payouts};
 use quickjs_rust_near::jslib::{
@@ -271,6 +271,21 @@ impl Contract {
                 0i64 // Return undefined
             },
             1,
+        );
+
+        add_function_to_js(
+            "transfer",
+            |ctx: i32, _this_val: i64, _argc: i32, argv: i32| -> i64 {
+                let receiver_id: AccountId = arg_to_str(ctx, 0, argv).parse().unwrap();
+                let amount_str = arg_to_str(ctx, 1, argv);
+                let amount: u128 = amount_str.parse().unwrap();
+
+                let promise_idx = env::promise_batch_create(&receiver_id);
+                env::promise_batch_action_transfer(promise_idx, NearToken::from_yoctonear(amount));
+
+                0i64 // Return undefined
+            },
+            2,
         );
     }
 

@@ -405,8 +405,7 @@ export function complete_sale() {
   env.internal_transfer_unguarded(token_id, escrow.seller, escrow.buyer);
 
   // Release funds to seller
-  env.promise_batch_create(escrow.seller);
-  env.promise_batch_action_transfer(0, escrow.price);
+  env.transfer(escrow.seller, escrow.price);
 
   // Remove escrow
   env.storage_remove(`escrow:${token_id}`);

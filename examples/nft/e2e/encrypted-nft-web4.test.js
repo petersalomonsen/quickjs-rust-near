@@ -924,8 +924,11 @@ try {
   );
   console.log("  ✅ Alice completed sale transaction with proof - ownership transferred, funds released");
 
-  // Check Alice's balance after
-  await new Promise((resolve) => setTimeout(resolve, 2000));
+  // Wait longer for the promise receipt to be executed
+  // The transfer happens in a separate receipt that needs to be processed
+  console.log("  ⏳ Waiting for fund transfer receipt to be processed...");
+  await new Promise((resolve) => setTimeout(resolve, 5000));
+
   const aliceBalanceAfter = await viewAccount(sandboxRpcClient, {
     accountId: "alice.test.near",
     finality: "final",
@@ -933,10 +936,14 @@ try {
   console.log("  📊 Alice balance after:", aliceBalanceAfter.amount);
 
   const balanceIncrease = BigInt(aliceBalanceAfter.amount) - BigInt(aliceBalanceBefore.amount);
+  const balanceIncreaseNear = Number(balanceIncrease) / 1e24;
   console.log("  💰 Alice received:", balanceIncrease.toString(), "yoctoNEAR");
+  console.log(`     (${balanceIncreaseNear.toFixed(3)} NEAR)`);
 
   if (balanceIncrease > 0n) {
     console.log("  ✅ Funds successfully released from escrow to Alice!");
+  } else {
+    console.log("  ⚠️  Balance decreased (gas cost) - transfer receipt may need more time");
   }
 
   // Verify ownership transfer
