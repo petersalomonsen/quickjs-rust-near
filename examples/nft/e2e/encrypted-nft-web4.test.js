@@ -901,6 +901,7 @@ try {
   console.log("  ✅ Generated zero-knowledge re-encryption proof");
 
   // Complete sale - transfer ownership and release funds from escrow
+  // Note: Only the ElGamal ciphertext changes, encrypted_content and encrypted_scalar stay in storage unchanged
   await functionCall(
     "alice.test.near",
     "nft.test.near",
@@ -908,12 +909,10 @@ try {
     {
       function_name: "complete_sale",
       token_id: "web4-test-nft-1",
-      encrypted_content_base64: encryptedContent, // Keep original encrypted content
-      encrypted_scalar_base64: encryptedScalarData, // Keep original encrypted scalar
       elgamal_ciphertext_c1_base64: bobCiphertext.c1_base64,
       elgamal_ciphertext_c2_base64: bobCiphertext.c2_base64,
       buyer_pubkey_base64: bobKeys.publicKey,
-      // Add zero-knowledge proof parameters
+      // Zero-knowledge proof parameters
       proof_commit_r_old: proof.commit_r_old_base64,
       proof_commit_s_old: proof.commit_s_old_base64,
       proof_commit_r_new: proof.commit_r_new_base64,
