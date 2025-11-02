@@ -1,0 +1,9 @@
+{
+  "token_id": "encrypted_nft_1762105724480",
+  "token_owner_id": "apsolomo.testnet",
+  "encrypted_content_base64": "C+MGiMMJIzsMVhAEBCR+Msa6w8MQ393+Lh/79uoSf0J8/JTliOinw7hq1Zvl6sxCA9xiAYt0KBOdycl5foJB/ZIzPeo6fwMz19PYdZULD+EVc0KU98gy9XCiRoSjoK59UsgAEq431C7Bj4jqoW/dneAGTbbb6VhAG8X5ZY3+6OJOWdHSOsQrlo6ZLKHR9m0k7Tc0XHVLiQpxhI+5siDN5oRpNUMvJ1Ph/ZIh9FQlWz4h/b/up/lDKq8B3920tU6CfNPn1nuKBLyB3dCtIbqyQAJbN2g33BFgTkO+Y3umy39j1BtjL/xN9kB/3rwmuHNVWD7s6xrGh2kivjSZ0ol+ULY3Xr+ozIY6BnbPnhKTtzwVMlUs4r7L0RCYbmHdl6oq+IsIUBZJiY60D97wgNZ7MJCAUAt+rWSAxNWq",
+  "encrypted_scalar_base64": "ze21D/5Awkps1tCGsucUM97auEqgAywzjb50rd5uInAJMipYkAyGrHRhSxcaKkmNb65F1J0ZwQQWoWmu1bngH7hiSeEvUEsavHYUjWWStk2bCM7XIH5pl50oRVs=",
+  "elgamal_ciphertext_c1_base64": "uB9YAlO11hBTGm7HuAe8nk4Q/PS+HyvY0x3MIgDpdSw=",
+  "elgamal_ciphertext_c2_base64": "JvC0i+QiS7n08HVKnbv3ZYz4olYgPCIy+H73Tz/NZFg=",
+  "owner_pubkey_base64": "tsWlCmZ8dVyIpZsS4B27JoVs6JbuDiMYeLfSsggCRFI="
+}

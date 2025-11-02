@@ -1,3 +1,20 @@
-target
-out
-~
+# Temporary and log files
+*.log
+mint_output.log
+
+# Secret keypairs (keep these private!)
+*_keypair.json
+
+# Crypto data files (contain secrets!)
+*_crypto_data.json
+
+# Mint args (except example)
+*_mint_args.json
+!encrypted_nft_1762105724480_mint_args.json
+
+# Old test data
+poetic_nft_*
+synth_wasm_nft_*
+
+# Temporary files
+~/
