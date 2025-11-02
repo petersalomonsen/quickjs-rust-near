@@ -5,6 +5,11 @@
     "root": true
   },
   {
+    "name": "call_js_func_mut",
+    "export": "call_js_func_mut",
+    "root": true
+  },
+  {
     "name": "post_javascript",
     "export": "post_javascript",
     "root": true

@@ -44,6 +44,122 @@ export function nft_payout() {
 
 ( This is also the actual implementation in the [example contract](./src/contract.js) );
 
+## Understanding Contract Method Invocation Patterns
+
+This contract uses two different patterns for calling JavaScript functions, which is important to understand:
+
+### Pattern 1: Direct Rust Methods (e.g., `nft_mint`)
+
+Some methods like `nft_mint` are **Rust contract methods** that internally call JavaScript functions:
+
+```rust
+#[payable]
+pub fn nft_mint(&mut self, token_id: TokenId, token_owner_id: AccountId) -> Token {
+    let jsmod = self.load_js_bytecode();
+    let nft_mint_str = CString::new("nft_mint").unwrap();
+    unsafe {
+        self.add_js_functions();
+
+        // Call JavaScript function and get metadata
+        let mint_metadata_json_string = CStr::from_ptr(js_get_string(js_call_function(
+            jsmod,
+            nft_mint_str.as_ptr() as i32,
+        )) as *const i8)
+        .to_str()
+        .unwrap();
+
+        // Parse metadata and mint the NFT
+        let parsed_json = serde_json::from_str(mint_metadata_json_string);
+        let token_metadata: TokenMetadata = parsed_json.unwrap();
+        self.tokens
+            .internal_mint(token_id, token_owner_id, Some(token_metadata))
+    }
+}
+```
+
+**Key characteristics:**
+- ✅ Clients call `nft_mint` **directly** on the Rust contract
+- ✅ Rust code internally calls the JavaScript `nft_mint` function
+- ✅ JavaScript returns metadata via `env.value_return()`
+- ✅ Rust uses the metadata to actually mint the NFT
+- ✅ Standard NEP-171 method signature
+
+**Example client call:**
+```javascript
+// Called directly on the contract
+await contract.nft_mint({
+  token_id: "nft-001",
+  token_owner_id: "alice.near"
+}, {
+  attachedDeposit: "10000000000000000000000" // 0.01 NEAR
+});
+```
+
+### Pattern 2: JavaScript Functions via `call_js_func` (e.g., `nft_mint_with_encrypted_content`)
+
+Custom JavaScript functions are called through the generic `call_js_func` method:
+
+```javascript
+// Called through call_js_func wrapper
+await contract.call_js_func({
+  function_name: "nft_mint_with_encrypted_content",
+  token_id: "nft-001",
+  encrypted_content_base64: "...",
+  // ... other parameters
+});
+```
+
+**Key characteristics:**
+- ✅ More flexible - add any custom JavaScript function
+- ✅ Called through the `call_js_func` wrapper method
+- ✅ JavaScript function receives all parameters directly
+- ✅ Perfect for custom business logic
+- ✅ No Rust code changes needed for new functions
+
+**When to use each pattern:**
+- Use **Pattern 1** (Direct Rust methods) for:
+  - Standard NEP-171/177/178 methods
+  - Methods that need Rust's NFT storage handling
+  - Methods with strict type requirements
+
+- Use **Pattern 2** (`call_js_func`) for:
+  - Custom business logic
+  - Extended functionality (encrypted content, marketplace, etc.)
+  - Rapid prototyping without rebuilding Rust contract
+  - Functions that only need JavaScript environment functions
+
+### Important: Return Values
+
+The return method depends on which invocation pattern you're using:
+
+**Pattern 1 (Direct Rust methods)**: Use `return`
+```javascript
+// ✅ CORRECT - for nft_mint (called directly by Rust)
+export function nft_mint() {
+  const metadata = {
+    title: "My NFT",
+    description: "Description"
+  };
+  return JSON.stringify(metadata); // Use return
+}
+```
+
+**Pattern 2 (call_js_func)**: Use `env.value_return()`
+```javascript
+// ✅ CORRECT - for custom functions called through call_js_func
+export function nft_mint_with_encrypted_content() {
+  const metadata = {
+    title: "My NFT",
+    description: "Description"
+  };
+  env.value_return(JSON.stringify(metadata)); // Use env.value_return()
+}
+```
+
+**Why the difference?**
+- Direct Rust methods use QuickJS's native return value mechanism
+- `call_js_func` uses NEAR's value return register to pass data back
+
 ## Controlling who can mint, and the content
 
 In this contract you should implement the `nft_mint` method in Javascript where you, as you can see from the example below, can control who is able to mint and what content will be minted.

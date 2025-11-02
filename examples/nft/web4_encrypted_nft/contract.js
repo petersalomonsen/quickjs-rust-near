@@ -49,15 +49,61 @@ export function nft_metadata() {
 }
 
 /**
- * Basic NFT mint function
- * Just returns metadata - Rust code handles storage
+ * NFT mint function with encrypted content
+ * Stores encrypted content and returns metadata
+ * Rust code handles calling internal_mint with the metadata
+ * NOTE: This function uses 'return', not 'env.value_return()'
+ * because it's called directly by Rust, not through call_js_func
  */
 export function nft_mint() {
-  if (env.signer_account_id() != env.current_account_id()) {
-    env.panic("only contract account can mint");
-  }
   const args = JSON.parse(env.input());
 
+  // If encrypted content is provided, store it and validate storage payment
+  if (args.encrypted_content_base64) {
+    const {
+      token_id,
+      encrypted_content_base64,
+      encrypted_scalar_base64,
+      elgamal_ciphertext_c1_base64,
+      elgamal_ciphertext_c2_base64,
+      owner_pubkey_base64,
+    } = args;
+
+    // Validate pubkey is 32 bytes (compressed Ristretto point)
+    if (owner_pubkey_base64.length < 43 || owner_pubkey_base64.length > 44) {
+      env.panic("Invalid pubkey: must be 32 bytes (44 chars base64)");
+    }
+
+    // Calculate storage required
+    const lockedContentSize = encrypted_content_base64.length;
+    const encryptedScalarSize = encrypted_scalar_base64.length;
+    const c1Size = elgamal_ciphertext_c1_base64.length;
+    const c2Size = elgamal_ciphertext_c2_base64.length;
+    const pubkeySize = owner_pubkey_base64.length;
+    const keyOverhead = 100 * 5; // Approximate key overhead for 5 storage entries
+    const totalStorageBytes = lockedContentSize + encryptedScalarSize + c1Size + c2Size + pubkeySize + keyOverhead;
+
+    // NEAR storage cost: 1 byte = 10^19 yoctoNEAR (0.00001 NEAR per byte)
+    const storageCost = BigInt(totalStorageBytes) * BigInt("10000000000000000000");
+    const attached = env.attached_deposit();
+
+    if (BigInt(attached) < storageCost) {
+      env.panic(
+        `Insufficient storage deposit. Required: ${storageCost} yoctoNEAR (${totalStorageBytes} bytes), ` +
+        `Attached: ${attached} yoctoNEAR`
+      );
+    }
+
+    // Store encrypted content data
+    env.storage_write(`locked-content:${token_id}`, encrypted_content_base64);
+    env.storage_write(`encrypted-scalar:${token_id}`, encrypted_scalar_base64);
+    env.storage_write(`elgamal-ciphertext-c1:${token_id}`, elgamal_ciphertext_c1_base64);
+    env.storage_write(`elgamal-ciphertext-c2:${token_id}`, elgamal_ciphertext_c2_base64);
+    env.storage_write(`owner-pubkey:${token_id}`, owner_pubkey_base64);
+    env.storage_write(`encryption_key:${token_id}`, owner_pubkey_base64);
+  }
+
+  // Return metadata for the NFT
   return JSON.stringify({
     title: `Encrypted NFT #${args.token_id}`,
     description: "NFT with encrypted content",
@@ -101,30 +147,12 @@ export function nft_token() {
 }
 
 /**
- * Register encryption public key for an account
- * The caller registers their own public key
- */
-export function register_encryption_pubkey() {
-  const { pubkey_base64 } = JSON.parse(env.input());
-  const caller = env.signer_account_id();
-
-  // Validate pubkey is 32 bytes (compressed Ristretto point)
-  // 32 bytes in base64 = 44 characters (with padding)
-  // Allow for URL-safe base64 which might not have padding (43 chars minimum)
-  if (pubkey_base64.length < 43 || pubkey_base64.length > 44) {
-    env.panic("Invalid pubkey: must be 32 bytes (44 chars base64)");
-  }
-
-  // Store: account → ristretto public key mapping
-  env.storage_write(`encryption_key:${caller}`, pubkey_base64);
-}
-
-/**
- * Get registered encryption public key for an account
+ * Get registered encryption public key for a token
+ * Returns the owner's public key for the specified token
  */
 export function get_encryption_pubkey() {
-  const { account_id } = JSON.parse(env.input());
-  const pubkey = env.storage_read(`encryption_key:${account_id}`);
+  const { token_id } = JSON.parse(env.input());
+  const pubkey = env.storage_read(`encryption_key:${token_id}`);
 
   if (!pubkey) {
     env.value_return("null");
@@ -134,57 +162,6 @@ export function get_encryption_pubkey() {
   env.value_return(JSON.stringify({ pubkey_base64: pubkey }));
 }
 
-/**
- * Mint NFT with encrypted content
- * Stores the encrypted content and ElGamal ciphertext on-chain
- */
-export function nft_mint_with_encrypted_content() {
-  const caller = env.signer_account_id();
-
-  // Only contract account can mint
-  if (caller !== env.current_account_id()) {
-    env.panic("only contract account can mint");
-  }
-
-  const {
-    token_id,
-    token_owner_id,
-    token_metadata,
-    encrypted_content_base64, // Encrypted with AES-GCM key
-    encrypted_scalar_base64, // 92 bytes: IV + encrypted (secret_scalar + randomness) + tag
-    elgamal_ciphertext_c1_base64, // 32 bytes
-    elgamal_ciphertext_c2_base64, // 32 bytes
-    owner_pubkey_base64, // 32 bytes: owner's Ristretto pubkey
-  } = JSON.parse(env.input());
-
-  // Verify owner has registered encryption key
-  const registered_pubkey = env.storage_read(
-    `encryption_key:${token_owner_id}`,
-  );
-  if (!registered_pubkey) {
-    env.panic(`Owner ${token_owner_id} has not registered encryption key`);
-  }
-
-  if (registered_pubkey !== owner_pubkey_base64) {
-    env.panic("Provided pubkey does not match registered key");
-  }
-
-  // Store encrypted content data
-  env.storage_write(`locked-content:${token_id}`, encrypted_content_base64);
-  env.storage_write(`encrypted-scalar:${token_id}`, encrypted_scalar_base64);
-  env.storage_write(
-    `elgamal-ciphertext-c1:${token_id}`,
-    elgamal_ciphertext_c1_base64,
-  );
-  env.storage_write(
-    `elgamal-ciphertext-c2:${token_id}`,
-    elgamal_ciphertext_c2_base64,
-  );
-  env.storage_write(`owner-pubkey:${token_id}`, owner_pubkey_base64);
-
-  // Return the token metadata for minting
-  return JSON.stringify(token_metadata);
-}
 
 /**
  * Get encrypted content data for an NFT
@@ -218,10 +195,185 @@ export function get_encrypted_content_data() {
 }
 
 /**
- * Get NFT supply for owner
+ * List NFT for sale
+ * Only the current owner can list their token
  */
-export function nft_supply_for_owner() {
-  const { account_id } = JSON.parse(env.input());
-  const count = env.storage_read(`owner_count:${account_id}`) || "0";
-  env.value_return(JSON.stringify({ count }));
+export function list_for_sale() {
+  const { token_id, price } = JSON.parse(env.input());
+  const caller = env.signer_account_id();
+
+  // Verify caller owns the NFT by calling Rust nft_token method
+  const token_json = env.nft_token(token_id);
+  const token = JSON.parse(token_json);
+
+  if (!token) {
+    env.panic("Token does not exist");
+  }
+  if (token.owner_id !== caller) {
+    env.panic("Only owner can list token for sale");
+  }
+
+  // Validate price is positive
+  const price_num = BigInt(price);
+  if (price_num <= 0n) {
+    env.panic("Price must be positive");
+  }
+
+  // Store listing
+  env.storage_write(`listing:${token_id}`, JSON.stringify({ price, seller: caller }));
+
+  env.value_return(JSON.stringify({ success: true }));
+}
+
+/**
+ * Get listing information for a token
+ */
+export function get_listing() {
+  const { token_id } = JSON.parse(env.input());
+  const listing = env.storage_read(`listing:${token_id}`);
+
+  if (!listing) {
+    env.value_return("null");
+    return;
+  }
+
+  env.value_return(listing);
+}
+
+/**
+ * Cancel listing
+ * Only the seller can cancel
+ */
+export function cancel_listing() {
+  const { token_id } = JSON.parse(env.input());
+  const caller = env.signer_account_id();
+
+  const listing_data = env.storage_read(`listing:${token_id}`);
+  if (!listing_data) {
+    env.panic("Token is not listed for sale");
+  }
+
+  const listing = JSON.parse(listing_data);
+  if (listing.seller !== caller) {
+    env.panic("Only seller can cancel listing");
+  }
+
+  // Remove listing
+  env.storage_remove(`listing:${token_id}`);
+
+  env.value_return(JSON.stringify({ success: true }));
+}
+
+/**
+ * Get escrow information for a token
+ */
+export function get_escrow() {
+  const { token_id } = JSON.parse(env.input());
+  const escrow = env.storage_read(`escrow:${token_id}`);
+
+  if (!escrow) {
+    env.value_return("null");
+    return;
+  }
+
+  env.value_return(escrow);
+}
+
+/**
+ * Buy NFT
+ * Buyer provides their public decryption key
+ * Funds are held in escrow until seller completes re-encryption
+ */
+export function buy() {
+  const { token_id, buyer_pubkey_base64 } = JSON.parse(env.input());
+  const caller = env.signer_account_id();
+
+  // Validate buyer pubkey
+  if (buyer_pubkey_base64.length < 43 || buyer_pubkey_base64.length > 44) {
+    env.panic("Invalid buyer pubkey: must be 32 bytes (44 chars base64)");
+  }
+
+  // Check listing exists
+  const listing_data = env.storage_read(`listing:${token_id}`);
+  if (!listing_data) {
+    env.panic("Token is not listed for sale");
+  }
+
+  const listing = JSON.parse(listing_data);
+
+  // Verify attached deposit matches price
+  const attached = env.attached_deposit();
+  if (attached !== listing.price) {
+    env.panic(`Must attach exactly ${listing.price} yoctoNEAR`);
+  }
+
+  // Create escrow record
+  const escrow = {
+    buyer: caller,
+    seller: listing.seller,
+    price: listing.price,
+    buyer_pubkey: buyer_pubkey_base64,
+  };
+  env.storage_write(`escrow:${token_id}`, JSON.stringify(escrow));
+
+  // Remove listing
+  env.storage_remove(`listing:${token_id}`);
+
+  env.value_return(JSON.stringify({ success: true, message: "Funds in escrow. Seller must complete re-encryption." }));
+}
+
+/**
+ * Complete sale by re-encrypting content for the new buyer
+ * Seller provides re-encrypted data and proof
+ * Funds are released from escrow to seller
+ */
+export function complete_sale() {
+  const {
+    token_id,
+    encrypted_content_base64,
+    encrypted_scalar_base64,
+    elgamal_ciphertext_c1_base64,
+    elgamal_ciphertext_c2_base64,
+    buyer_pubkey_base64,
+  } = JSON.parse(env.input());
+
+  const caller = env.signer_account_id();
+
+  // Get escrow record
+  const escrow_data = env.storage_read(`escrow:${token_id}`);
+  if (!escrow_data) {
+    env.panic("No pending sale for this token");
+  }
+
+  const escrow = JSON.parse(escrow_data);
+
+  // Verify caller is the seller
+  if (caller !== escrow.seller) {
+    env.panic("Only seller can complete the sale");
+  }
+
+  // Verify buyer pubkey matches
+  if (buyer_pubkey_base64 !== escrow.buyer_pubkey) {
+    env.panic("Buyer pubkey does not match escrow record");
+  }
+
+  // Store new encrypted content
+  env.storage_write(`locked-content:${token_id}`, encrypted_content_base64);
+  env.storage_write(`encrypted-scalar:${token_id}`, encrypted_scalar_base64);
+  env.storage_write(`elgamal-ciphertext-c1:${token_id}`, elgamal_ciphertext_c1_base64);
+  env.storage_write(`elgamal-ciphertext-c2:${token_id}`, elgamal_ciphertext_c2_base64);
+  env.storage_write(`owner-pubkey:${token_id}`, buyer_pubkey_base64);
+  env.storage_write(`encryption_key:${token_id}`, buyer_pubkey_base64);
+
+  // Transfer NFT ownership from seller to buyer
+  env.internal_transfer_unguarded(token_id, escrow.seller, escrow.buyer);
+
+  // Release funds to seller
+  env.promise_batch_create(escrow.seller);
+  env.promise_batch_action_transfer(0, escrow.price);
+
+  // Remove escrow
+  env.storage_remove(`escrow:${token_id}`);
+
+  env.value_return(JSON.stringify({ success: true }));
 }

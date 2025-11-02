@@ -208,6 +208,22 @@ impl Contract {
             13,
         );
 
+        // NFT transfer function for marketplace
+        add_function_to_js(
+            "internal_transfer_unguarded",
+            |ctx: i32, _this_val: i64, _argc: i32, argv: i32| -> i64 {
+                let token_id = arg_to_str(ctx, 0, argv).to_string();
+                let from = arg_to_str(ctx, 1, argv).parse().unwrap();
+                let to = arg_to_str(ctx, 2, argv).parse().unwrap();
+
+                let contract = CONTRACT_REF as *mut Contract;
+                (*contract).tokens.internal_transfer_unguarded(&token_id, &from, &to);
+
+                1i64 // Return success
+            },
+            3,
+        );
+
         // Storage functions for encrypted content (with ENC_ prefix for isolation)
         add_function_to_js(
             "storage_read",
@@ -267,7 +283,20 @@ impl Contract {
         env::storage_write(JS_BYTECODE_STORAGE_KEY, &bytecode);
     }
 
+    /// Call a JavaScript function (view-only, cannot modify storage)
     pub fn call_js_func(&self, function_name: String) {
+        let jsmod = self.load_js_bytecode();
+
+        unsafe {
+            self.add_js_functions();
+            let function_name_cstr = CString::new(function_name).unwrap();
+            js_call_function(jsmod, function_name_cstr.as_ptr() as i32);
+        }
+    }
+
+    /// Call a JavaScript function that can modify storage
+    #[payable]
+    pub fn call_js_func_mut(&mut self, function_name: String) {
         let jsmod = self.load_js_bytecode();
 
         unsafe {

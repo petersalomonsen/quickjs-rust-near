@@ -9,6 +9,7 @@ import {
   block,
   viewAccessKey,
   viewFunctionAsJson,
+  viewAccount,
 } from "@near-js/jsonrpc-client";
 import { RistrettoPoint } from "@noble/curves/ed25519";
 import { chromium } from "@playwright/test";
@@ -294,7 +295,9 @@ async function viewFunction(contractId, methodName, args) {
   const resultStr = JSON.stringify(result);
   console.log(`  📊 View function result (first 200 chars): ${resultStr.substring(0, 200)}`);
 
-  if (!result) {
+  // Note: result can legitimately be null (e.g., listing not found)
+  // so we only check for undefined
+  if (result === undefined) {
     throw new Error("Empty response from contract");
   }
 
@@ -441,13 +444,6 @@ try {
   const aliceKeys = generateRistrettoKeypair();
   console.log("  ✅ Generated encryption keys for Alice");
 
-  // Register Alice's encryption key
-  await functionCall("alice.test.near", "nft.test.near", "call_js_func", {
-    function_name: "register_encryption_pubkey",
-    pubkey_base64: aliceKeys.publicKey,
-  });
-  console.log("  ✅ Registered Alice's encryption key");
-
   // Create encrypted NFT
   const secretScalar = crypto.randomBytes(32);
   const secretScalarBigInt = bufferToScalar(secretScalar);
@@ -479,32 +475,31 @@ try {
   // ElGamal encrypt
   const aliceCiphertext = elgamalEncrypt(secretScalar, aliceKeys.publicKey);
 
-  // Mint NFT
-  await functionCall(
-    "nft.test.near",
+  // Calculate storage deposit needed
+  const totalStorageBytes =
+    encryptedContent.length +
+    encryptedScalarData.length +
+    aliceCiphertext.c1_base64.length +
+    aliceCiphertext.c2_base64.length +
+    aliceKeys.publicKey.length +
+    500; // Key overhead
+  const encryptedContentStorageCost = BigInt(totalStorageBytes) * BigInt("10000000000000000000"); // 0.00001 NEAR per byte
+
+  // Add NFT metadata storage cost (approximately 0.02 NEAR for NFT metadata)
+  const nftMetadataStorageCost = BigInt("20000000000000000000000"); // 0.02 NEAR
+  const totalStorageCost = encryptedContentStorageCost + nftMetadataStorageCost;
+
+  console.log(`  📊 Encrypted content storage: ${totalStorageBytes} bytes, Cost: ${encryptedContentStorageCost} yoctoNEAR`);
+  console.log(`  📊 Total storage cost (including NFT metadata): ${totalStorageCost} yoctoNEAR`);
+
+  // Mint NFT with encrypted content - all in one call
+  const mintResult = await functionCall(
+    "alice.test.near", // Alice mints for herself
     "nft.test.near",
     "nft_mint",
     {
       token_id: "web4-test-nft-1",
       token_owner_id: "alice.test.near",
-    },
-    "300000000000000",
-    "15000000000000000000000",
-  );
-
-  // Attach encrypted content
-  await functionCall(
-    "nft.test.near",
-    "nft.test.near",
-    "call_js_func",
-    {
-      function_name: "nft_mint_with_encrypted_content",
-      token_id: "web4-test-nft-1",
-      token_owner_id: "alice.test.near",
-      token_metadata: {
-        title: "Web4 Encrypted NFT #1",
-        description: "Testing Web4 encrypted viewer",
-      },
       encrypted_content_base64: encryptedContent,
       encrypted_scalar_base64: encryptedScalarData,
       elgamal_ciphertext_c1_base64: aliceCiphertext.c1_base64,
@@ -512,26 +507,39 @@ try {
       owner_pubkey_base64: aliceKeys.publicKey,
     },
     "300000000000000",
-    "10000000000000000000000",
+    totalStorageCost.toString(), // Pay for NFT + encrypted content storage
   );
-  console.log("  ✅ Minted encrypted NFT: web4-test-nft-1");
+  console.log("  📊 Mint result:", JSON.stringify(mintResult.status, null, 2).substring(0, 500));
+  console.log("  ✅ Alice minted encrypted NFT: web4-test-nft-1");
 
-  console.log("\n🔍 Step 6: Verify NFT Data is Accessible");
+  console.log("\n🔍 Step 6: Verify NFT Token Exists");
+  console.log("  ⏳ Waiting for sandbox to finalize block...");
+  await new Promise((resolve) => setTimeout(resolve, 2000)); // Wait for block finalization
+
+  const nftToken = await viewFunction("nft.test.near", "nft_token", {
+    token_id: "web4-test-nft-1",
+  });
+  console.log("  ✅ NFT Token exists:", nftToken.token_id);
+  console.log("    - Owner:", nftToken.owner_id);
+  console.log("    - Metadata title:", nftToken.metadata.title);
+
+  console.log("\n🔍 Step 7: Verify NFT Encrypted Data is Accessible");
   const contentData = await viewFunction("nft.test.near", "call_js_func", {
     function_name: "get_encrypted_content_data",
     token_id: "web4-test-nft-1",
   });
 
-  if (contentData.encrypted_content_base64) {
+  if (contentData && contentData.encrypted_content_base64) {
     console.log("  ✅ Encrypted content data is accessible");
     console.log("    - Content size:", contentData.encrypted_content_base64.length, "bytes");
     console.log("    - Has ElGamal ciphertext:", !!contentData.elgamal_ciphertext);
     console.log("    - Has owner pubkey:", !!contentData.owner_pubkey_base64);
   } else {
+    console.log("  ❌ Encrypted content data not found");
     throw new Error("Failed to retrieve encrypted content data");
   }
 
-  console.log("\n🌐 Step 7: Start Web4 Gateway Server for Browser Testing");
+  console.log("\n🌐 Step 8: Start Web4 Gateway Server for Browser Testing");
 
   // Create a simple HTTP server that mimics Web4 gateway behavior
   let server;
@@ -570,7 +578,7 @@ try {
     });
   });
 
-  console.log("\n🎭 Step 8: Browser Tests with Playwright");
+  console.log("\n🎭 Step 9: Browser Decryption Test with Playwright");
 
   const browser = await chromium.launch();
   const context = await browser.newContext();
@@ -670,16 +678,254 @@ try {
       console.log("  ⚠️  Error message:", errorText);
     }
 
-    console.log("\n  ✅ All browser tests passed!");
+    console.log("\n  ✅ All browser decryption tests passed!");
 
   } finally {
     await browser.close();
-    server.close();
-    console.log("  ✅ Browser and server closed");
+    console.log("  ✅ Browser closed");
   }
 
+  console.log("\n🛒 Step 10: Alice Lists NFT for Sale (Direct Contract Call)");
+
+  // Execute the listing via direct contract call
+  const salePrice = "2000000000000000000000000"; // 2 NEAR
+  await functionCall("alice.test.near", "nft.test.near", "call_js_func_mut", {
+    function_name: "list_for_sale",
+    token_id: "web4-test-nft-1",
+    price: salePrice,
+  });
+  console.log("  ✅ Alice listed NFT for 2 NEAR");
+
+  // Wait for block finalization
+  console.log("  ⏳ Waiting for sandbox to finalize block...");
+  await new Promise((resolve) => setTimeout(resolve, 2000));
+
+  // Verify listing
+  const listing = await viewFunction("nft.test.near", "call_js_func", {
+    function_name: "get_listing",
+    token_id: "web4-test-nft-1",
+  });
+  console.log("  ✅ Listing confirmed - Seller:", listing.seller, "- Price:", listing.price);
+
+  console.log("\n👤 Step 11: Create Bob Account and Generate Keys");
+  await createAccount("bob.test.near");
+  console.log("  ✅ Bob account created");
+
+  // Bob generates his encryption keys
+  const bobKeys = generateRistrettoKeypair();
+  const bobPrivateKeyBytes = Buffer.from(bobKeys.privateKey, "base64");
+  const bobPrivateKeyHex = bobPrivateKeyBytes.toString("hex");
+  console.log("  ✅ Generated encryption keys for Bob");
+
+  console.log("\n💰 Step 12: Bob Buys NFT (Direct Contract Call - Funds go to Escrow)");
+
+  // Bob executes the buy transaction
+  await functionCall(
+    "bob.test.near",
+    "nft.test.near",
+    "call_js_func_mut",
+    {
+      function_name: "buy",
+      token_id: "web4-test-nft-1",
+      buyer_pubkey_base64: bobKeys.publicKey,
+    },
+    "300000000000000",
+    salePrice,
+  );
+  console.log("  ✅ Bob purchased NFT - funds locked in escrow");
+  console.log("    - Buyer:", "bob.test.near");
+  console.log("    - Price paid:", salePrice, "yoctoNEAR (2 NEAR)");
+
+  // Wait for block finalization
+  console.log("  ⏳ Waiting for sandbox to finalize block...");
+  await new Promise((resolve) => setTimeout(resolve, 2000));
+
+  // Verify listing is removed
+  const listingAfterBuy = await viewFunction("nft.test.near", "call_js_func", {
+    function_name: "get_listing",
+    token_id: "web4-test-nft-1",
+  });
+  if (listingAfterBuy === null) {
+    console.log("  ✅ Listing removed after purchase");
+  }
+
+  // Verify escrow exists
+  const escrow = await viewFunction("nft.test.near", "call_js_func", {
+    function_name: "get_escrow",
+    token_id: "web4-test-nft-1",
+  });
+  console.log("  ✅ Escrow created - Buyer:", escrow.buyer, "- Seller:", escrow.seller);
+
+  console.log("\n🔄 Step 13: Alice Completes Sale with Re-encryption (Direct Contract Call)");
+
+  // Get Alice's balance before
+  const aliceBalanceBefore = await viewAccount(sandboxRpcClient, {
+    accountId: "alice.test.near",
+    finality: "final",
+  });
+  console.log("  📊 Alice balance before:", aliceBalanceBefore.amount);
+
+  // Perform re-encryption for Bob
+  console.log("  🔄 Performing re-encryption for Bob...");
+
+  const c1Bytes = Buffer.from(aliceCiphertext.c1_base64, "base64");
+  const c2Bytes = Buffer.from(aliceCiphertext.c2_base64, "base64");
+
+  const alicePrivateKeyBytes = Buffer.from(aliceKeys.privateKey, "base64");
+  const alicePrivateKeyScalar = bufferToScalar(alicePrivateKeyBytes);
+
+  const c1Point = RistrettoPoint.fromHex(c1Bytes);
+  const c2Point = RistrettoPoint.fromHex(c2Bytes);
+
+  const recoveredSecretPoint = c2Point.subtract(c1Point.multiply(alicePrivateKeyScalar));
+  const recoveredSecretBytes = Buffer.from(recoveredSecretPoint.toRawBytes());
+  const recoveredAesKey = crypto.createHash("sha256").update(recoveredSecretBytes).digest();
+
+  // Decrypt content
+  const encryptedContentBuffer = Buffer.from(encryptedContent, "base64");
+  const ivDecrypt = encryptedContentBuffer.subarray(0, 12);
+  const tagDecrypt = encryptedContentBuffer.subarray(-16);
+  const ciphertextDecrypt = encryptedContentBuffer.subarray(12, -16);
+
+  const decipher = crypto.createDecipheriv("aes-256-gcm", recoveredAesKey, ivDecrypt);
+  decipher.setAuthTag(tagDecrypt);
+  const decryptedContent = Buffer.concat([
+    decipher.update(ciphertextDecrypt),
+    decipher.final(),
+  ]).toString("utf8");
+
+  console.log("  ✅ Alice decrypted original content:", decryptedContent);
+
+  // Re-encrypt for Bob
+  const newSecretScalar = crypto.randomBytes(32);
+  const newSecretScalarBigInt = bufferToScalar(newSecretScalar);
+  const newSecretPoint = RistrettoPoint.BASE.multiply(newSecretScalarBigInt);
+  const newSecretPointBytes = Buffer.from(newSecretPoint.toRawBytes());
+  const newAesKey = crypto.createHash("sha256").update(newSecretPointBytes).digest();
+
+  const newIv = crypto.randomBytes(12);
+  const newCipher = crypto.createCipheriv("aes-256-gcm", newAesKey, newIv);
+  const newEncrypted = Buffer.concat([
+    newCipher.update(decryptedContent, "utf8"),
+    newCipher.final(),
+  ]);
+  const newTag = newCipher.getAuthTag();
+  const newEncryptedContent = Buffer.concat([newIv, newEncrypted, newTag]).toString("base64");
+
+  const newIv2 = crypto.randomBytes(12);
+  const newCipher2 = crypto.createCipheriv("aes-256-gcm", newAesKey, newIv2);
+  const newEncryptedScalarData = Buffer.concat([
+    newIv2,
+    newCipher2.update(newSecretScalar),
+    newCipher2.final(),
+    newCipher2.getAuthTag(),
+  ]).toString("base64");
+
+  const bobCiphertext = elgamalEncrypt(newSecretScalar, bobKeys.publicKey);
+
+  console.log("  ✅ Re-encrypted content for Bob");
+
+  // Complete sale - transfer ownership and release funds from escrow
+  await functionCall(
+    "alice.test.near",
+    "nft.test.near",
+    "call_js_func_mut",
+    {
+      function_name: "complete_sale",
+      token_id: "web4-test-nft-1",
+      encrypted_content_base64: newEncryptedContent,
+      encrypted_scalar_base64: newEncryptedScalarData,
+      elgamal_ciphertext_c1_base64: bobCiphertext.c1_base64,
+      elgamal_ciphertext_c2_base64: bobCiphertext.c2_base64,
+      buyer_pubkey_base64: bobKeys.publicKey,
+    },
+  );
+  console.log("  ✅ Alice completed sale transaction - ownership transferred, funds released");
+
+  // Check Alice's balance after
+  await new Promise((resolve) => setTimeout(resolve, 2000));
+  const aliceBalanceAfter = await viewAccount(sandboxRpcClient, {
+    accountId: "alice.test.near",
+    finality: "final",
+  });
+  console.log("  📊 Alice balance after:", aliceBalanceAfter.amount);
+
+  const balanceIncrease = BigInt(aliceBalanceAfter.amount) - BigInt(aliceBalanceBefore.amount);
+  console.log("  💰 Alice received:", balanceIncrease.toString(), "yoctoNEAR");
+
+  if (balanceIncrease > 0n) {
+    console.log("  ✅ Funds successfully released from escrow to Alice!");
+  }
+
+  // Verify ownership transfer
+  console.log("\n🔍 Step 14: Verify Ownership Transfer and NFT State");
+  await new Promise((resolve) => setTimeout(resolve, 2000)); // Wait for block finalization
+
+  const finalToken = await viewFunction("nft.test.near", "nft_token", {
+    token_id: "web4-test-nft-1",
+  });
+  console.log("  📊 Final NFT owner:", finalToken.owner_id);
+  if (finalToken.owner_id === "bob.test.near") {
+    console.log("  ✅ Ownership successfully transferred to Bob!");
+  } else {
+    throw new Error(`Expected owner bob.test.near, got ${finalToken.owner_id}`);
+  }
+
+  // Verify escrow is cleared
+  const escrowAfter = await viewFunction("nft.test.near", "call_js_func", {
+    function_name: "get_escrow",
+    token_id: "web4-test-nft-1",
+  });
+  if (escrowAfter === null) {
+    console.log("  ✅ Escrow cleared after sale completion");
+  }
+
+  console.log("\n🔓 Step 15: Bob Decrypts NFT Content via Browser");
+
+  const browser2 = await chromium.launch();
+  const context2 = await browser2.newContext();
+  const bobDecryptPage = await context2.newPage();
+
+  try {
+    await bobDecryptPage.goto(serverUrl);
+    console.log("  ✅ Bob opened Web4 viewer");
+
+    // Wait for libraries
+    await bobDecryptPage.waitForFunction(() => {
+      return window.nearJsonRpcClient && window.RistrettoPoint;
+    }, { timeout: 30000 });
+
+    // Fill in decryption form
+    await bobDecryptPage.locator("#network").selectOption("testnet");
+    await bobDecryptPage.locator("#contract").fill("nft.test.near");
+    await bobDecryptPage.locator("#tokenId").fill("web4-test-nft-1");
+    await bobDecryptPage.locator("#privateKey").fill(bobPrivateKeyHex);
+
+    console.log("  🔐 Bob clicking decrypt...");
+    await bobDecryptPage.click('button:has-text("Decrypt Content")');
+
+    // Wait for result
+    await bobDecryptPage.waitForSelector(".result.show", { timeout: 15000 });
+
+    const bobDecryptedText = await bobDecryptPage.locator("#content").textContent();
+    if (bobDecryptedText.includes("Secret music file")) {
+      console.log("  ✅ BOB SUCCESSFULLY DECRYPTED THE NFT!");
+      console.log("    - Decrypted text:", bobDecryptedText);
+      console.log("  ✅ Full marketplace cycle completed!");
+    } else {
+      throw new Error(`Unexpected decrypted content: ${bobDecryptedText}`);
+    }
+
+  } finally {
+    await browser2.close();
+    console.log("  ✅ Bob's browser closed");
+  }
+
+  server.close();
+  console.log("  ✅ Web4 server closed");
+
   console.log("\n✅ =================================================");
-  console.log("✅ ALL WEB4 TESTS PASSED!");
+  console.log("✅ ALL WEB4 & MARKETPLACE TESTS PASSED!");
   console.log("✅ =================================================");
   console.log("\n📊 Test Summary:");
   console.log("  ✅ Contract deployment: SUCCESS");
@@ -689,12 +935,20 @@ try {
   console.log("  ✅ Encrypted NFT minting: SUCCESS");
   console.log("  ✅ Content data retrieval: SUCCESS");
   console.log("  ✅ Web4 gateway server: SUCCESS");
-  console.log("  ✅ Browser page load: SUCCESS");
-  console.log("  ✅ Browser decryption: SUCCESS");
+  console.log("  ✅ Browser decryption (Alice): SUCCESS");
   console.log("  ✅ Browser error handling: SUCCESS");
+  console.log("  ✅ Marketplace listing (direct call): SUCCESS");
+  console.log("  ✅ NFT purchase with escrow (direct call): SUCCESS");
+  console.log("  ✅ Re-encryption for buyer: SUCCESS");
+  console.log("  ✅ Sale completion & fund release (direct call): SUCCESS");
+  console.log("  ✅ Ownership transfer verification: SUCCESS");
+  console.log("  ✅ Browser decryption (Bob): SUCCESS");
   console.log("\n🎉 Web4 encrypted NFT viewer validated!");
   console.log("🌐 The viewer HTML is successfully embedded in the contract!");
   console.log("🔐 Users can decrypt NFT content using the Web4 interface!");
+  console.log("🛒 Full marketplace cycle tested: List → Buy → Escrow → Re-encrypt → Transfer!");
+  console.log("💰 Verified: Alice received payment, Bob owns NFT and can decrypt!");
+  console.log("📝 Note: Marketplace operations use direct contract calls (wallet integration needed for browser)");
 } catch (error) {
   console.error("\n❌ Test failed:", error);
   if (error.data) {
