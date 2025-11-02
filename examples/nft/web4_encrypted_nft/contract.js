@@ -280,6 +280,35 @@ export function get_escrow() {
 }
 
 /**
+ * Cancel purchase
+ * Only the buyer can cancel and get their funds back from escrow
+ */
+export function cancel_purchase() {
+  const { token_id } = JSON.parse(env.input());
+  const caller = env.signer_account_id();
+
+  const escrow_data = env.storage_read(`escrow:${token_id}`);
+  if (!escrow_data) {
+    env.panic("No pending purchase for this token");
+  }
+
+  const escrow = JSON.parse(escrow_data);
+
+  // Verify caller is the buyer
+  if (caller !== escrow.buyer) {
+    env.panic("Only buyer can cancel the purchase");
+  }
+
+  // Return funds to buyer
+  env.transfer(escrow.buyer, escrow.price);
+
+  // Remove escrow
+  env.storage_remove(`escrow:${token_id}`);
+
+  env.value_return(JSON.stringify({ success: true, message: "Purchase cancelled, funds returned" }));
+}
+
+/**
  * Buy NFT
  * Buyer provides their public decryption key
  * Funds are held in escrow until seller completes re-encryption
