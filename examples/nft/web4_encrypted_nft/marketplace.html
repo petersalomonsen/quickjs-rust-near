@@ -1,0 +1,1289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Encrypted NFT Marketplace</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: white;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 32px;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .tab:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .tab.active {
+            background: white;
+            color: #667eea;
+        }
+
+        .panel {
+            display: none;
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        .panel.active {
+            display: block;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 24px;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            color: #555;
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s;
+            font-family: monospace;
+        }
+
+        textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+            width: 100%;
+        }
+
+        .file-input-wrapper input[type=file] {
+            position: absolute;
+            left: -9999px;
+        }
+
+        .file-input-label {
+            display: block;
+            padding: 12px 16px;
+            background: #f8f9fa;
+            border: 2px dashed #e0e0e0;
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .file-input-label:hover {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+
+        .file-name {
+            margin-top: 8px;
+            font-size: 13px;
+            color: #666;
+        }
+
+        button {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-top: 10px;
+        }
+
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        button:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .info-box {
+            background: #e8f4ff;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #2196F3;
+            font-size: 13px;
+            color: #555;
+        }
+
+        .warning-box {
+            background: #fff3cd;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #ffc107;
+            font-size: 13px;
+            color: #856404;
+        }
+
+        .result {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            border-left: 4px solid #667eea;
+            display: none;
+        }
+
+        .result.show {
+            display: block;
+        }
+
+        .result h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+
+        .result-content {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            color: #333;
+            word-wrap: break-word;
+            line-height: 1.6;
+            font-size: 14px;
+        }
+
+        .result-content code {
+            background: #f0f0f0;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+
+        .error {
+            color: #e74c3c;
+            background: #ffe5e5;
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 15px;
+            font-size: 14px;
+            display: none;
+        }
+
+        .error.show {
+            display: block;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            margin-top: 20px;
+            color: #667eea;
+            font-weight: 600;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .split-inputs {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Encrypted NFT Marketplace</h1>
+
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('mint')">Mint NFT</button>
+            <button class="tab" onclick="switchTab('list')">List for Sale</button>
+            <button class="tab" onclick="switchTab('buy')">Buy NFT</button>
+            <button class="tab" onclick="switchTab('complete')">Complete Sale</button>
+        </div>
+
+        <!-- Mint Panel -->
+        <div id="mint-panel" class="panel active">
+            <h2>Mint Encrypted NFT</h2>
+
+            <div class="info-box">
+                Mint a new encrypted NFT. Content is encrypted client-side before being sent to the blockchain.
+            </div>
+
+            <div class="input-group">
+                <label for="mint-network">Network</label>
+                <select id="mint-network">
+                    <option value="testnet">Testnet</option>
+                    <option value="mainnet">Mainnet</option>
+                </select>
+            </div>
+
+            <div class="input-group">
+                <label for="mint-contract">Contract Address</label>
+                <input type="text" id="mint-contract" value="wasmmusic.testnet" placeholder="example.testnet">
+            </div>
+
+            <div class="input-group">
+                <label for="mint-owner">Owner Account ID</label>
+                <input type="text" id="mint-owner" placeholder="yourname.testnet">
+            </div>
+
+            <div class="input-group">
+                <label for="mint-private-key">Private Key (hex) for Encryption</label>
+                <input type="password" id="mint-private-key" placeholder="64 character hex string">
+            </div>
+
+            <div class="input-group">
+                <label for="mint-signer-key">Transaction Signer Key (ed25519:...)</label>
+                <input type="password" id="mint-signer-key" placeholder="ed25519:...">
+            </div>
+
+            <div class="input-group">
+                <label for="mint-token-id">Token ID</label>
+                <input type="text" id="mint-token-id" placeholder="my_nft_1">
+            </div>
+
+            <div class="input-group">
+                <label>Content Type</label>
+                <select id="mint-content-type" onchange="toggleMintContentInput()">
+                    <option value="text">Text</option>
+                    <option value="file">File (WASM, Image, etc.)</option>
+                </select>
+            </div>
+
+            <div class="input-group" id="mint-text-group">
+                <label for="mint-content-text">Content (Text)</label>
+                <textarea id="mint-content-text" placeholder="Enter your secret content here..."></textarea>
+            </div>
+
+            <div class="input-group" id="mint-file-group" style="display: none;">
+                <label>Content (File)</label>
+                <div class="file-input-wrapper">
+                    <input type="file" id="mint-content-file" onchange="handleMintFileSelect(event)">
+                    <label for="mint-content-file" class="file-input-label">
+                        Click to select file
+                    </label>
+                </div>
+                <div class="file-name" id="mint-file-name"></div>
+            </div>
+
+            <div class="input-group">
+                <label for="mint-deposit">Storage Deposit (NEAR)</label>
+                <input type="text" id="mint-deposit" placeholder="Will be calculated automatically">
+            </div>
+
+            <button onclick="mintNFT()">Mint NFT</button>
+
+            <div class="loading" id="mint-loading">
+                <div class="spinner"></div>
+                <p>Minting NFT...</p>
+            </div>
+
+            <div class="error" id="mint-error"></div>
+            <div class="result" id="mint-result">
+                <h3>NFT Minted Successfully!</h3>
+                <div class="result-content" id="mint-result-content"></div>
+            </div>
+        </div>
+
+        <!-- List Panel -->
+        <div id="list-panel" class="panel">
+            <h2>List NFT for Sale</h2>
+
+            <div class="info-box">
+                List your encrypted NFT for sale at a specified price.
+            </div>
+
+            <div class="input-group">
+                <label for="list-network">Network</label>
+                <select id="list-network">
+                    <option value="testnet">Testnet</option>
+                    <option value="mainnet">Mainnet</option>
+                </select>
+            </div>
+
+            <div class="input-group">
+                <label for="list-contract">Contract Address</label>
+                <input type="text" id="list-contract" value="wasmmusic.testnet">
+            </div>
+
+            <div class="input-group">
+                <label for="list-seller">Seller Account ID</label>
+                <input type="text" id="list-seller" placeholder="yourname.testnet">
+            </div>
+
+            <div class="input-group">
+                <label for="list-signer-key">Transaction Signer Key (ed25519:...)</label>
+                <input type="password" id="list-signer-key" placeholder="ed25519:...">
+            </div>
+
+            <div class="input-group">
+                <label for="list-token-id">Token ID</label>
+                <input type="text" id="list-token-id" placeholder="my_nft_1">
+            </div>
+
+            <div class="input-group">
+                <label for="list-price">Price (NEAR)</label>
+                <input type="text" id="list-price" placeholder="2.5">
+            </div>
+
+            <button onclick="listForSale()">List for Sale</button>
+
+            <div class="loading" id="list-loading">
+                <div class="spinner"></div>
+                <p>Listing NFT...</p>
+            </div>
+
+            <div class="error" id="list-error"></div>
+            <div class="result" id="list-result">
+                <h3>NFT Listed Successfully!</h3>
+                <div class="result-content" id="list-result-content"></div>
+            </div>
+        </div>
+
+        <!-- Buy Panel -->
+        <div id="buy-panel" class="panel">
+            <h2>Buy NFT</h2>
+
+            <div class="info-box">
+                Purchase a listed NFT. Payment goes into escrow until the seller completes re-encryption.
+            </div>
+
+            <div class="input-group">
+                <label for="buy-network">Network</label>
+                <select id="buy-network">
+                    <option value="testnet">Testnet</option>
+                    <option value="mainnet">Mainnet</option>
+                </select>
+            </div>
+
+            <div class="input-group">
+                <label for="buy-contract">Contract Address</label>
+                <input type="text" id="buy-contract" value="wasmmusic.testnet">
+            </div>
+
+            <div class="input-group">
+                <label for="buy-buyer">Buyer Account ID</label>
+                <input type="text" id="buy-buyer" placeholder="buyer.testnet">
+            </div>
+
+            <div class="input-group">
+                <label for="buy-signer-key">Transaction Signer Key (ed25519:...)</label>
+                <input type="password" id="buy-signer-key" placeholder="ed25519:...">
+            </div>
+
+            <div class="input-group">
+                <label for="buy-buyer-pubkey">Buyer's Ristretto Public Key (base64)</label>
+                <input type="text" id="buy-buyer-pubkey" placeholder="Your public key from keypair file">
+            </div>
+
+            <div class="input-group">
+                <label for="buy-token-id">Token ID</label>
+                <input type="text" id="buy-token-id" placeholder="my_nft_1">
+            </div>
+
+            <button onclick="buyNFT()">Buy NFT</button>
+
+            <div class="loading" id="buy-loading">
+                <div class="spinner"></div>
+                <p>Purchasing NFT...</p>
+            </div>
+
+            <div class="error" id="buy-error"></div>
+            <div class="result" id="buy-result">
+                <h3>Purchase Initiated!</h3>
+                <div class="result-content" id="buy-result-content"></div>
+            </div>
+        </div>
+
+        <!-- Complete Sale Panel -->
+        <div id="complete-panel" class="panel">
+            <h2>Complete Sale (Re-encryption)</h2>
+
+            <div class="warning-box">
+                <strong>Seller Only:</strong> Complete the sale by re-encrypting the content for the buyer. This will release the escrow funds to you.
+            </div>
+
+            <div class="input-group">
+                <label for="complete-network">Network</label>
+                <select id="complete-network">
+                    <option value="testnet">Testnet</option>
+                    <option value="mainnet">Mainnet</option>
+                </select>
+            </div>
+
+            <div class="input-group">
+                <label for="complete-contract">Contract Address</label>
+                <input type="text" id="complete-contract" value="wasmmusic.testnet">
+            </div>
+
+            <div class="input-group">
+                <label for="complete-seller">Seller Account ID</label>
+                <input type="text" id="complete-seller" placeholder="yourname.testnet">
+            </div>
+
+            <div class="input-group">
+                <label for="complete-signer-key">Transaction Signer Key (ed25519:...)</label>
+                <input type="password" id="complete-signer-key" placeholder="ed25519:...">
+            </div>
+
+            <div class="input-group">
+                <label for="complete-seller-private-key">Seller's Ristretto Private Key (hex)</label>
+                <input type="password" id="complete-seller-private-key" placeholder="64 character hex string">
+            </div>
+
+            <div class="input-group">
+                <label for="complete-token-id">Token ID</label>
+                <input type="text" id="complete-token-id" placeholder="my_nft_1">
+            </div>
+
+            <button onclick="completeSale()">Complete Sale</button>
+
+            <div class="loading" id="complete-loading">
+                <div class="spinner"></div>
+                <p>Generating re-encryption proof...</p>
+            </div>
+
+            <div class="error" id="complete-error"></div>
+            <div class="result" id="complete-result">
+                <h3>Sale Completed!</h3>
+                <div class="result-content" id="complete-result-content"></div>
+            </div>
+        </div>
+    </div>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "@noble/curves/ed25519": "https://esm.sh/@noble/curves@1.3.0/ed25519",
+            "near-api-js": "https://esm.sh/near-api-js@5.0.1",
+            "@near-js/jsonrpc-client": "https://esm.sh/@near-js/jsonrpc-client@1.4.0",
+            "@near-js/types": "https://esm.sh/@near-js/types@0.3.0",
+            "@near-js/utils": "https://esm.sh/@near-js/utils@0.3.0",
+            "@near-js/crypto": "https://esm.sh/@near-js/crypto@1.4.0",
+            "@near-js/transactions": "https://esm.sh/@near-js/transactions@1.3.0"
+        }
+    }
+    </script>
+
+    <script type="module">
+        import { RistrettoPoint } from '@noble/curves/ed25519';
+        import { KeyPair, transactions, utils } from 'near-api-js';
+        import { NearRpcClient, broadcastTxCommit, viewAccessKey, viewFunctionAsJson } from '@near-js/jsonrpc-client';
+
+        // Make available globally
+        window.RistrettoPoint = RistrettoPoint;
+        window.nearApi = { KeyPair, transactions, utils };
+        window.nearRpc = { NearRpcClient, broadcastTxCommit, viewAccessKey, viewFunctionAsJson };
+
+        console.log('✅ Libraries loaded successfully');
+    </script>
+
+    <script>
+        const CURVE_ORDER = 2n ** 252n + 27742317777372353535851937790883648493n;
+
+        // ============================================================================
+        // Helper Functions
+        // ============================================================================
+
+        function getRpcUrl(network) {
+            return network === 'mainnet'
+                ? 'https://rpc.mainnet.fastnear.com'
+                : 'https://rpc.testnet.fastnear.com';
+        }
+
+        function bufferToScalar(buffer) {
+            let value = 0n;
+            for (let i = buffer.length - 1; i >= 0; i--) {
+                value = (value << 8n) | BigInt(buffer[i]);
+            }
+            value = value % CURVE_ORDER;
+            return value === 0n ? 1n : value;
+        }
+
+        function scalarToBuffer(scalar) {
+            const buffer = new Uint8Array(32);
+            let value = scalar;
+            for (let i = 0; i < 32; i++) {
+                buffer[i] = Number(value & 0xFFn);
+                value = value >> 8n;
+            }
+            return buffer;
+        }
+
+        function hexToBytes(hex) {
+            const bytes = new Uint8Array(hex.length / 2);
+            for (let i = 0; i < hex.length; i += 2) {
+                bytes[i / 2] = parseInt(hex.substr(i, 2), 16);
+            }
+            return bytes;
+        }
+
+        function base64ToBytes(base64) {
+            const binary = atob(base64);
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) {
+                bytes[i] = binary.charCodeAt(i);
+            }
+            return bytes;
+        }
+
+        function bytesToBase64(bytes) {
+            return btoa(String.fromCharCode(...bytes));
+        }
+
+        async function sha256(buffer) {
+            const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+            return new Uint8Array(hashBuffer);
+        }
+
+        async function aesEncrypt(key, plaintext) {
+            const iv = crypto.getRandomValues(new Uint8Array(12));
+
+            const cryptoKey = await crypto.subtle.importKey(
+                'raw',
+                key,
+                { name: 'AES-GCM' },
+                false,
+                ['encrypt']
+            );
+
+            const encrypted = await crypto.subtle.encrypt(
+                {
+                    name: 'AES-GCM',
+                    iv: iv,
+                    tagLength: 128
+                },
+                cryptoKey,
+                plaintext
+            );
+
+            const encryptedBytes = new Uint8Array(encrypted);
+            const ciphertext = encryptedBytes.slice(0, -16);
+            const authTag = encryptedBytes.slice(-16);
+
+            // Combine: IV (12) + ciphertext + authTag (16)
+            const combined = new Uint8Array(12 + ciphertext.length + 16);
+            combined.set(iv, 0);
+            combined.set(ciphertext, 12);
+            combined.set(authTag, 12 + ciphertext.length);
+
+            return combined;
+        }
+
+        async function aesDecrypt(key, iv, ciphertext, authTag) {
+            const combined = new Uint8Array(ciphertext.length + authTag.length);
+            combined.set(ciphertext);
+            combined.set(authTag, ciphertext.length);
+
+            const cryptoKey = await crypto.subtle.importKey(
+                'raw',
+                key,
+                { name: 'AES-GCM' },
+                false,
+                ['decrypt']
+            );
+
+            const decrypted = await crypto.subtle.decrypt(
+                {
+                    name: 'AES-GCM',
+                    iv: iv,
+                    tagLength: 128
+                },
+                cryptoKey,
+                combined
+            );
+
+            return new Uint8Array(decrypted);
+        }
+
+        async function getLatestBlockHash(rpcUrl) {
+            const client = new window.nearRpc.NearRpcClient(rpcUrl);
+            const response = await fetch(rpcUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    jsonrpc: '2.0',
+                    id: 'dontcare',
+                    method: 'block',
+                    params: { finality: 'final' }
+                })
+            });
+            const result = await response.json();
+            return result.result.header.hash;
+        }
+
+        async function getAccessKeyNonce(rpcClient, accountId, publicKey) {
+            const result = await window.nearRpc.viewAccessKey(rpcClient, {
+                accountId,
+                publicKey,
+                finality: 'final'
+            });
+            return result.nonce;
+        }
+
+        async function viewFunction(network, contractId, methodName, args) {
+            const rpcUrl = getRpcUrl(network);
+            const client = new window.nearRpc.NearRpcClient(rpcUrl);
+
+            const argsBase64 = btoa(JSON.stringify(args));
+
+            // Use viewFunctionAsJson from @near-js/jsonrpc-client
+            const result = await window.nearRpc.viewFunctionAsJson(client, {
+                accountId: contractId,
+                methodName: methodName,
+                argsBase64: argsBase64,
+                finality: 'final'
+            });
+
+            return result;
+        }
+
+        async function sendTransaction(network, accountId, contractId, methodName, args, signerKeyString, gas = '100000000000000', deposit = '0') {
+            const rpcUrl = getRpcUrl(network);
+            const rpcClient = new window.nearRpc.NearRpcClient(rpcUrl);
+
+            // Parse signer key
+            const keyPair = window.nearApi.KeyPair.fromString(signerKeyString);
+            const publicKey = keyPair.getPublicKey();
+
+            // Get nonce and block hash
+            const nonce = await getAccessKeyNonce(rpcClient, accountId, publicKey.toString());
+            const blockHash = await getLatestBlockHash(rpcUrl);
+
+            // Create transaction
+            const actions = [
+                window.nearApi.transactions.functionCall(
+                    methodName,
+                    args,
+                    BigInt(gas),
+                    BigInt(deposit)
+                )
+            ];
+
+            const tx = window.nearApi.transactions.createTransaction(
+                accountId,
+                publicKey,
+                contractId,
+                nonce + 1,
+                actions,
+                window.nearApi.utils.serialize.base_decode(blockHash)
+            );
+
+            // Sign transaction
+            const serializedTx = window.nearApi.utils.serialize.serialize(
+                window.nearApi.transactions.SCHEMA.Transaction,
+                tx
+            );
+
+            const txHash = new Uint8Array(await crypto.subtle.digest('SHA-256', serializedTx));
+            const signature = keyPair.sign(txHash);
+
+            const signedTx = new window.nearApi.transactions.SignedTransaction({
+                transaction: tx,
+                signature: new window.nearApi.transactions.Signature({
+                    keyType: tx.publicKey.keyType,
+                    data: signature.signature
+                })
+            });
+
+            // Broadcast transaction
+            const signedTxBytes = signedTx.encode();
+            const signedTxBase64 = btoa(String.fromCharCode(...signedTxBytes));
+
+            const result = await window.nearRpc.broadcastTxCommit(rpcClient, {
+                signedTxBase64: signedTxBase64,
+                waitUntil: 'FINAL'
+            });
+
+            if (result.status.Failure) {
+                throw new Error(JSON.stringify(result.status.Failure));
+            }
+
+            return result;
+        }
+
+        // ============================================================================
+        // UI Functions
+        // ============================================================================
+
+        window.switchTab = function(tab) {
+            // Update tab buttons
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+
+            // Update panels
+            document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+            document.getElementById(`${tab}-panel`).classList.add('active');
+        };
+
+        window.toggleMintContentInput = function() {
+            const contentType = document.getElementById('mint-content-type').value;
+            document.getElementById('mint-text-group').style.display = contentType === 'text' ? 'block' : 'none';
+            document.getElementById('mint-file-group').style.display = contentType === 'file' ? 'block' : 'none';
+        };
+
+        let mintFileData = null;
+
+        window.handleMintFileSelect = function(event) {
+            const file = event.target.files[0];
+            if (file) {
+                document.getElementById('mint-file-name').textContent = `Selected: ${file.name} (${file.size.toLocaleString()} bytes)`;
+
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    mintFileData = new Uint8Array(e.target.result);
+                };
+                reader.readAsArrayBuffer(file);
+            }
+        };
+
+        function showLoading(panel, show) {
+            document.getElementById(`${panel}-loading`).classList.toggle('show', show);
+        }
+
+        function showError(panel, message) {
+            const errorEl = document.getElementById(`${panel}-error`);
+            errorEl.textContent = message;
+            errorEl.classList.add('show');
+            document.getElementById(`${panel}-result`).classList.remove('show');
+        }
+
+        function showResult(panel, content) {
+            document.getElementById(`${panel}-error`).classList.remove('show');
+            document.getElementById(`${panel}-result-content`).innerHTML = content;
+            document.getElementById(`${panel}-result`).classList.add('show');
+        }
+
+        // ============================================================================
+        // Mint NFT
+        // ============================================================================
+
+        window.mintNFT = async function() {
+            const network = document.getElementById('mint-network').value;
+            const contract = document.getElementById('mint-contract').value.trim();
+            const owner = document.getElementById('mint-owner').value.trim();
+            const privateKeyHex = document.getElementById('mint-private-key').value.trim();
+            const signerKey = document.getElementById('mint-signer-key').value.trim();
+            const tokenId = document.getElementById('mint-token-id').value.trim();
+            const contentType = document.getElementById('mint-content-type').value;
+            const depositStr = document.getElementById('mint-deposit').value.trim();
+
+            document.getElementById('mint-error').classList.remove('show');
+            document.getElementById('mint-result').classList.remove('show');
+
+            // Validation
+            if (!contract || !owner || !privateKeyHex || !signerKey || !tokenId) {
+                showError('mint', 'Please fill in all required fields');
+                return;
+            }
+
+            if (privateKeyHex.length !== 64) {
+                showError('mint', 'Private key must be 64 hex characters');
+                return;
+            }
+
+            // Get content
+            let contentBytes;
+            if (contentType === 'text') {
+                const text = document.getElementById('mint-content-text').value;
+                if (!text) {
+                    showError('mint', 'Please enter content');
+                    return;
+                }
+                contentBytes = new TextEncoder().encode(text);
+            } else {
+                if (!mintFileData) {
+                    showError('mint', 'Please select a file');
+                    return;
+                }
+                contentBytes = mintFileData;
+            }
+
+            try {
+                showLoading('mint', true);
+
+                // Generate owner's keypair
+                const privateKeyBytes = hexToBytes(privateKeyHex);
+                const privateScalar = bufferToScalar(privateKeyBytes);
+                const publicKey = window.RistrettoPoint.BASE.multiply(privateScalar);
+                const publicKeyBytes = publicKey.toRawBytes();
+
+                // Generate secret scalar
+                const secretScalarBigInt = bufferToScalar(crypto.getRandomValues(new Uint8Array(32)));
+                const secretPoint = window.RistrettoPoint.BASE.multiply(secretScalarBigInt);
+                const secretPointBytes = secretPoint.toRawBytes();
+
+                // Derive AES key
+                const aesKey = await sha256(secretPointBytes);
+
+                // Encrypt content
+                const encryptedContent = await aesEncrypt(aesKey, contentBytes);
+
+                // Generate randomness and ElGamal encryption
+                const randomnessBigInt = bufferToScalar(crypto.getRandomValues(new Uint8Array(32)));
+                const randomnessBytes = scalarToBuffer(randomnessBigInt);
+                const c1 = window.RistrettoPoint.BASE.multiply(randomnessBigInt);
+                const c2 = publicKey.multiply(randomnessBigInt).add(secretPoint);
+
+                // Encrypt secret_scalar + randomness (92-byte format)
+                const secretScalarBytes = scalarToBuffer(secretScalarBigInt);
+                const combined = new Uint8Array(64);
+                combined.set(secretScalarBytes, 0);
+                combined.set(randomnessBytes, 32);
+                const encryptedScalar = await aesEncrypt(aesKey, combined);
+
+                // Calculate deposit if not provided
+                let deposit = depositStr;
+                if (!deposit) {
+                    const totalDataSize = encryptedContent.length + encryptedScalar.length + 64 + 64 + 200;
+                    const storageCost = totalDataSize * 0.00001;
+                    deposit = (storageCost + 0.15).toFixed(4);
+                }
+
+                // Prepare arguments for nft_mint
+                const args = {
+                    token_id: tokenId,
+                    token_owner_id: owner,
+                    encrypted_content_base64: bytesToBase64(encryptedContent),
+                    encrypted_scalar_base64: bytesToBase64(encryptedScalar),
+                    elgamal_ciphertext_c1_base64: bytesToBase64(c1.toRawBytes()),
+                    elgamal_ciphertext_c2_base64: bytesToBase64(c2.toRawBytes()),
+                    owner_pubkey_base64: bytesToBase64(publicKeyBytes)
+                };
+
+                // Send transaction
+                const depositYocto = window.nearApi.utils.format.parseNearAmount(deposit);
+                const result = await sendTransaction(
+                    network,
+                    owner,
+                    contract,
+                    'nft_mint',
+                    args,
+                    signerKey,
+                    '100000000000000',
+                    depositYocto
+                );
+
+                showLoading('mint', false);
+
+                const txId = result.transaction.hash;
+                const explorerUrl = network === 'mainnet'
+                    ? `https://explorer.near.org/transactions/${txId}`
+                    : `https://explorer.testnet.near.org/transactions/${txId}`;
+
+                showResult('mint', `
+                    <strong>Token ID:</strong> <code>${tokenId}</code><br><br>
+                    <strong>Owner:</strong> <code>${owner}</code><br>
+                    <strong>Content size:</strong> ${contentBytes.length.toLocaleString()} bytes<br>
+                    <strong>Encrypted size:</strong> ${encryptedContent.length.toLocaleString()} bytes<br>
+                    <strong>Deposit:</strong> ${deposit} NEAR<br><br>
+                    <strong>Transaction:</strong> <a href="${explorerUrl}" target="_blank">${txId}</a><br><br>
+                    <strong>Save this info:</strong><br>
+                    Private key (hex): <code>${privateKeyHex}</code><br>
+                    Public key (base64): <code>${bytesToBase64(publicKeyBytes)}</code>
+                `);
+
+            } catch (error) {
+                showLoading('mint', false);
+                console.error('Mint error:', error);
+                showError('mint', `Error: ${error.message}`);
+            }
+        };
+
+        // ============================================================================
+        // List for Sale
+        // ============================================================================
+
+        window.listForSale = async function() {
+            const network = document.getElementById('list-network').value;
+            const contract = document.getElementById('list-contract').value.trim();
+            const seller = document.getElementById('list-seller').value.trim();
+            const signerKey = document.getElementById('list-signer-key').value.trim();
+            const tokenId = document.getElementById('list-token-id').value.trim();
+            const priceNear = document.getElementById('list-price').value.trim();
+
+            document.getElementById('list-error').classList.remove('show');
+            document.getElementById('list-result').classList.remove('show');
+
+            if (!contract || !seller || !signerKey || !tokenId || !priceNear) {
+                showError('list', 'Please fill in all fields');
+                return;
+            }
+
+            try {
+                showLoading('list', true);
+
+                const priceYocto = window.nearApi.utils.format.parseNearAmount(priceNear);
+                const args = {
+                    function_name: 'list_for_sale',
+                    token_id: tokenId,
+                    price: priceYocto
+                };
+
+                const result = await sendTransaction(
+                    network,
+                    seller,
+                    contract,
+                    'call_js_func_mut',
+                    args,
+                    signerKey,
+                    '100000000000000',
+                    '1000000000000000000000' // 0.001 NEAR
+                );
+
+                showLoading('list', false);
+
+                const txId = result.transaction.hash;
+                const explorerUrl = network === 'mainnet'
+                    ? `https://explorer.near.org/transactions/${txId}`
+                    : `https://explorer.testnet.near.org/transactions/${txId}`;
+
+                showResult('list', `
+                    <strong>Token ID:</strong> <code>${tokenId}</code><br>
+                    <strong>Price:</strong> ${priceNear} NEAR<br>
+                    <strong>Seller:</strong> <code>${seller}</code><br><br>
+                    <strong>Transaction:</strong> <a href="${explorerUrl}" target="_blank">${txId}</a>
+                `);
+
+            } catch (error) {
+                showLoading('list', false);
+                console.error('List error:', error);
+                showError('list', `Error: ${error.message}`);
+            }
+        };
+
+        // ============================================================================
+        // Buy NFT
+        // ============================================================================
+
+        window.buyNFT = async function() {
+            const network = document.getElementById('buy-network').value;
+            const contract = document.getElementById('buy-contract').value.trim();
+            const buyer = document.getElementById('buy-buyer').value.trim();
+            const signerKey = document.getElementById('buy-signer-key').value.trim();
+            const buyerPubkey = document.getElementById('buy-buyer-pubkey').value.trim();
+            const tokenId = document.getElementById('buy-token-id').value.trim();
+
+            document.getElementById('buy-error').classList.remove('show');
+            document.getElementById('buy-result').classList.remove('show');
+
+            if (!contract || !buyer || !signerKey || !buyerPubkey || !tokenId) {
+                showError('buy', 'Please fill in all fields');
+                return;
+            }
+
+            try {
+                showLoading('buy', true);
+
+                // Get listing to determine price
+                const listing = await viewFunction(network, contract, 'call_js_func', {
+                    function_name: 'get_listing',
+                    token_id: tokenId
+                });
+
+                const args = {
+                    function_name: 'buy',
+                    token_id: tokenId,
+                    buyer_pubkey_base64: buyerPubkey
+                };
+
+                const result = await sendTransaction(
+                    network,
+                    buyer,
+                    contract,
+                    'call_js_func_mut',
+                    args,
+                    signerKey,
+                    '100000000000000',
+                    listing.price
+                );
+
+                showLoading('buy', false);
+
+                const txId = result.transaction.hash;
+                const explorerUrl = network === 'mainnet'
+                    ? `https://explorer.near.org/transactions/${txId}`
+                    : `https://explorer.testnet.near.org/transactions/${txId}`;
+
+                const priceNear = window.nearApi.utils.format.formatNearAmount(listing.price);
+
+                showResult('buy', `
+                    <strong>Token ID:</strong> <code>${tokenId}</code><br>
+                    <strong>Price:</strong> ${priceNear} NEAR<br>
+                    <strong>Buyer:</strong> <code>${buyer}</code><br><br>
+                    <strong>Status:</strong> Funds in escrow. Seller must complete re-encryption.<br><br>
+                    <strong>Transaction:</strong> <a href="${explorerUrl}" target="_blank">${txId}</a><br><br>
+                    <strong>Your public key:</strong> <code>${buyerPubkey}</code>
+                `);
+
+            } catch (error) {
+                showLoading('buy', false);
+                console.error('Buy error:', error);
+                showError('buy', `Error: ${error.message}`);
+            }
+        };
+
+        // ============================================================================
+        // Complete Sale (Re-encryption)
+        // ============================================================================
+
+        window.completeSale = async function() {
+            const network = document.getElementById('complete-network').value;
+            const contract = document.getElementById('complete-contract').value.trim();
+            const seller = document.getElementById('complete-seller').value.trim();
+            const signerKey = document.getElementById('complete-signer-key').value.trim();
+            const sellerPrivateKeyHex = document.getElementById('complete-seller-private-key').value.trim();
+            const tokenId = document.getElementById('complete-token-id').value.trim();
+
+            document.getElementById('complete-error').classList.remove('show');
+            document.getElementById('complete-result').classList.remove('show');
+
+            if (!contract || !seller || !signerKey || !sellerPrivateKeyHex || !tokenId) {
+                showError('complete', 'Please fill in all fields');
+                return;
+            }
+
+            if (sellerPrivateKeyHex.length !== 64) {
+                showError('complete', 'Private key must be 64 hex characters');
+                return;
+            }
+
+            try {
+                showLoading('complete', true);
+
+                // Get escrow data
+                const escrow = await viewFunction(network, contract, 'call_js_func', {
+                    function_name: 'get_escrow',
+                    token_id: tokenId
+                });
+
+                // Get encrypted content data
+                const contentData = await viewFunction(network, contract, 'call_js_func', {
+                    function_name: 'get_encrypted_content_data',
+                    token_id: tokenId
+                });
+
+                // Decrypt ElGamal to recover secret point
+                const sellerPrivateKeyBytes = hexToBytes(sellerPrivateKeyHex);
+                const sellerPrivateScalar = bufferToScalar(sellerPrivateKeyBytes);
+
+                const c1 = window.RistrettoPoint.fromHex(base64ToBytes(contentData.elgamal_ciphertext.c1_base64));
+                const c2 = window.RistrettoPoint.fromHex(base64ToBytes(contentData.elgamal_ciphertext.c2_base64));
+
+                const secretPoint = c2.subtract(c1.multiply(sellerPrivateScalar));
+                const secretPointBytes = secretPoint.toRawBytes();
+
+                // Derive AES key and decrypt encrypted_scalar
+                const aesKey = await sha256(secretPointBytes);
+                const encryptedScalarBytes = base64ToBytes(contentData.encrypted_scalar_base64);
+
+                const iv = encryptedScalarBytes.slice(0, 12);
+                const authTag = encryptedScalarBytes.slice(-16);
+                const ciphertext = encryptedScalarBytes.slice(12, -16);
+
+                const decryptedScalar = await aesDecrypt(aesKey, iv, ciphertext, authTag);
+                const secretScalarBigInt = bufferToScalar(decryptedScalar.slice(0, 32));
+                const randomnessBigInt = bufferToScalar(decryptedScalar.slice(32, 64));
+
+                // Get buyer's public key
+                const buyerPublicKey = window.RistrettoPoint.fromHex(base64ToBytes(escrow.buyer_pubkey));
+
+                // Generate re-encryption for buyer: r_new * G and r_new * PK_buyer + S
+                const rNewBigInt = bufferToScalar(crypto.getRandomValues(new Uint8Array(32)));
+                const c1New = window.RistrettoPoint.BASE.multiply(rNewBigInt);
+                const c2New = buyerPublicKey.multiply(rNewBigInt).add(secretPoint);
+
+                // Generate zero-knowledge proof
+                // Prove: c2_new - c2_old = PK_buyer * r_new - PK_old * r_old
+                const sellerPublicKey = window.RistrettoPoint.BASE.multiply(sellerPrivateScalar);
+
+                // Random values for proof (blinding factors)
+                const t_r_old = bufferToScalar(crypto.getRandomValues(new Uint8Array(32)));
+                const t_r_new = bufferToScalar(crypto.getRandomValues(new Uint8Array(32)));
+                const t_s = bufferToScalar(crypto.getRandomValues(new Uint8Array(32)));
+
+                // Compute commitments (matching complete_sale.js)
+                const commit_r_old = window.RistrettoPoint.BASE.multiply(t_r_old);
+                const commit_r_new = window.RistrettoPoint.BASE.multiply(t_r_new);
+                const commit_s_old = window.RistrettoPoint.BASE.multiply(t_s).add(sellerPublicKey.multiply(t_r_old));
+                const commit_s_new = window.RistrettoPoint.BASE.multiply(t_s).add(buyerPublicKey.multiply(t_r_new));
+
+                // Get seller and buyer public key bytes
+                const sellerPublicKeyBytes = sellerPublicKey.toRawBytes();
+                const buyerPublicKeyBytes = base64ToBytes(escrow.buyer_pubkey);
+
+                // Challenge hash (Fiat-Shamir) - must include public keys!
+                const challengeInput = new Uint8Array(
+                    32 + 32 + 32 + 32 + 32 + 32 + 32 + 32 + 32 + 32
+                );
+                challengeInput.set(c1.toRawBytes(), 0);
+                challengeInput.set(c2.toRawBytes(), 32);
+                challengeInput.set(sellerPublicKeyBytes, 64);
+                challengeInput.set(c1New.toRawBytes(), 96);
+                challengeInput.set(c2New.toRawBytes(), 128);
+                challengeInput.set(buyerPublicKeyBytes, 160);
+                challengeInput.set(commit_r_old.toRawBytes(), 192);
+                challengeInput.set(commit_s_old.toRawBytes(), 224);
+                challengeInput.set(commit_r_new.toRawBytes(), 256);
+                challengeInput.set(commit_s_new.toRawBytes(), 288);
+
+                const challengeHash = await sha256(challengeInput);
+                const challenge = bufferToScalar(challengeHash);
+
+                // Compute responses (matching complete_sale.js)
+                const response_r_old = (t_r_old + challenge * randomnessBigInt) % CURVE_ORDER;
+                const response_r_new = (t_r_new + challenge * rNewBigInt) % CURVE_ORDER;
+                const response_s = (t_s + challenge * secretScalarBigInt) % CURVE_ORDER;
+
+                // Prepare arguments
+                const args = {
+                    function_name: 'complete_sale',
+                    token_id: tokenId,
+                    elgamal_ciphertext_c1_base64: bytesToBase64(c1New.toRawBytes()),
+                    elgamal_ciphertext_c2_base64: bytesToBase64(c2New.toRawBytes()),
+                    buyer_pubkey_base64: escrow.buyer_pubkey,
+                    proof_commit_r_old: bytesToBase64(commit_r_old.toRawBytes()),
+                    proof_commit_s_old: bytesToBase64(commit_s_old.toRawBytes()),
+                    proof_commit_r_new: bytesToBase64(commit_r_new.toRawBytes()),
+                    proof_commit_s_new: bytesToBase64(commit_s_new.toRawBytes()),
+                    proof_response_s: bytesToBase64(scalarToBuffer(response_s)),
+                    proof_response_r_old: bytesToBase64(scalarToBuffer(response_r_old)),
+                    proof_response_r_new: bytesToBase64(scalarToBuffer(response_r_new))
+                };
+
+                const result = await sendTransaction(
+                    network,
+                    seller,
+                    contract,
+                    'call_js_func_mut',
+                    args,
+                    signerKey,
+                    '100000000000000',
+                    '0'
+                );
+
+                showLoading('complete', false);
+
+                const txId = result.transaction.hash;
+                const explorerUrl = network === 'mainnet'
+                    ? `https://explorer.near.org/transactions/${txId}`
+                    : `https://explorer.testnet.near.org/transactions/${txId}`;
+
+                const priceNear = window.nearApi.utils.format.formatNearAmount(escrow.price);
+
+                showResult('complete', `
+                    <strong>Token ID:</strong> <code>${tokenId}</code><br>
+                    <strong>Buyer:</strong> <code>${escrow.buyer}</code><br>
+                    <strong>Price:</strong> ${priceNear} NEAR<br><br>
+                    <strong>Status:</strong> Sale completed! NFT re-encrypted for buyer.<br>
+                    <strong>Payment:</strong> ${priceNear} NEAR released to seller.<br><br>
+                    <strong>Transaction:</strong> <a href="${explorerUrl}" target="_blank">${txId}</a>
+                `);
+
+            } catch (error) {
+                showLoading('complete', false);
+                console.error('Complete sale error:', error);
+                showError('complete', `Error: ${error.message}`);
+            }
+        };
+    </script>
+</body>
+</html>
