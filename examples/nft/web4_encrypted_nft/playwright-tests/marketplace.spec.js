@@ -55,6 +55,7 @@ test.describe('Encrypted NFT Marketplace', () => {
   let sellerRistrettoPrivateKey;
   let buyerRistrettoPrivateKey;
   let page;
+  let context;
   let httpServer;
   let httpServerPort = 8765;
 
@@ -405,13 +406,20 @@ test.describe('Encrypted NFT Marketplace', () => {
       });
     });
 
-    // Create browser context with headed mode for visualization
-    page = await browser.newPage();
-    page.setDefaultTimeout(60000);
-
     // Create test-results directory if it doesn't exist
     const { mkdirSync } = await import('fs');
     mkdirSync('test-results', { recursive: true });
+
+    // Create browser context with video recording enabled
+    context = await browser.newContext({
+      recordVideo: {
+        dir: 'test-results/',
+        size: { width: 1280, height: 720 }
+      }
+    });
+
+    page = await context.newPage();
+    page.setDefaultTimeout(60000);
 
     // Listen to console messages
     page.on('console', (msg) => {
@@ -453,7 +461,15 @@ test.describe('Encrypted NFT Marketplace', () => {
   });
 
   test.afterAll(async () => {
-    if (page) await page.close();
+    // Close page and context to save video
+    if (page) {
+      await page.close();
+      console.log('📄 Page closed');
+    }
+    if (context) {
+      await context.close();
+      console.log('🎥 Video saved to test-results/');
+    }
     if (httpServer) {
       await new Promise((resolve) => httpServer.close(resolve));
       console.log('🛑 Web4 gateway server stopped');
