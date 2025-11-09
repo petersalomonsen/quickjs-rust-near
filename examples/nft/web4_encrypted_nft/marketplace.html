@@ -292,6 +292,15 @@
     <div class="container">
         <h1>Encrypted NFT Marketplace</h1>
 
+        <!-- Credential Management Section -->
+        <div class="info-box" style="background: #e8f5e9; border-left-color: #4caf50;">
+            🔐 <strong>Credentials:</strong>
+            <span id="credential-status">No credentials loaded</span>
+            <button onclick="createCredentials()" style="margin-left: 10px; padding: 6px 12px; font-size: 12px; width: auto; display: inline-block;">
+                Create New Credentials
+            </button>
+        </div>
+
         <div class="tabs">
             <button class="tab active" onclick="switchTab('mint')">Mint NFT</button>
             <button class="tab" onclick="switchTab('list')">List for Sale</button>
@@ -320,20 +329,6 @@
                 <input type="text" id="mint-contract" value="wasmmusic.testnet" placeholder="example.testnet">
             </div>
 
-            <div class="input-group">
-                <label for="mint-owner">Owner Account ID</label>
-                <input type="text" id="mint-owner" placeholder="yourname.testnet">
-            </div>
-
-            <div class="input-group">
-                <label for="mint-private-key">Private Key (hex) for Encryption</label>
-                <input type="password" id="mint-private-key" placeholder="64 character hex string">
-            </div>
-
-            <div class="input-group">
-                <label for="mint-signer-key">Transaction Signer Key (ed25519:...)</label>
-                <input type="password" id="mint-signer-key" placeholder="ed25519:...">
-            </div>
 
             <div class="input-group">
                 <label for="mint-token-id">Token ID</label>
@@ -405,16 +400,6 @@
             </div>
 
             <div class="input-group">
-                <label for="list-seller">Seller Account ID</label>
-                <input type="text" id="list-seller" placeholder="yourname.testnet">
-            </div>
-
-            <div class="input-group">
-                <label for="list-signer-key">Transaction Signer Key (ed25519:...)</label>
-                <input type="password" id="list-signer-key" placeholder="ed25519:...">
-            </div>
-
-            <div class="input-group">
                 <label for="list-token-id">Token ID</label>
                 <input type="text" id="list-token-id" placeholder="my_nft_1">
             </div>
@@ -460,21 +445,6 @@
             </div>
 
             <div class="input-group">
-                <label for="buy-buyer">Buyer Account ID</label>
-                <input type="text" id="buy-buyer" placeholder="buyer.testnet">
-            </div>
-
-            <div class="input-group">
-                <label for="buy-signer-key">Transaction Signer Key (ed25519:...)</label>
-                <input type="password" id="buy-signer-key" placeholder="ed25519:...">
-            </div>
-
-            <div class="input-group">
-                <label for="buy-buyer-pubkey">Buyer's Ristretto Public Key (base64)</label>
-                <input type="text" id="buy-buyer-pubkey" placeholder="Your public key from keypair file">
-            </div>
-
-            <div class="input-group">
                 <label for="buy-token-id">Token ID</label>
                 <input type="text" id="buy-token-id" placeholder="my_nft_1">
             </div>
@@ -512,21 +482,6 @@
             <div class="input-group">
                 <label for="complete-contract">Contract Address</label>
                 <input type="text" id="complete-contract" value="wasmmusic.testnet">
-            </div>
-
-            <div class="input-group">
-                <label for="complete-seller">Seller Account ID</label>
-                <input type="text" id="complete-seller" placeholder="yourname.testnet">
-            </div>
-
-            <div class="input-group">
-                <label for="complete-signer-key">Transaction Signer Key (ed25519:...)</label>
-                <input type="password" id="complete-signer-key" placeholder="ed25519:...">
-            </div>
-
-            <div class="input-group">
-                <label for="complete-seller-private-key">Seller's Ristretto Private Key (hex)</label>
-                <input type="password" id="complete-seller-private-key" placeholder="64 character hex string">
             </div>
 
             <div class="input-group">
@@ -627,6 +582,10 @@
 
         function bytesToBase64(bytes) {
             return btoa(String.fromCharCode(...bytes));
+        }
+
+        function bytesToHex(bytes) {
+            return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
         }
 
         async function sha256(buffer) {
@@ -799,6 +758,85 @@
 
             return result;
         }
+
+        // ============================================================================
+        // Credential Management
+        // ============================================================================
+
+        async function getCredentials() {
+            try {
+                const credentials = await navigator.credentials.get({
+                    mediation: "required",
+                    password: true
+                });
+
+                if (!credentials) {
+                    throw new Error('No credentials selected');
+                }
+
+                const credentialData = JSON.parse(atob(credentials.password));
+
+                // Update UI to show loaded credentials
+                document.getElementById('credential-status').textContent =
+                    `Loaded: ${credentials.name} (${credentialData.accountId.substring(0, 16)}...)`;
+
+                return credentialData;
+            } catch (error) {
+                console.error('Failed to get credentials:', error);
+                throw new Error('Failed to retrieve credentials. Please create credentials first.');
+            }
+        }
+
+        window.createCredentials = async function() {
+            const credentialName = prompt('Enter a name for these credentials (e.g., "My Main Wallet"):');
+            if (!credentialName) return;
+
+            try {
+                // Generate Ed25519 keypair for signing transactions
+                const signingKeyPair = window.nearApi.KeyPair.fromRandom("ed25519");
+                const accountId = signingKeyPair.publicKey.data.toHex(); // Implicit account
+
+                // Generate Ristretto255 keypair for encryption
+                const randomValues = new Uint8Array(32);
+                crypto.getRandomValues(randomValues);
+                const privateScalar = bufferToScalar(randomValues);
+                const privateScalarBytes = scalarToBuffer(privateScalar);
+                const publicKey = window.RistrettoPoint.BASE.multiply(privateScalar);
+                const publicKeyBytes = publicKey.toRawBytes();
+
+                const encryptionKeyPair = {
+                    private_scalar_base64: bytesToBase64(privateScalarBytes),
+                    private_scalar_hex: bytesToHex(privateScalarBytes),
+                    public_key_base64: bytesToBase64(publicKeyBytes),
+                    public_key_hex: bytesToHex(publicKeyBytes),
+                };
+
+                // Create credential
+                const credentials = await navigator.credentials.create({
+                    password: {
+                        id: credentialName,
+                        name: credentialName,
+                        origin: location.origin,
+                        password: btoa(JSON.stringify({
+                            accountId: accountId,
+                            signingKeyPair: signingKeyPair.toString(),
+                            encryptionKeyPair: encryptionKeyPair
+                        })),
+                    }
+                });
+
+                await navigator.credentials.store(credentials);
+
+                alert(`✅ Credentials created successfully!\n\nAccount ID (implicit): ${accountId}\nName: ${credentialName}\n\nYour credentials are now stored in your browser's password manager.`);
+
+                // Update status
+                document.getElementById('credential-status').textContent =
+                    `Created: ${credentialName} (${accountId.substring(0, 16)}...)`;
+            } catch (error) {
+                console.error('Failed to create credentials:', error);
+                alert('Failed to create credentials: ' + error.message);
+            }
+        };
 
         // ============================================================================
         // UI Functions
