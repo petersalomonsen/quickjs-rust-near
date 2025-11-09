@@ -7,12 +7,16 @@ import {
   NearRpcClient,
   broadcastTxCommit,
   viewAccessKey,
+  viewFunctionAsJson,
 } from '@near-js/jsonrpc-client';
 import { RistrettoPoint } from '@noble/curves/ed25519';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { createServer } from 'http';
-import { readFile as fsReadFile } from 'fs/promises';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+
+const execAsync = promisify(exec);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -275,11 +279,25 @@ test.describe('Encrypted NFT Marketplace', () => {
     await functionCall(contractAccount, contractAccount, 'new', {});
     console.log('  ✅ Contract initialized');
 
-    const nftJavascript = await readFile(path.join(__dirname, '../contract.js'));
+    // Build the marketplace bundle with build.js
+    console.log('📦 Building marketplace bundle...');
+    const projectRoot = path.join(__dirname, '..');
+    try {
+      await execAsync('node build.js', { cwd: projectRoot });
+      console.log('  ✅ Marketplace bundle created');
+    } catch (error) {
+      console.error('  ❌ Build failed:', error.message);
+      throw error;
+    }
+
+    // Upload the bundled JavaScript (includes embedded HTML)
+    const nftJavascript = await readFile(path.join(projectRoot, 'contract-bundle.js'), 'utf-8');
+    console.log(`  📄 Bundled contract size: ${nftJavascript.length} bytes`);
+
     await functionCall(contractAccount, contractAccount, 'post_javascript', {
-      javascript: nftJavascript.toString(),
+      javascript: nftJavascript,
     });
-    console.log('  ✅ JavaScript uploaded');
+    console.log('  ✅ JavaScript bundle uploaded (with embedded marketplace HTML)');
 
     // Generate Ristretto keypairs
     console.log('🔑 Generating Ristretto keypairs...');
@@ -289,18 +307,47 @@ test.describe('Encrypted NFT Marketplace', () => {
     console.log(`  Seller NEAR: ${sellerAccount}`);
     console.log(`  Buyer NEAR: ${buyerAccount}`);
 
-    // Start HTTP server to serve the HTML file
-    console.log('🌐 Starting HTTP server...');
-    const htmlContent = await fsReadFile(path.join(__dirname, '../index.html'), 'utf-8');
+    // Helper to call view functions
+    async function viewFunction(contractId, methodName, args) {
+      const result = await viewFunctionAsJson(rpcClient, {
+        accountId: contractId,
+        methodName: methodName,
+        argsBase64: Buffer.from(JSON.stringify(args)).toString('base64'),
+        finality: 'final',
+      });
+      return result;
+    }
 
-    httpServer = createServer((req, res) => {
-      res.writeHead(200, { 'Content-Type': 'text/html' });
-      res.end(htmlContent);
+    // Start HTTP server that mimics Web4 gateway behavior
+    console.log('🌐 Starting Web4 gateway server...');
+
+    httpServer = createServer(async (req, res) => {
+      try {
+        // Call web4_get directly (like real Web4 gateway)
+        const web4Result = await viewFunction(contractAccount, 'web4_get', {
+          request: { path: req.url },
+        });
+
+        // Decode base64 HTML body (web4_get returns { body: base64String, contentType: string })
+        const htmlContent = Buffer.from(web4Result.body, 'base64').toString('utf-8');
+
+        // Inject sandbox RPC endpoint for testing
+        const modifiedHtml = htmlContent
+          .replace(/https:\/\/rpc\.testnet\.fastnear\.com/g, rpcUrl)
+          .replace(/https:\/\/rpc\.mainnet\.fastnear\.com/g, rpcUrl);
+
+        res.writeHead(200, { 'Content-Type': web4Result.contentType });
+        res.end(modifiedHtml);
+      } catch (error) {
+        console.error('Web4 gateway error:', error);
+        res.writeHead(500, { 'Content-Type': 'text/plain' });
+        res.end(`Error: ${error.message}`);
+      }
     });
 
     await new Promise((resolve) => {
       httpServer.listen(httpServerPort, () => {
-        console.log(`✅ HTTP server listening on http://localhost:${httpServerPort}`);
+        console.log(`✅ Web4 gateway server listening on http://localhost:${httpServerPort}`);
         resolve();
       });
     });
@@ -352,7 +399,7 @@ test.describe('Encrypted NFT Marketplace', () => {
     if (page) await page.close();
     if (httpServer) {
       await new Promise((resolve) => httpServer.close(resolve));
-      console.log('🛑 HTTP server stopped');
+      console.log('🛑 Web4 gateway server stopped');
     }
     if (sandbox) {
       console.log('🧹 Tearing down sandbox...');

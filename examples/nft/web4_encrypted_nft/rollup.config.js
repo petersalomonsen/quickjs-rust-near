@@ -4,9 +4,16 @@ import { readFileSync, writeFileSync } from "fs";
 
 export default {
   input: ["./index.html"],
-  output: { dir: "dist" },
+  output: {
+    dir: "dist",
+    format: "iife"
+  },
   plugins: [
-    html({ minify: true }),
+    html({
+      minify: true,
+      extractAssets: false,
+      inlineModules: true
+    }),
     terser(),
     {
       name: "bundle-to-contract",
