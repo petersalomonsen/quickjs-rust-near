@@ -473,52 +473,171 @@ test.describe('Encrypted NFT Marketplace', () => {
       window.getRpcUrl = () => url;
     }, rpcUrl);
 
-    // Set up credential storage and mocking
-    await page.evaluate(({ sellerAccount, sellerKeyPair, sellerPrivateKey, sellerPublicKey, buyerAccount, buyerKeyPair, buyerPrivateKey, buyerPublicKey }) => {
-      // Create an in-memory credential store
-      window.testCredentialStore = [];
+    // IMPORTANT: The accountId in credentials must match the implicit account ID
+    // which is derived from the Ed25519 public key (hex of public key data)
+    // The sellerAccount and buyerAccount passed in are already the implicit account IDs
 
-      // IMPORTANT: The accountId in credentials must match the implicit account ID
-      // which is derived from the Ed25519 public key (hex of public key data)
-      // The sellerAccount and buyerAccount passed in are already the implicit account IDs
+    // Create seller credentials (using the pre-generated keypair)
+    const sellerCreds = {
+      accountId: sellerAccount,  // This is the implicit account ID (hex of public key)
+      signingKeyPair: sellerKeyPair.toString(),
+      encryptionKeyPair: {
+        private_scalar_hex: scalarToBuffer(sellerRistrettoPrivateKey).toString('hex'),
+        public_key_base64: Buffer.from(RistrettoPoint.BASE.multiply(sellerRistrettoPrivateKey).toRawBytes()).toString('base64')
+      }
+    };
 
-      // Create seller credentials (using the pre-generated keypair)
-      const sellerCreds = {
-        accountId: sellerAccount,  // This is the implicit account ID (hex of public key)
-        signingKeyPair: sellerKeyPair,
-        encryptionKeyPair: {
-          private_scalar_hex: sellerPrivateKey,
-          public_key_base64: sellerPublicKey
-        }
-      };
+    // Create buyer credentials (using the pre-generated keypair)
+    const buyerCreds = {
+      accountId: buyerAccount,  // This is the implicit account ID (hex of public key)
+      signingKeyPair: buyerKeyPair.toString(),
+      encryptionKeyPair: {
+        private_scalar_hex: scalarToBuffer(buyerRistrettoPrivateKey).toString('hex'),
+        public_key_base64: Buffer.from(RistrettoPoint.BASE.multiply(buyerRistrettoPrivateKey).toRawBytes()).toString('base64')
+      }
+    };
 
-      // Create buyer credentials (using the pre-generated keypair)
-      const buyerCreds = {
-        accountId: buyerAccount,  // This is the implicit account ID (hex of public key)
-        signingKeyPair: buyerKeyPair,
-        encryptionKeyPair: {
-          private_scalar_hex: buyerPrivateKey,
-          public_key_base64: buyerPublicKey
-        }
-      };
-
-      // Store both credentials
-      window.testCredentialStore.push({
+    // Credential store (isolated in Playwright context, like a real password manager)
+    const credentialStore = [
+      {
         id: 'Seller Wallet',
         name: 'Seller Wallet',
-        password: btoa(JSON.stringify(sellerCreds)),
+        password: Buffer.from(JSON.stringify(sellerCreds)).toString('base64'),
         type: 'password'
-      });
-
-      window.testCredentialStore.push({
+      },
+      {
         id: 'Buyer Wallet',
         name: 'Buyer Wallet',
-        password: btoa(JSON.stringify(buyerCreds)),
+        password: Buffer.from(JSON.stringify(buyerCreds)).toString('base64'),
         type: 'password'
-      });
+      }
+    ];
 
-      // Track current credential selection (default to seller)
-      window.testSelectCredential = 0;
+    // Expose function to get all available credentials (for picker)
+    await page.exposeFunction('__mockCredentialsGetAll', async () => {
+      return credentialStore;
+    });
+
+    await page.exposeFunction('__mockCredentialsStore', async (credential) => {
+      credentialStore.push(credential);
+      return credential;
+    });
+
+    // Set up credential mocking in browser
+    await page.evaluate(() => {
+      // Helper function to show credential overlay
+      window.showCredentialOverlay = (message, action) => {
+        const overlay = document.createElement('div');
+        overlay.style.position = 'fixed';
+        overlay.style.top = '50%';
+        overlay.style.left = '50%';
+        overlay.style.transform = 'translate(-50%, -50%)';
+        overlay.style.backgroundColor = action === 'storing' ? '#4CAF50' : '#2196F3';
+        overlay.style.color = 'white';
+        overlay.style.padding = '30px 50px';
+        overlay.style.borderRadius = '10px';
+        overlay.style.fontSize = '24px';
+        overlay.style.fontWeight = 'bold';
+        overlay.style.zIndex = '10000';
+        overlay.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.3)';
+        overlay.style.fontFamily = 'system-ui, -apple-system, sans-serif';
+        overlay.textContent = message;
+        document.body.appendChild(overlay);
+
+        setTimeout(() => {
+          overlay.remove();
+        }, 500);
+      };
+
+      // Mock navigator.credentials.get - shows interactive credential picker
+      navigator.credentials.get = async (options) => {
+        if (options.password) {
+          // Get all available credentials from Playwright context
+          const credentials = await window.__mockCredentialsGetAll();
+
+          // Show credential picker overlay (simulates password manager UI)
+          return new Promise((resolve) => {
+            const pickerOverlay = document.createElement('div');
+            pickerOverlay.id = 'credential-picker-overlay';
+            pickerOverlay.style.position = 'fixed';
+            pickerOverlay.style.top = '0';
+            pickerOverlay.style.left = '0';
+            pickerOverlay.style.width = '100%';
+            pickerOverlay.style.height = '100%';
+            pickerOverlay.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+            pickerOverlay.style.display = 'flex';
+            pickerOverlay.style.alignItems = 'center';
+            pickerOverlay.style.justifyContent = 'center';
+            pickerOverlay.style.zIndex = '10000';
+            pickerOverlay.style.fontFamily = 'system-ui, -apple-system, sans-serif';
+
+            const pickerDialog = document.createElement('div');
+            pickerDialog.style.backgroundColor = 'white';
+            pickerDialog.style.borderRadius = '12px';
+            pickerDialog.style.padding = '30px';
+            pickerDialog.style.minWidth = '400px';
+            pickerDialog.style.boxShadow = '0 8px 16px rgba(0, 0, 0, 0.3)';
+
+            const title = document.createElement('h2');
+            title.textContent = '🔐 Select Credential';
+            title.style.margin = '0 0 20px 0';
+            title.style.fontSize = '24px';
+            title.style.color = '#333';
+            pickerDialog.appendChild(title);
+
+            const subtitle = document.createElement('p');
+            subtitle.textContent = 'Choose a wallet to sign this transaction:';
+            subtitle.style.margin = '0 0 20px 0';
+            subtitle.style.color = '#666';
+            subtitle.style.fontSize = '14px';
+            pickerDialog.appendChild(subtitle);
+
+            // Create button for each credential
+            credentials.forEach((cred, index) => {
+              const button = document.createElement('button');
+              button.className = 'credential-picker-button';
+              button.setAttribute('data-credential-index', index);
+              button.textContent = `🔑 ${cred.name}`;
+              button.style.display = 'block';
+              button.style.width = '100%';
+              button.style.padding = '15px 20px';
+              button.style.margin = '10px 0';
+              button.style.fontSize = '16px';
+              button.style.fontWeight = 'bold';
+              button.style.backgroundColor = '#2196F3';
+              button.style.color = 'white';
+              button.style.border = 'none';
+              button.style.borderRadius = '8px';
+              button.style.cursor = 'pointer';
+              button.style.transition = 'background-color 0.2s';
+
+              button.onmouseover = () => {
+                button.style.backgroundColor = '#1976D2';
+              };
+              button.onmouseout = () => {
+                button.style.backgroundColor = '#2196F3';
+              };
+
+              button.onclick = () => {
+                // Remove picker
+                pickerOverlay.remove();
+
+                // Show "Using" message
+                window.showCredentialOverlay(`🔑 Using: ${cred.name}`, 'selecting');
+
+                // Resolve with selected credential
+                resolve(cred);
+              };
+
+              pickerDialog.appendChild(button);
+            });
+
+            pickerOverlay.appendChild(pickerDialog);
+            document.body.appendChild(pickerOverlay);
+          });
+        }
+        return null;
+      };
 
       // Mock navigator.credentials.create
       const originalCreate = navigator.credentials.create.bind(navigator.credentials);
@@ -530,34 +649,18 @@ test.describe('Encrypted NFT Marketplace', () => {
             password: options.password.password,
             type: 'password'
           };
-          window.testCredentialStore.push(credential);
+          // Store in Playwright context (isolated)
+          await window.__mockCredentialsStore(credential);
+          window.showCredentialOverlay(`🔐 Storing: ${credential.name}`, 'storing');
           return credential;
         }
         return originalCreate(options);
-      };
-
-      // Mock navigator.credentials.get to return selected credential
-      navigator.credentials.get = async (options) => {
-        if (options.password && window.testCredentialStore.length > 0) {
-          const index = window.testSelectCredential || 0;
-          return window.testCredentialStore[index];
-        }
-        return null;
       };
 
       // Mock navigator.credentials.store
       navigator.credentials.store = async (credential) => {
         return credential;
       };
-    }, {
-      sellerAccount: sellerAccount,
-      sellerKeyPair: sellerKeyPair.toString(),
-      sellerPrivateKey: scalarToBuffer(sellerRistrettoPrivateKey).toString('hex'),
-      sellerPublicKey: Buffer.from(RistrettoPoint.BASE.multiply(sellerRistrettoPrivateKey).toRawBytes()).toString('base64'),
-      buyerAccount: buyerAccount,
-      buyerKeyPair: buyerKeyPair.toString(),
-      buyerPrivateKey: scalarToBuffer(buyerRistrettoPrivateKey).toString('hex'),
-      buyerPublicKey: Buffer.from(RistrettoPoint.BASE.multiply(buyerRistrettoPrivateKey).toRawBytes()).toString('base64')
     });
 
     // Log credential creation
@@ -565,9 +668,6 @@ test.describe('Encrypted NFT Marketplace', () => {
     console.log(`      Account: ${sellerAccount}`);
     console.log('  🔑 Created buyer credential: Buyer Wallet');
     console.log(`      Account: ${buyerAccount}`);
-
-    // Pause to highlight credential creation in video
-    await page.waitForTimeout(500);
 
     // Set up common fields
     await page.fill('#common-contract', contractAccount);
@@ -587,6 +687,14 @@ test.describe('Encrypted NFT Marketplace', () => {
 
     // Click mint button
     await page.click('#mint-panel button:has-text("Mint NFT")');
+
+    // Wait for credential picker to appear
+    await page.waitForSelector('#credential-picker-overlay', { timeout: 5000 });
+    console.log('  🔐 Credential picker appeared');
+
+    // Select Seller Wallet from the picker (seller is minting)
+    await page.click('button.credential-picker-button:has-text("Seller Wallet")');
+    console.log('  🔑 Selected seller credential from picker');
 
     // Wait for either result or error
     try {
@@ -629,6 +737,15 @@ test.describe('Encrypted NFT Marketplace', () => {
     await page.fill('#list-price', '2.5');
 
     await page.click('#list-panel button:has-text("List for Sale")');
+
+    // Wait for credential picker to appear
+    await page.waitForSelector('#credential-picker-overlay', { timeout: 5000 });
+    console.log('  🔐 Credential picker appeared');
+
+    // Select Seller Wallet from the picker (seller is listing)
+    await page.click('button.credential-picker-button:has-text("Seller Wallet")');
+    console.log('  🔑 Selected seller credential from picker');
+
     await page.waitForSelector('#list-result.show', { timeout: 30000 });
 
     const listResultText = await page.textContent('#list-result-content');
@@ -655,6 +772,14 @@ test.describe('Encrypted NFT Marketplace', () => {
 
     await page.click('#view-panel button:has-text("Decrypt & View Content")');
 
+    // Wait for credential picker to appear
+    await page.waitForSelector('#credential-picker-overlay', { timeout: 5000 });
+    console.log('  🔐 Credential picker appeared');
+
+    // Select Seller Wallet from the picker
+    await page.click('button.credential-picker-button:has-text("Seller Wallet")');
+    console.log('  🔑 Selected seller credential from picker');
+
     // Wait for either result or error
     await Promise.race([
       page.waitForSelector('#view-result.show', { timeout: 30000 }),
@@ -676,22 +801,22 @@ test.describe('Encrypted NFT Marketplace', () => {
     // ========================================
     console.log('\n  📝 Step 2b: Verifying buyer cannot view NFT (not owner)...');
 
-    // Switch to buyer credential
-    await page.evaluate(() => {
-      window.testSelectCredential = 1; // Select buyer (index 1)
-    });
-
-    console.log('  🔑 Switched to buyer credential: Buyer Wallet');
-    await page.waitForTimeout(500);  // Pause to highlight credential switch
-
     // Clear previous results
     await page.evaluate(() => {
       document.getElementById('view-error').classList.remove('show');
       document.getElementById('view-result').classList.remove('show');
     });
 
-    // Try to view - should fail
+    // Try to view - will trigger credential picker
     await page.click('#view-panel button:has-text("Decrypt & View Content")');
+
+    // Wait for credential picker to appear
+    await page.waitForSelector('#credential-picker-overlay', { timeout: 5000 });
+    console.log('  🔐 Credential picker appeared');
+
+    // Select Buyer Wallet from the picker
+    await page.click('button.credential-picker-button:has-text("Buyer Wallet")');
+    console.log('  🔑 Selected buyer credential from picker');
 
     await Promise.race([
       page.waitForSelector('#view-result.show', { timeout: 30000 }),
@@ -712,15 +837,20 @@ test.describe('Encrypted NFT Marketplace', () => {
     // ========================================
     console.log('\n  📝 Step 3: Buying NFT...');
 
-    // Buyer is already selected from previous step
-    console.log('  🔑 Using buyer credential: Buyer Wallet');
-
     await page.click('button.tab:has-text("Buy NFT")');
     await page.waitForTimeout(500);  // Pause to show Buy NFT tab
 
     // Contract and token ID already in common fields, just click buy
-
     await page.click('#buy-panel button:has-text("Buy NFT")');
+
+    // Wait for credential picker to appear
+    await page.waitForSelector('#credential-picker-overlay', { timeout: 5000 });
+    console.log('  🔐 Credential picker appeared');
+
+    // Select Buyer Wallet from the picker (buyer is purchasing)
+    await page.click('button.credential-picker-button:has-text("Buyer Wallet")');
+    console.log('  🔑 Selected buyer credential from picker');
+
     await page.waitForSelector('#buy-result.show', { timeout: 30000 });
 
     const buyResultText = await page.textContent('#buy-result-content');
@@ -736,19 +866,19 @@ test.describe('Encrypted NFT Marketplace', () => {
     // ========================================
     console.log('\n  📝 Step 4: Completing sale...');
 
-    // Switch back to seller credential
-    await page.evaluate(() => {
-      window.testSelectCredential = 0; // Select seller (index 0)
-    });
-
-    console.log('  🔑 Switched back to seller credential: Seller Wallet');
-    await page.waitForTimeout(500);  // Pause to highlight credential switch
-
     await page.click('button.tab:has-text("Complete Sale")');
 
     // Contract and token ID already in common fields, just click complete
-
     await page.click('#complete-panel button:has-text("Complete Sale")');
+
+    // Wait for credential picker to appear
+    await page.waitForSelector('#credential-picker-overlay', { timeout: 5000 });
+    console.log('  🔐 Credential picker appeared');
+
+    // Select Seller Wallet from the picker
+    await page.click('button.credential-picker-button:has-text("Seller Wallet")');
+    console.log('  🔑 Selected seller credential from picker');
+
     await page.waitForSelector('#complete-result.show', { timeout: 30000 });
 
     const completeResultText = await page.textContent('#complete-result-content');
@@ -764,14 +894,6 @@ test.describe('Encrypted NFT Marketplace', () => {
     // ========================================
     console.log('\n  📝 Step 5: Verifying buyer can now view NFT (new owner)...');
 
-    // Switch to buyer credential
-    await page.evaluate(() => {
-      window.testSelectCredential = 1; // Select buyer (index 1)
-    });
-
-    console.log('  🔑 Switched to buyer credential: Buyer Wallet');
-    await page.waitForTimeout(500);  // Pause to highlight credential switch
-
     await page.click('button.tab:has-text("View NFT")');
     await page.waitForTimeout(500);  // Pause to show View NFT tab
 
@@ -782,6 +904,14 @@ test.describe('Encrypted NFT Marketplace', () => {
     });
 
     await page.click('#view-panel button:has-text("Decrypt & View Content")');
+
+    // Wait for credential picker to appear
+    await page.waitForSelector('#credential-picker-overlay', { timeout: 5000 });
+    console.log('  🔐 Credential picker appeared');
+
+    // Select Buyer Wallet from the picker
+    await page.click('button.credential-picker-button:has-text("Buyer Wallet")');
+    console.log('  🔑 Selected buyer credential from picker');
 
     await Promise.race([
       page.waitForSelector('#view-result.show', { timeout: 30000 }),
@@ -803,14 +933,6 @@ test.describe('Encrypted NFT Marketplace', () => {
     // ========================================
     console.log('\n  📝 Step 6: Verifying seller can no longer view NFT...');
 
-    // Switch back to seller credential
-    await page.evaluate(() => {
-      window.testSelectCredential = 0; // Select seller (index 0)
-    });
-
-    console.log('  🔑 Switched to seller credential: Seller Wallet');
-    await page.waitForTimeout(500);  // Pause to highlight credential switch
-
     // Clear previous results
     await page.evaluate(() => {
       document.getElementById('view-error').classList.remove('show');
@@ -819,6 +941,14 @@ test.describe('Encrypted NFT Marketplace', () => {
 
     // Try to view - should fail now
     await page.click('#view-panel button:has-text("Decrypt & View Content")');
+
+    // Wait for credential picker to appear
+    await page.waitForSelector('#credential-picker-overlay', { timeout: 5000 });
+    console.log('  🔐 Credential picker appeared');
+
+    // Select Seller Wallet from the picker
+    await page.click('button.credential-picker-button:has-text("Seller Wallet")');
+    console.log('  🔑 Selected seller credential from picker');
 
     await Promise.race([
       page.waitForSelector('#view-result.show', { timeout: 30000 }),
