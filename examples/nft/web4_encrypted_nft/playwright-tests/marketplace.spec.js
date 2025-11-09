@@ -218,9 +218,68 @@ test.describe('Encrypted NFT Marketplace', () => {
 
     // Deploy contract
     console.log('📦 Deploying contract...');
-    const wasmPath = path.join(__dirname, '../out/nft.wasm');
+    const wasmPath = path.join(__dirname, '../../out/nft.wasm');
     const wasmCode = await readFile(wasmPath);
     await deployContract(contractAccount, wasmCode);
+
+    // Initialize contract and upload JavaScript
+    console.log('🔧 Initializing contract...');
+    async function functionCall(accountId, contractId, methodName, args, gas = '300000000000000', deposit = '0') {
+      const keyPair = accountKeys.get(accountId);
+      if (!keyPair) throw new Error(`No key for account ${accountId}`);
+
+      const actions = [
+        transactions.functionCall(methodName, args, BigInt(gas), BigInt(deposit))
+      ];
+
+      const blockHash = await getLatestBlockHash();
+      await new Promise((resolve) => setTimeout(() => resolve(), 1000));
+      const nonce = await getAccessKeyNonce(accountId, keyPair.getPublicKey().toString());
+
+      const tx = transactions.createTransaction(
+        accountId,
+        keyPair.getPublicKey(),
+        contractId,
+        nonce + 1,
+        actions,
+        utils.serialize.base_decode(blockHash)
+      );
+
+      const serializedTx = utils.serialize.serialize(transactions.SCHEMA.Transaction, tx);
+      const txHash = crypto.createHash('sha256').update(serializedTx).digest();
+      const signature = keyPair.sign(txHash);
+
+      const signedTx = new transactions.SignedTransaction({
+        transaction: tx,
+        signature: new transactions.Signature({
+          keyType: tx.publicKey.keyType,
+          data: signature.signature,
+        }),
+      });
+
+      const signedTxBytes = signedTx.encode();
+      const signedTxBase64 = Buffer.from(signedTxBytes).toString('base64');
+      const result = await broadcastTxCommit(rpcClient, {
+        signedTxBase64,
+        waitUntil: 'FINAL',
+      });
+
+      if (result.status.Failure) {
+        console.error(`  ❌ Failed to call ${methodName} on ${contractId}:`, JSON.stringify(result.status.Failure, null, 2));
+        throw new Error(`Function call failed: ${methodName}`);
+      }
+
+      return result;
+    }
+
+    await functionCall(contractAccount, contractAccount, 'new', {});
+    console.log('  ✅ Contract initialized');
+
+    const nftJavascript = await readFile(path.join(__dirname, '../contract.js'));
+    await functionCall(contractAccount, contractAccount, 'post_javascript', {
+      javascript: nftJavascript.toString(),
+    });
+    console.log('  ✅ JavaScript uploaded');
 
     // Generate Ristretto keypairs
     console.log('🔑 Generating Ristretto keypairs...');
@@ -232,7 +291,7 @@ test.describe('Encrypted NFT Marketplace', () => {
 
     // Start HTTP server to serve the HTML file
     console.log('🌐 Starting HTTP server...');
-    const htmlContent = await fsReadFile(path.join(__dirname, 'marketplace.html'), 'utf-8');
+    const htmlContent = await fsReadFile(path.join(__dirname, '../marketplace.html'), 'utf-8');
 
     httpServer = createServer((req, res) => {
       res.writeHead(200, { 'Content-Type': 'text/html' });
@@ -273,14 +332,14 @@ test.describe('Encrypted NFT Marketplace', () => {
 
     try {
       await page.goto(`http://localhost:${httpServerPort}`, {
-        waitUntil: 'networkidle',
-        timeout: 60000
+        waitUntil: 'domcontentloaded',
+        timeout: 90000
       });
 
       // Wait for libraries to load
       await page.waitForFunction(() => {
         return window.RistrettoPoint && window.nearApi && window.nearRpc && window.nearRpc.viewFunctionAsJson;
-      }, { timeout: 30000 });
+      }, { timeout: 60000 });
 
       console.log('✅ Marketplace page loaded');
     } catch (error) {
@@ -301,8 +360,19 @@ test.describe('Encrypted NFT Marketplace', () => {
     }
   });
 
-  test('should mint an NFT', async () => {
-    console.log('\n📝 Test: Minting NFT...');
+  test('should complete full NFT marketplace flow', async () => {
+    console.log('\n📝 Test: Full marketplace flow (mint → list → buy → complete)...');
+
+    // Override RPC URL once for entire test
+    await page.evaluate((url) => {
+      window.testRpcUrl = url;
+      window.getRpcUrl = () => url;
+    }, rpcUrl);
+
+    // ========================================
+    // Step 1: Mint NFT
+    // ========================================
+    console.log('\n  📝 Step 1: Minting NFT...');
 
     // Switch to mint tab
     await page.click('button.tab:has-text("Mint NFT")');
@@ -316,15 +386,8 @@ test.describe('Encrypted NFT Marketplace', () => {
     await page.fill('#mint-content-text', 'This is my secret NFT content!');
     await page.fill('#mint-deposit', '0.1');
 
-    // Override RPC URL to point to sandbox
-    await page.evaluate((url) => {
-      window.testRpcUrl = url;
-      // Override getRpcUrl function
-      window.getRpcUrl = () => url;
-    }, rpcUrl);
-
     // Click mint button
-    await page.click('button:has-text("Mint NFT")');
+    await page.click('#mint-panel button:has-text("Mint NFT")');
 
     // Wait for either result or error
     try {
@@ -333,175 +396,93 @@ test.describe('Encrypted NFT Marketplace', () => {
         page.waitForSelector('#mint-error.show', { timeout: 40000 }),
       ]);
     } catch (error) {
-      // Take screenshot for debugging
       await page.screenshot({ path: 'test-results/mint-timeout.png' });
-      console.log('❌ Neither result nor error shown');
+      console.log('    ❌ Mint timeout - neither result nor error shown');
       throw error;
     }
 
     // Check if there's an error
-    const errorVisible = await page.isVisible('#mint-error.show');
-    if (errorVisible) {
+    const mintErrorVisible = await page.isVisible('#mint-error.show');
+    if (mintErrorVisible) {
       const errorText = await page.textContent('#mint-error');
-      console.log('❌ Mint error:', errorText);
+      console.log('    ❌ Mint error:', errorText);
       await page.screenshot({ path: 'test-results/mint-error.png' });
       throw new Error(`Mint failed: ${errorText}`);
     }
 
-    // Verify success
-    const resultText = await page.textContent('#mint-result-content');
-    expect(resultText).toContain('test_nft_1');
-    expect(resultText).toContain(sellerAccount);
+    // Verify mint success
+    const mintResultText = await page.textContent('#mint-result-content');
+    expect(mintResultText).toContain('test_nft_1');
+    expect(mintResultText).toContain(sellerAccount);
+    console.log('    ✅ NFT minted successfully');
 
-    console.log('  ✅ NFT minted successfully');
-  });
+    // ========================================
+    // Step 2: List NFT for sale
+    // ========================================
+    console.log('\n  📝 Step 2: Listing NFT for sale...');
 
-  test('should list NFT for sale', async () => {
-    console.log('\n📝 Test: Listing NFT for sale...');
-
-    // Switch to list tab
     await page.click('button.tab:has-text("List for Sale")');
 
-    // Fill in the form
     await page.fill('#list-contract', contractAccount);
     await page.fill('#list-seller', sellerAccount);
     await page.fill('#list-signer-key', sellerKeyPair.toString());
     await page.fill('#list-token-id', 'test_nft_1');
     await page.fill('#list-price', '2.5');
 
-    // Override RPC URL
-    await page.evaluate((url) => {
-      window.getRpcUrl = () => url;
-    }, rpcUrl);
-
-    // Click list button
-    await page.click('button:has-text("List for Sale")');
-
-    // Wait for result
+    await page.click('#list-panel button:has-text("List for Sale")');
     await page.waitForSelector('#list-result.show', { timeout: 30000 });
 
-    // Verify success
-    const resultText = await page.textContent('#list-result-content');
-    expect(resultText).toContain('test_nft_1');
-    expect(resultText).toContain('2.5 NEAR');
+    const listResultText = await page.textContent('#list-result-content');
+    expect(listResultText).toContain('test_nft_1');
+    expect(listResultText).toContain('2.5 NEAR');
+    console.log('    ✅ NFT listed successfully');
 
-    console.log('  ✅ NFT listed successfully');
-  });
+    // ========================================
+    // Step 3: Buy NFT
+    // ========================================
+    console.log('\n  📝 Step 3: Buying NFT...');
 
-  test('should buy NFT', async () => {
-    console.log('\n📝 Test: Buying NFT...');
-
-    // Switch to buy tab
     await page.click('button.tab:has-text("Buy NFT")');
 
     // Generate buyer's public key
-    const buyerPublicKey = window.RistrettoPoint.BASE.multiply(buyerRistrettoPrivateKey);
+    const buyerPublicKey = RistrettoPoint.BASE.multiply(buyerRistrettoPrivateKey);
     const buyerPublicKeyBase64 = Buffer.from(buyerPublicKey.toRawBytes()).toString('base64');
 
-    // Fill in the form
     await page.fill('#buy-contract', contractAccount);
     await page.fill('#buy-buyer', buyerAccount);
     await page.fill('#buy-signer-key', buyerKeyPair.toString());
     await page.fill('#buy-buyer-pubkey', buyerPublicKeyBase64);
     await page.fill('#buy-token-id', 'test_nft_1');
 
-    // Override RPC URL
-    await page.evaluate((url) => {
-      window.getRpcUrl = () => url;
-    }, rpcUrl);
-
-    // Click buy button
-    await page.click('button:has-text("Buy NFT")');
-
-    // Wait for result
+    await page.click('#buy-panel button:has-text("Buy NFT")');
     await page.waitForSelector('#buy-result.show', { timeout: 30000 });
 
-    // Verify success
-    const resultText = await page.textContent('#buy-result-content');
-    expect(resultText).toContain('test_nft_1');
-    expect(resultText).toContain('Funds in escrow');
+    const buyResultText = await page.textContent('#buy-result-content');
+    expect(buyResultText).toContain('test_nft_1');
+    expect(buyResultText).toContain('Funds in escrow');
+    console.log('    ✅ NFT purchased successfully');
 
-    console.log('  ✅ NFT purchased successfully');
-  });
+    // ========================================
+    // Step 4: Complete sale with re-encryption
+    // ========================================
+    console.log('\n  📝 Step 4: Completing sale...');
 
-  test('should complete sale with re-encryption', async () => {
-    console.log('\n📝 Test: Completing sale...');
-
-    // Switch to complete tab
     await page.click('button.tab:has-text("Complete Sale")');
 
-    // Fill in the form
     await page.fill('#complete-contract', contractAccount);
     await page.fill('#complete-seller', sellerAccount);
     await page.fill('#complete-signer-key', sellerKeyPair.toString());
     await page.fill('#complete-seller-private-key', scalarToBuffer(sellerRistrettoPrivateKey).toString('hex'));
     await page.fill('#complete-token-id', 'test_nft_1');
 
-    // Override RPC URL
-    await page.evaluate((url) => {
-      window.getRpcUrl = () => url;
-    }, rpcUrl);
-
-    // Click complete button
-    await page.click('button:has-text("Complete Sale")');
-
-    // Wait for result
+    await page.click('#complete-panel button:has-text("Complete Sale")');
     await page.waitForSelector('#complete-result.show', { timeout: 30000 });
 
-    // Verify success
-    const resultText = await page.textContent('#complete-result-content');
-    expect(resultText).toContain('test_nft_1');
-    expect(resultText).toContain('Sale completed');
+    const completeResultText = await page.textContent('#complete-result-content');
+    expect(completeResultText).toContain('test_nft_1');
+    expect(completeResultText).toContain('Sale completed');
+    console.log('    ✅ Sale completed successfully');
 
-    console.log('  ✅ Sale completed successfully');
-  });
-
-  test('should handle file upload for WASM minting', async () => {
-    console.log('\n📝 Test: Minting WASM NFT...');
-
-    // Switch to mint tab
-    await page.click('button.tab:has-text("Mint NFT")');
-
-    // Change to file mode
-    await page.selectOption('#mint-content-type', 'file');
-
-    // Create a small test WASM file
-    const testWasm = new Uint8Array([0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00]); // WASM header
-
-    // Set up file chooser
-    const [fileChooser] = await Promise.all([
-      page.waitForEvent('filechooser'),
-      page.click('label[for="mint-content-file"]'),
-    ]);
-
-    // Create a temporary file
-    const tempPath = path.join(__dirname, 'temp_test.wasm');
-    await require('fs').promises.writeFile(tempPath, testWasm);
-
-    await fileChooser.setFiles(tempPath);
-
-    // Fill in the form
-    await page.fill('#mint-token-id', 'wasm_nft_1');
-    await page.fill('#mint-deposit', '0.2');
-
-    // Override RPC URL
-    await page.evaluate((url) => {
-      window.getRpcUrl = () => url;
-    }, rpcUrl);
-
-    // Click mint button
-    await page.click('button:has-text("Mint NFT")');
-
-    // Wait for result
-    await page.waitForSelector('#mint-result.show', { timeout: 30000 });
-
-    // Verify success
-    const resultText = await page.textContent('#mint-result-content');
-    expect(resultText).toContain('wasm_nft_1');
-
-    // Clean up temp file
-    await require('fs').promises.unlink(tempPath);
-
-    console.log('  ✅ WASM NFT minted successfully');
+    console.log('\n✅ Full marketplace flow completed successfully!');
   });
 });

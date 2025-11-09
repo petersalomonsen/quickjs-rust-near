@@ -1,8 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
-  testDir: '.',
-  testMatch: 'marketplace.test.js',
+  testDir: './playwright-tests',
   timeout: 180000,
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
