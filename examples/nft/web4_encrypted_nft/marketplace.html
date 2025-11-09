@@ -309,6 +309,7 @@
             <button class="tab" onclick="switchTab('list')">List for Sale</button>
             <button class="tab" onclick="switchTab('buy')">Buy NFT</button>
             <button class="tab" onclick="switchTab('complete')">Complete Sale</button>
+            <button class="tab" onclick="switchTab('view')">View NFT</button>
         </div>
 
         <!-- Mint Panel -->
@@ -503,6 +504,46 @@
             <div class="result" id="complete-result">
                 <h3>Sale Completed!</h3>
                 <div class="result-content" id="complete-result-content"></div>
+            </div>
+        </div>
+
+        <!-- View NFT Panel -->
+        <div id="view-panel" class="panel">
+            <h2>View Encrypted NFT</h2>
+
+            <div class="info-box">
+                Decrypt and view your encrypted NFT content. Your private key is retrieved from your browser's password manager.
+            </div>
+
+            <div class="input-group">
+                <label for="view-network">Network</label>
+                <select id="view-network">
+                    <option value="testnet">Testnet</option>
+                    <option value="mainnet">Mainnet</option>
+                </select>
+            </div>
+
+            <div class="input-group">
+                <label for="view-contract">Contract Address</label>
+                <input type="text" id="view-contract" value="wasmmusic.testnet">
+            </div>
+
+            <div class="input-group">
+                <label for="view-token-id">Token ID</label>
+                <input type="text" id="view-token-id" placeholder="my_nft_1">
+            </div>
+
+            <button onclick="viewNFT()">🔓 Decrypt & View Content</button>
+
+            <div class="loading" id="view-loading">
+                <div class="spinner"></div>
+                <p>Decrypting content...</p>
+            </div>
+
+            <div class="error" id="view-error"></div>
+            <div class="result" id="view-result">
+                <h3>✨ Decrypted Content</h3>
+                <div class="result-content" id="view-result-content"></div>
             </div>
         </div>
     </div>
@@ -1409,6 +1450,123 @@
                 showLoading('complete', false);
                 console.error('Complete sale error:', error);
                 showError('complete', `Error: ${error.message}`);
+            }
+        };
+
+        // ============================================================================
+        // View NFT (Decrypt & Display)
+        // ============================================================================
+
+        window.viewNFT = async function() {
+            const network = document.getElementById('view-network').value;
+            const contract = document.getElementById('view-contract').value.trim();
+            const tokenId = document.getElementById('view-token-id').value.trim();
+
+            document.getElementById('view-error').classList.remove('show');
+            document.getElementById('view-result').classList.remove('show');
+
+            if (!contract || !tokenId) {
+                showError('view', 'Please fill in contract and token ID');
+                return;
+            }
+
+            // Get credentials
+            let credentials;
+            try {
+                credentials = await getCredentials();
+            } catch (error) {
+                showError('view', error.message);
+                return;
+            }
+
+            const privateKeyHex = credentials.encryptionKeyPair.private_scalar_hex;
+
+            try {
+                showLoading('view', true);
+
+                // Fetch encrypted content from contract
+                const contentData = await viewFunction(network, contract, 'call_js_func', {
+                    function_name: 'get_encrypted_content_data',
+                    token_id: tokenId
+                });
+
+                if (!contentData || !contentData.encrypted_content_base64) {
+                    throw new Error('No encrypted content found for this token');
+                }
+
+                // Decrypt using ElGamal + AES
+                const privateKeyBytes = hexToBytes(privateKeyHex);
+                const privateScalar = bufferToScalar(privateKeyBytes);
+
+                // ElGamal decrypt to get secret_point
+                const c1 = window.RistrettoPoint.fromHex(base64ToBytes(contentData.elgamal_ciphertext.c1_base64));
+                const c2 = window.RistrettoPoint.fromHex(base64ToBytes(contentData.elgamal_ciphertext.c2_base64));
+                const sharedSecret = c1.multiply(privateScalar);
+                const secretPoint = c2.subtract(sharedSecret);
+
+                // Derive AES key from secret_point
+                const secretPointBytes = secretPoint.toRawBytes();
+                const aesKey = await sha256(secretPointBytes);
+
+                // Decrypt content with AES-GCM
+                const encryptedContentBytes = base64ToBytes(contentData.encrypted_content_base64);
+                const iv = encryptedContentBytes.slice(0, 12);
+                const ciphertext = encryptedContentBytes.slice(12, -16);
+                const authTag = encryptedContentBytes.slice(-16);
+
+                const cryptoKey = await crypto.subtle.importKey(
+                    'raw',
+                    aesKey,
+                    { name: 'AES-GCM' },
+                    false,
+                    ['decrypt']
+                );
+
+                const combined = new Uint8Array(ciphertext.length + authTag.length);
+                combined.set(ciphertext);
+                combined.set(authTag, ciphertext.length);
+
+                const decrypted = await crypto.subtle.decrypt(
+                    {
+                        name: 'AES-GCM',
+                        iv: iv,
+                        tagLength: 128
+                    },
+                    cryptoKey,
+                    combined
+                );
+
+                const decryptedBytes = new Uint8Array(decrypted);
+
+                // Try to display as text, or show as hex if binary
+                let displayContent;
+                try {
+                    const text = new TextDecoder('utf-8', { fatal: true }).decode(decryptedBytes);
+                    displayContent = `<strong>Text Content:</strong><br><pre style="white-space: pre-wrap; word-wrap: break-word;">${text}</pre>`;
+                } catch {
+                    // Binary content
+                    const hex = Array.from(decryptedBytes).map(b => b.toString(16).padStart(2, '0')).join('');
+                    displayContent = `
+                        <strong>Binary Content</strong> (${decryptedBytes.length} bytes)<br>
+                        <details>
+                            <summary>View as hex</summary>
+                            <pre style="white-space: pre-wrap; word-wrap: break-word; font-size: 11px;">${hex}</pre>
+                        </details>
+                    `;
+                }
+
+                showLoading('view', false);
+                showResult('view', `
+                    <strong>Token ID:</strong> <code>${tokenId}</code><br>
+                    <strong>Owner:</strong> <code>${contentData.owner_id || 'Unknown'}</code><br>
+                    <strong>Content Size:</strong> ${decryptedBytes.length} bytes<br><br>
+                    ${displayContent}
+                `);
+
+            } catch (error) {
+                showLoading('view', false);
+                console.error('View NFT error:', error);
+                showError('view', `Error: ${error.message}`);
             }
         };
     </script>
