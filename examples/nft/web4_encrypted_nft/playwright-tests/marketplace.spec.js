@@ -566,6 +566,9 @@ test.describe('Encrypted NFT Marketplace', () => {
     console.log('  🔑 Created buyer credential: Buyer Wallet');
     console.log(`      Account: ${buyerAccount}`);
 
+    // Pause to highlight credential creation in video
+    await page.waitForTimeout(500);
+
     // Set up common fields
     await page.fill('#common-contract', contractAccount);
     await page.fill('#common-token-id', 'test_nft_1');
@@ -612,6 +615,9 @@ test.describe('Encrypted NFT Marketplace', () => {
     expect(mintResultText).toContain(sellerAccount);
     console.log('    ✅ NFT minted successfully');
 
+    // Pause to highlight minting success in video
+    await page.waitForTimeout(500);
+
     // ========================================
     // Step 2: List NFT for sale
     // ========================================
@@ -630,13 +636,16 @@ test.describe('Encrypted NFT Marketplace', () => {
     expect(listResultText).toContain('2.5 NEAR');
     console.log('    ✅ NFT listed successfully');
 
+    // Pause to highlight listing success in video
+    await page.waitForTimeout(500);
+
     // ========================================
     // Step 2a: Seller can view their NFT
     // ========================================
     console.log('\n  📝 Step 2a: Verifying seller can view their NFT...');
 
     await page.click('button.tab:has-text("View NFT")');
-    await page.screenshot({ path: 'test-results/01-seller-viewing-nft.png' });
+    await page.waitForTimeout(500);  // Pause to show View NFT tab
 
     // Clear any previous results
     await page.evaluate(() => {
@@ -658,7 +667,9 @@ test.describe('Encrypted NFT Marketplace', () => {
     const sellerViewResult = await page.textContent('#view-result-content');
     expect(sellerViewResult).toContain('This is my secret NFT content!');
     console.log('    ✅ Seller successfully viewed NFT content');
-    await page.screenshot({ path: 'test-results/02-seller-viewing-success.png' });
+
+    // Pause to highlight seller viewing success in video
+    await page.waitForTimeout(500);
 
     // ========================================
     // Step 2b: Buyer cannot view NFT (not owner yet)
@@ -671,7 +682,7 @@ test.describe('Encrypted NFT Marketplace', () => {
     });
 
     console.log('  🔑 Switched to buyer credential: Buyer Wallet');
-    await page.screenshot({ path: 'test-results/03-buyer-credential-selected.png' });
+    await page.waitForTimeout(500);  // Pause to highlight credential switch
 
     // Clear previous results
     await page.evaluate(() => {
@@ -692,7 +703,9 @@ test.describe('Encrypted NFT Marketplace', () => {
 
     const buyerErrorText = await page.textContent('#view-error');
     console.log(`    ✅ Buyer correctly blocked from viewing: ${buyerErrorText.substring(0, 50)}...`);
-    await page.screenshot({ path: 'test-results/04-buyer-viewing-blocked.png' });
+
+    // Pause to highlight buyer viewing blocked in video
+    await page.waitForTimeout(500);
 
     // ========================================
     // Step 3: Buy NFT
@@ -703,7 +716,7 @@ test.describe('Encrypted NFT Marketplace', () => {
     console.log('  🔑 Using buyer credential: Buyer Wallet');
 
     await page.click('button.tab:has-text("Buy NFT")');
-    await page.screenshot({ path: 'test-results/05-buy-nft-tab.png' });
+    await page.waitForTimeout(500);  // Pause to show Buy NFT tab
 
     // Contract and token ID already in common fields, just click buy
 
@@ -714,7 +727,9 @@ test.describe('Encrypted NFT Marketplace', () => {
     expect(buyResultText).toContain('test_nft_1');
     expect(buyResultText).toContain('Funds in escrow');
     console.log('    ✅ NFT purchased successfully');
-    await page.screenshot({ path: 'test-results/06-buy-success.png' });
+
+    // Pause to highlight purchase success in video
+    await page.waitForTimeout(500);
 
     // ========================================
     // Step 4: Complete sale with re-encryption
@@ -727,6 +742,7 @@ test.describe('Encrypted NFT Marketplace', () => {
     });
 
     console.log('  🔑 Switched back to seller credential: Seller Wallet');
+    await page.waitForTimeout(500);  // Pause to highlight credential switch
 
     await page.click('button.tab:has-text("Complete Sale")');
 
@@ -739,7 +755,9 @@ test.describe('Encrypted NFT Marketplace', () => {
     expect(completeResultText).toContain('test_nft_1');
     expect(completeResultText).toContain('Sale completed');
     console.log('    ✅ Sale completed successfully');
-    await page.screenshot({ path: 'test-results/07-sale-completed.png' });
+
+    // Pause to highlight sale completion in video
+    await page.waitForTimeout(500);
 
     // ========================================
     // Step 5: Buyer can now view NFT (new owner)
@@ -752,9 +770,10 @@ test.describe('Encrypted NFT Marketplace', () => {
     });
 
     console.log('  🔑 Switched to buyer credential: Buyer Wallet');
+    await page.waitForTimeout(500);  // Pause to highlight credential switch
 
     await page.click('button.tab:has-text("View NFT")');
-    await page.screenshot({ path: 'test-results/08-buyer-viewing-after-purchase.png' });
+    await page.waitForTimeout(500);  // Pause to show View NFT tab
 
     // Clear previous results
     await page.evaluate(() => {
@@ -775,7 +794,9 @@ test.describe('Encrypted NFT Marketplace', () => {
     const buyerViewResult = await page.textContent('#view-result-content');
     expect(buyerViewResult).toContain('This is my secret NFT content!');
     console.log('    ✅ Buyer successfully viewed NFT content (after purchase)');
-    await page.screenshot({ path: 'test-results/09-buyer-viewing-success.png' });
+
+    // Pause to highlight buyer viewing success in video
+    await page.waitForTimeout(500);
 
     // ========================================
     // Step 6: Seller can no longer view NFT (no longer owner)
@@ -788,7 +809,7 @@ test.describe('Encrypted NFT Marketplace', () => {
     });
 
     console.log('  🔑 Switched to seller credential: Seller Wallet');
-    await page.screenshot({ path: 'test-results/10-seller-credential-selected.png' });
+    await page.waitForTimeout(500);  // Pause to highlight credential switch
 
     // Clear previous results
     await page.evaluate(() => {
@@ -809,9 +830,11 @@ test.describe('Encrypted NFT Marketplace', () => {
 
     const sellerErrorText = await page.textContent('#view-error');
     console.log(`    ✅ Seller correctly blocked from viewing: ${sellerErrorText.substring(0, 50)}...`);
-    await page.screenshot({ path: 'test-results/11-seller-viewing-blocked.png' });
+
+    // Pause to highlight seller viewing blocked in video
+    await page.waitForTimeout(500);
 
     console.log('\n✅ Full marketplace flow completed successfully!');
-    console.log('📸 Screenshots saved to test-results/ directory');
+    console.log('🎥 Video saved to test-results/ directory');
   });
 });

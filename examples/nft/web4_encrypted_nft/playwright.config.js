@@ -13,6 +13,7 @@ export default defineConfig({
     headless: true,
     navigationTimeout: 60000,
     actionTimeout: 30000,
+    video: process.env.CI ? 'off' : 'on',  // Record video locally, not in CI
   },
   projects: [
     {
