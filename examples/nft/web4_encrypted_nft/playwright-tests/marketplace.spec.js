@@ -412,9 +412,10 @@ test.describe('Encrypted NFT Marketplace', () => {
 
     // Create browser context with video recording enabled
     context = await browser.newContext({
+      viewport: { width: 1280, height: 800 },
       recordVideo: {
         dir: 'test-results/',
-        size: { width: 1280, height: 720 }
+        size: { width: 1280, height: 800 }
       }
     });
 
