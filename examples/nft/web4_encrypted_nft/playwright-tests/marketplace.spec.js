@@ -369,6 +369,45 @@ test.describe('Encrypted NFT Marketplace', () => {
       window.getRpcUrl = () => url;
     }, rpcUrl);
 
+    // Mock the credentials API for seller
+    await page.evaluate(({ account, signingKey, privateKey, publicKey }) => {
+      const sellerCreds = {
+        accountId: account,
+        signingKeyPair: signingKey,
+        encryptionKeyPair: {
+          private_scalar_hex: privateKey,
+          public_key_base64: publicKey
+        }
+      };
+
+      // Store seller credentials globally for the test
+      window.testSellerCredentials = sellerCreds;
+
+      // Mock navigator.credentials.get to return seller credentials
+      const originalGet = navigator.credentials.get.bind(navigator.credentials);
+      navigator.credentials.get = async (options) => {
+        if (window.testCurrentCredentials === 'buyer') {
+          return {
+            name: 'Test Buyer',
+            password: btoa(JSON.stringify(window.testBuyerCredentials))
+          };
+        }
+        return {
+          name: 'Test Seller',
+          password: btoa(JSON.stringify(sellerCreds))
+        };
+      };
+    }, {
+      account: sellerAccount,
+      signingKey: sellerKeyPair.toString(),
+      privateKey: scalarToBuffer(sellerRistrettoPrivateKey).toString('hex'),
+      publicKey: Buffer.from(RistrettoPoint.BASE.multiply(sellerRistrettoPrivateKey).toRawBytes()).toString('base64')
+    });
+
+    // Set up common fields
+    await page.fill('#common-contract', contractAccount);
+    await page.fill('#common-token-id', 'test_nft_1');
+
     // ========================================
     // Step 1: Mint NFT
     // ========================================
@@ -377,12 +416,7 @@ test.describe('Encrypted NFT Marketplace', () => {
     // Switch to mint tab
     await page.click('button.tab:has-text("Mint NFT")');
 
-    // Fill in the form
-    await page.fill('#mint-contract', contractAccount);
-    await page.fill('#mint-owner', sellerAccount);
-    await page.fill('#mint-private-key', scalarToBuffer(sellerRistrettoPrivateKey).toString('hex'));
-    await page.fill('#mint-signer-key', sellerKeyPair.toString());
-    await page.fill('#mint-token-id', 'test_nft_1');
+    // Fill in content and deposit
     await page.fill('#mint-content-text', 'This is my secret NFT content!');
     await page.fill('#mint-deposit', '0.1');
 
@@ -423,10 +457,7 @@ test.describe('Encrypted NFT Marketplace', () => {
 
     await page.click('button.tab:has-text("List for Sale")');
 
-    await page.fill('#list-contract', contractAccount);
-    await page.fill('#list-seller', sellerAccount);
-    await page.fill('#list-signer-key', sellerKeyPair.toString());
-    await page.fill('#list-token-id', 'test_nft_1');
+    // Fill in price (contract and token ID already in common fields)
     await page.fill('#list-price', '2.5');
 
     await page.click('#list-panel button:has-text("List for Sale")');
@@ -442,17 +473,27 @@ test.describe('Encrypted NFT Marketplace', () => {
     // ========================================
     console.log('\n  📝 Step 3: Buying NFT...');
 
+    // Set up buyer credentials
+    await page.evaluate(({ account, signingKey, privateKey, publicKey }) => {
+      window.testBuyerCredentials = {
+        accountId: account,
+        signingKeyPair: signingKey,
+        encryptionKeyPair: {
+          private_scalar_hex: privateKey,
+          public_key_base64: publicKey
+        }
+      };
+      window.testCurrentCredentials = 'buyer';
+    }, {
+      account: buyerAccount,
+      signingKey: buyerKeyPair.toString(),
+      privateKey: scalarToBuffer(buyerRistrettoPrivateKey).toString('hex'),
+      publicKey: Buffer.from(RistrettoPoint.BASE.multiply(buyerRistrettoPrivateKey).toRawBytes()).toString('base64')
+    });
+
     await page.click('button.tab:has-text("Buy NFT")');
 
-    // Generate buyer's public key
-    const buyerPublicKey = RistrettoPoint.BASE.multiply(buyerRistrettoPrivateKey);
-    const buyerPublicKeyBase64 = Buffer.from(buyerPublicKey.toRawBytes()).toString('base64');
-
-    await page.fill('#buy-contract', contractAccount);
-    await page.fill('#buy-buyer', buyerAccount);
-    await page.fill('#buy-signer-key', buyerKeyPair.toString());
-    await page.fill('#buy-buyer-pubkey', buyerPublicKeyBase64);
-    await page.fill('#buy-token-id', 'test_nft_1');
+    // Contract and token ID already in common fields, just click buy
 
     await page.click('#buy-panel button:has-text("Buy NFT")');
     await page.waitForSelector('#buy-result.show', { timeout: 30000 });
@@ -467,13 +508,14 @@ test.describe('Encrypted NFT Marketplace', () => {
     // ========================================
     console.log('\n  📝 Step 4: Completing sale...');
 
+    // Switch back to seller credentials
+    await page.evaluate(() => {
+      window.testCurrentCredentials = 'seller';
+    });
+
     await page.click('button.tab:has-text("Complete Sale")');
 
-    await page.fill('#complete-contract', contractAccount);
-    await page.fill('#complete-seller', sellerAccount);
-    await page.fill('#complete-signer-key', sellerKeyPair.toString());
-    await page.fill('#complete-seller-private-key', scalarToBuffer(sellerRistrettoPrivateKey).toString('hex'));
-    await page.fill('#complete-token-id', 'test_nft_1');
+    // Contract and token ID already in common fields, just click complete
 
     await page.click('#complete-panel button:has-text("Complete Sale")');
     await page.waitForSelector('#complete-result.show', { timeout: 30000 });
