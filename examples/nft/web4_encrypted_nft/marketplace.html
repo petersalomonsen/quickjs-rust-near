@@ -1555,10 +1555,21 @@
                     `;
                 }
 
+                // Fetch owner info from NFT token
+                let ownerInfo = 'Unknown';
+                try {
+                    const tokenInfo = await viewFunction(network, contract, 'nft_token', {
+                        token_id: tokenId
+                    });
+                    ownerInfo = tokenInfo.owner_id || 'Unknown';
+                } catch (err) {
+                    console.warn('Could not fetch owner info:', err);
+                }
+
                 showLoading('view', false);
                 showResult('view', `
                     <strong>Token ID:</strong> <code>${tokenId}</code><br>
-                    <strong>Owner:</strong> <code>${contentData.owner_id || 'Unknown'}</code><br>
+                    <strong>Owner:</strong> <code>${ownerInfo}</code><br>
                     <strong>Content Size:</strong> ${decryptedBytes.length} bytes<br><br>
                     ${displayContent}
                 `);
