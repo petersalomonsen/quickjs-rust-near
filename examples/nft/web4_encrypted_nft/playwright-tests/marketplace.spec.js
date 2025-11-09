@@ -291,7 +291,7 @@ test.describe('Encrypted NFT Marketplace', () => {
 
     // Start HTTP server to serve the HTML file
     console.log('🌐 Starting HTTP server...');
-    const htmlContent = await fsReadFile(path.join(__dirname, '../marketplace.html'), 'utf-8');
+    const htmlContent = await fsReadFile(path.join(__dirname, '../index.html'), 'utf-8');
 
     httpServer = createServer((req, res) => {
       res.writeHead(200, { 'Content-Type': 'text/html' });

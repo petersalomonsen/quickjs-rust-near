@@ -3,7 +3,7 @@ import { terser } from "rollup-plugin-terser";
 import { readFileSync, writeFileSync } from "fs";
 
 export default {
-  input: ["./decrypt_nft_viewer.html"],
+  input: ["./index.html"],
   output: { dir: "dist" },
   plugins: [
     html({ minify: true }),
@@ -11,10 +11,10 @@ export default {
     {
       name: "bundle-to-contract",
       closeBundle: () => {
-        console.log('🔨 Bundling encrypted NFT viewer into contract...\n');
+        console.log('🔨 Bundling encrypted NFT marketplace into contract...\n');
 
         // Read the minified HTML
-        const htmlContent = readFileSync("dist/decrypt_nft_viewer.html").toString();
+        const htmlContent = readFileSync("dist/index.html").toString();
 
         console.log('📄 Minified HTML size:', htmlContent.length, 'bytes');
 

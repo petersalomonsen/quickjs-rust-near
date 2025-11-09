@@ -1,10 +1,10 @@
 import { readFileSync, writeFileSync, mkdirSync } from "fs";
 import { minify } from "html-minifier-terser";
 
-console.log('🔨 Bundling encrypted NFT viewer into contract...\n');
+console.log('🔨 Bundling encrypted NFT marketplace into contract...\n');
 
 // Read the HTML file
-const htmlContent = readFileSync("./decrypt_nft_viewer.html", "utf-8");
+const htmlContent = readFileSync("./index.html", "utf-8");
 
 console.log('📄 Original HTML size:', htmlContent.length, 'bytes');
 
@@ -24,7 +24,7 @@ console.log('📄 Minified HTML size:', minifiedHtml.length, 'bytes');
 
 // Create dist directory
 mkdirSync("dist", { recursive: true });
-writeFileSync("dist/decrypt_nft_viewer.html", minifiedHtml);
+writeFileSync("dist/index.html", minifiedHtml);
 
 // Read contract template
 const contractTemplate = readFileSync("./contract.js", "utf-8");
