@@ -303,6 +303,27 @@
             </button>
         </div>
 
+        <!-- Common Settings Section -->
+        <div class="info-box" style="background: #e8f5e9; border-left-color: #4caf50; margin-top: 20px;">
+            <div class="input-group" style="margin-bottom: 15px;">
+                <label for="common-network">Network</label>
+                <select id="common-network">
+                    <option value="testnet">Testnet</option>
+                    <option value="mainnet">Mainnet</option>
+                </select>
+            </div>
+
+            <div class="input-group" style="margin-bottom: 15px;">
+                <label for="common-contract">Contract Address</label>
+                <input type="text" id="common-contract" value="wasmmusic.testnet" placeholder="example.testnet">
+            </div>
+
+            <div class="input-group" style="margin-bottom: 0;">
+                <label for="common-token-id">Token ID</label>
+                <input type="text" id="common-token-id" placeholder="my_nft_1">
+            </div>
+        </div>
+
         <div class="tabs">
             <button class="tab active" onclick="switchTab('mint')">Mint NFT</button>
             <button class="tab" onclick="switchTab('list')">List for Sale</button>
@@ -317,25 +338,6 @@
 
             <div class="info-box">
                 Mint a new encrypted NFT. Content is encrypted client-side before being sent to the blockchain.
-            </div>
-
-            <div class="input-group">
-                <label for="mint-network">Network</label>
-                <select id="mint-network">
-                    <option value="testnet">Testnet</option>
-                    <option value="mainnet">Mainnet</option>
-                </select>
-            </div>
-
-            <div class="input-group">
-                <label for="mint-contract">Contract Address</label>
-                <input type="text" id="mint-contract" value="wasmmusic.testnet" placeholder="example.testnet">
-            </div>
-
-
-            <div class="input-group">
-                <label for="mint-token-id">Token ID</label>
-                <input type="text" id="mint-token-id" placeholder="my_nft_1">
             </div>
 
             <div class="input-group">
@@ -390,24 +392,6 @@
             </div>
 
             <div class="input-group">
-                <label for="list-network">Network</label>
-                <select id="list-network">
-                    <option value="testnet">Testnet</option>
-                    <option value="mainnet">Mainnet</option>
-                </select>
-            </div>
-
-            <div class="input-group">
-                <label for="list-contract">Contract Address</label>
-                <input type="text" id="list-contract" value="wasmmusic.testnet">
-            </div>
-
-            <div class="input-group">
-                <label for="list-token-id">Token ID</label>
-                <input type="text" id="list-token-id" placeholder="my_nft_1">
-            </div>
-
-            <div class="input-group">
                 <label for="list-price">Price (NEAR)</label>
                 <input type="text" id="list-price" placeholder="2.5">
             </div>
@@ -434,24 +418,6 @@
                 Purchase a listed NFT. Payment goes into escrow until the seller completes re-encryption.
             </div>
 
-            <div class="input-group">
-                <label for="buy-network">Network</label>
-                <select id="buy-network">
-                    <option value="testnet">Testnet</option>
-                    <option value="mainnet">Mainnet</option>
-                </select>
-            </div>
-
-            <div class="input-group">
-                <label for="buy-contract">Contract Address</label>
-                <input type="text" id="buy-contract" value="wasmmusic.testnet">
-            </div>
-
-            <div class="input-group">
-                <label for="buy-token-id">Token ID</label>
-                <input type="text" id="buy-token-id" placeholder="my_nft_1">
-            </div>
-
             <button onclick="buyNFT()">Buy NFT</button>
 
             <div class="loading" id="buy-loading">
@@ -474,24 +440,6 @@
                 <strong>Seller Only:</strong> Complete the sale by re-encrypting the content for the buyer. This will release the escrow funds to you.
             </div>
 
-            <div class="input-group">
-                <label for="complete-network">Network</label>
-                <select id="complete-network">
-                    <option value="testnet">Testnet</option>
-                    <option value="mainnet">Mainnet</option>
-                </select>
-            </div>
-
-            <div class="input-group">
-                <label for="complete-contract">Contract Address</label>
-                <input type="text" id="complete-contract" value="wasmmusic.testnet">
-            </div>
-
-            <div class="input-group">
-                <label for="complete-token-id">Token ID</label>
-                <input type="text" id="complete-token-id" placeholder="my_nft_1">
-            </div>
-
             <button onclick="completeSale()">Complete Sale</button>
 
             <div class="loading" id="complete-loading">
@@ -512,24 +460,6 @@
 
             <div class="info-box">
                 Decrypt and view your encrypted NFT content. Your private key is retrieved from your browser's password manager.
-            </div>
-
-            <div class="input-group">
-                <label for="view-network">Network</label>
-                <select id="view-network">
-                    <option value="testnet">Testnet</option>
-                    <option value="mainnet">Mainnet</option>
-                </select>
-            </div>
-
-            <div class="input-group">
-                <label for="view-contract">Contract Address</label>
-                <input type="text" id="view-contract" value="wasmmusic.testnet">
-            </div>
-
-            <div class="input-group">
-                <label for="view-token-id">Token ID</label>
-                <input type="text" id="view-token-id" placeholder="my_nft_1">
             </div>
 
             <button onclick="viewNFT()">🔓 Decrypt & View Content</button>
@@ -960,9 +890,9 @@
         // ============================================================================
 
         window.mintNFT = async function() {
-            const network = document.getElementById('mint-network').value;
-            const contract = document.getElementById('mint-contract').value.trim();
-            const tokenId = document.getElementById('mint-token-id').value.trim();
+            const network = document.getElementById('common-network').value;
+            const contract = document.getElementById('common-contract').value.trim();
+            const tokenId = document.getElementById('common-token-id').value.trim();
             const contentType = document.getElementById('mint-content-type').value;
             const depositStr = document.getElementById('mint-deposit').value.trim();
 
@@ -1099,9 +1029,9 @@
         // ============================================================================
 
         window.listForSale = async function() {
-            const network = document.getElementById('list-network').value;
-            const contract = document.getElementById('list-contract').value.trim();
-            const tokenId = document.getElementById('list-token-id').value.trim();
+            const network = document.getElementById('common-network').value;
+            const contract = document.getElementById('common-contract').value.trim();
+            const tokenId = document.getElementById('common-token-id').value.trim();
             const priceNear = document.getElementById('list-price').value.trim();
 
             document.getElementById('list-error').classList.remove('show');
@@ -1171,9 +1101,9 @@
         // ============================================================================
 
         window.buyNFT = async function() {
-            const network = document.getElementById('buy-network').value;
-            const contract = document.getElementById('buy-contract').value.trim();
-            const tokenId = document.getElementById('buy-token-id').value.trim();
+            const network = document.getElementById('common-network').value;
+            const contract = document.getElementById('common-contract').value.trim();
+            const tokenId = document.getElementById('common-token-id').value.trim();
 
             document.getElementById('buy-error').classList.remove('show');
             document.getElementById('buy-result').classList.remove('show');
@@ -1252,9 +1182,9 @@
         // ============================================================================
 
         window.completeSale = async function() {
-            const network = document.getElementById('complete-network').value;
-            const contract = document.getElementById('complete-contract').value.trim();
-            const tokenId = document.getElementById('complete-token-id').value.trim();
+            const network = document.getElementById('common-network').value;
+            const contract = document.getElementById('common-contract').value.trim();
+            const tokenId = document.getElementById('common-token-id').value.trim();
 
             document.getElementById('complete-error').classList.remove('show');
             document.getElementById('complete-result').classList.remove('show');
@@ -1421,9 +1351,9 @@
         // ============================================================================
 
         window.viewNFT = async function() {
-            const network = document.getElementById('view-network').value;
-            const contract = document.getElementById('view-contract').value.trim();
-            const tokenId = document.getElementById('view-token-id').value.trim();
+            const network = document.getElementById('common-network').value;
+            const contract = document.getElementById('common-contract').value.trim();
+            const tokenId = document.getElementById('common-token-id').value.trim();
 
             document.getElementById('view-error').classList.remove('show');
             document.getElementById('view-result').classList.remove('show');
