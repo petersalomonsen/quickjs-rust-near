@@ -625,8 +625,10 @@ test.describe('Encrypted NFT Marketplace', () => {
                 // Show "Using" message
                 window.showCredentialOverlay(`🔑 Using: ${cred.name}`, 'selecting');
 
-                // Resolve with selected credential
-                resolve(cred);
+                // Wait 500ms before resolving to show the "Using" overlay
+                setTimeout(() => {
+                  resolve(cred);
+                }, 500);
               };
 
               pickerDialog.appendChild(button);
@@ -691,6 +693,7 @@ test.describe('Encrypted NFT Marketplace', () => {
     // Wait for credential picker to appear
     await page.waitForSelector('#credential-picker-overlay', { timeout: 5000 });
     console.log('  🔐 Credential picker appeared');
+    await page.waitForTimeout(500);  // Pause to show picker in video
 
     // Select Seller Wallet from the picker (seller is minting)
     await page.click('button.credential-picker-button:has-text("Seller Wallet")');
@@ -741,6 +744,7 @@ test.describe('Encrypted NFT Marketplace', () => {
     // Wait for credential picker to appear
     await page.waitForSelector('#credential-picker-overlay', { timeout: 5000 });
     console.log('  🔐 Credential picker appeared');
+    await page.waitForTimeout(500);  // Pause to show picker in video
 
     // Select Seller Wallet from the picker (seller is listing)
     await page.click('button.credential-picker-button:has-text("Seller Wallet")');
@@ -775,6 +779,7 @@ test.describe('Encrypted NFT Marketplace', () => {
     // Wait for credential picker to appear
     await page.waitForSelector('#credential-picker-overlay', { timeout: 5000 });
     console.log('  🔐 Credential picker appeared');
+    await page.waitForTimeout(500);  // Pause to show picker in video
 
     // Select Seller Wallet from the picker
     await page.click('button.credential-picker-button:has-text("Seller Wallet")');
@@ -813,6 +818,7 @@ test.describe('Encrypted NFT Marketplace', () => {
     // Wait for credential picker to appear
     await page.waitForSelector('#credential-picker-overlay', { timeout: 5000 });
     console.log('  🔐 Credential picker appeared');
+    await page.waitForTimeout(500);  // Pause to show picker in video
 
     // Select Buyer Wallet from the picker
     await page.click('button.credential-picker-button:has-text("Buyer Wallet")');
@@ -846,6 +852,7 @@ test.describe('Encrypted NFT Marketplace', () => {
     // Wait for credential picker to appear
     await page.waitForSelector('#credential-picker-overlay', { timeout: 5000 });
     console.log('  🔐 Credential picker appeared');
+    await page.waitForTimeout(500);  // Pause to show picker in video
 
     // Select Buyer Wallet from the picker (buyer is purchasing)
     await page.click('button.credential-picker-button:has-text("Buyer Wallet")');
@@ -874,6 +881,7 @@ test.describe('Encrypted NFT Marketplace', () => {
     // Wait for credential picker to appear
     await page.waitForSelector('#credential-picker-overlay', { timeout: 5000 });
     console.log('  🔐 Credential picker appeared');
+    await page.waitForTimeout(500);  // Pause to show picker in video
 
     // Select Seller Wallet from the picker
     await page.click('button.credential-picker-button:has-text("Seller Wallet")');
@@ -908,6 +916,7 @@ test.describe('Encrypted NFT Marketplace', () => {
     // Wait for credential picker to appear
     await page.waitForSelector('#credential-picker-overlay', { timeout: 5000 });
     console.log('  🔐 Credential picker appeared');
+    await page.waitForTimeout(500);  // Pause to show picker in video
 
     // Select Buyer Wallet from the picker
     await page.click('button.credential-picker-button:has-text("Buyer Wallet")');
@@ -945,6 +954,7 @@ test.describe('Encrypted NFT Marketplace', () => {
     // Wait for credential picker to appear
     await page.waitForSelector('#credential-picker-overlay', { timeout: 5000 });
     console.log('  🔐 Credential picker appeared');
+    await page.waitForTimeout(500);  // Pause to show picker in video
 
     // Select Seller Wallet from the picker
     await page.click('button.credential-picker-button:has-text("Seller Wallet")');

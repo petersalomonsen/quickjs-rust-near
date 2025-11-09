@@ -10,10 +10,10 @@ export default defineConfig({
   reporter: 'line',
   use: {
     trace: 'on-first-retry',
-    headless: true,
+    headless: false,  // Show browser to enable video recording
     navigationTimeout: 60000,
     actionTimeout: 30000,
-    video: process.env.CI ? 'off' : 'on',  // Record video locally, not in CI
+    video: 'on',  // Always record video
   },
   projects: [
     {
