@@ -897,9 +897,6 @@
         window.mintNFT = async function() {
             const network = document.getElementById('mint-network').value;
             const contract = document.getElementById('mint-contract').value.trim();
-            const owner = document.getElementById('mint-owner').value.trim();
-            const privateKeyHex = document.getElementById('mint-private-key').value.trim();
-            const signerKey = document.getElementById('mint-signer-key').value.trim();
             const tokenId = document.getElementById('mint-token-id').value.trim();
             const contentType = document.getElementById('mint-content-type').value;
             const depositStr = document.getElementById('mint-deposit').value.trim();
@@ -908,15 +905,23 @@
             document.getElementById('mint-result').classList.remove('show');
 
             // Validation
-            if (!contract || !owner || !privateKeyHex || !signerKey || !tokenId) {
-                showError('mint', 'Please fill in all required fields');
+            if (!contract || !tokenId) {
+                showError('mint', 'Please fill in contract and token ID');
                 return;
             }
 
-            if (privateKeyHex.length !== 64) {
-                showError('mint', 'Private key must be 64 hex characters');
+            // Get credentials
+            let credentials;
+            try {
+                credentials = await getCredentials();
+            } catch (error) {
+                showError('mint', error.message);
                 return;
             }
+
+            const owner = credentials.accountId;
+            const privateKeyHex = credentials.encryptionKeyPair.private_scalar_hex;
+            const signerKey = credentials.signingKeyPair;
 
             // Get content
             let contentBytes;
@@ -1033,18 +1038,28 @@
         window.listForSale = async function() {
             const network = document.getElementById('list-network').value;
             const contract = document.getElementById('list-contract').value.trim();
-            const seller = document.getElementById('list-seller').value.trim();
-            const signerKey = document.getElementById('list-signer-key').value.trim();
             const tokenId = document.getElementById('list-token-id').value.trim();
             const priceNear = document.getElementById('list-price').value.trim();
 
             document.getElementById('list-error').classList.remove('show');
             document.getElementById('list-result').classList.remove('show');
 
-            if (!contract || !seller || !signerKey || !tokenId || !priceNear) {
-                showError('list', 'Please fill in all fields');
+            if (!contract || !tokenId || !priceNear) {
+                showError('list', 'Please fill in contract, token ID, and price');
                 return;
             }
+
+            // Get credentials
+            let credentials;
+            try {
+                credentials = await getCredentials();
+            } catch (error) {
+                showError('list', error.message);
+                return;
+            }
+
+            const seller = credentials.accountId;
+            const signerKey = credentials.signingKeyPair;
 
             try {
                 showLoading('list', true);
@@ -1095,18 +1110,28 @@
         window.buyNFT = async function() {
             const network = document.getElementById('buy-network').value;
             const contract = document.getElementById('buy-contract').value.trim();
-            const buyer = document.getElementById('buy-buyer').value.trim();
-            const signerKey = document.getElementById('buy-signer-key').value.trim();
-            const buyerPubkey = document.getElementById('buy-buyer-pubkey').value.trim();
             const tokenId = document.getElementById('buy-token-id').value.trim();
 
             document.getElementById('buy-error').classList.remove('show');
             document.getElementById('buy-result').classList.remove('show');
 
-            if (!contract || !buyer || !signerKey || !buyerPubkey || !tokenId) {
-                showError('buy', 'Please fill in all fields');
+            if (!contract || !tokenId) {
+                showError('buy', 'Please fill in contract and token ID');
                 return;
             }
+
+            // Get credentials
+            let credentials;
+            try {
+                credentials = await getCredentials();
+            } catch (error) {
+                showError('buy', error.message);
+                return;
+            }
+
+            const buyer = credentials.accountId;
+            const signerKey = credentials.signingKeyPair;
+            const buyerPubkey = credentials.encryptionKeyPair.public_key_base64;
 
             try {
                 showLoading('buy', true);
@@ -1166,23 +1191,28 @@
         window.completeSale = async function() {
             const network = document.getElementById('complete-network').value;
             const contract = document.getElementById('complete-contract').value.trim();
-            const seller = document.getElementById('complete-seller').value.trim();
-            const signerKey = document.getElementById('complete-signer-key').value.trim();
-            const sellerPrivateKeyHex = document.getElementById('complete-seller-private-key').value.trim();
             const tokenId = document.getElementById('complete-token-id').value.trim();
 
             document.getElementById('complete-error').classList.remove('show');
             document.getElementById('complete-result').classList.remove('show');
 
-            if (!contract || !seller || !signerKey || !sellerPrivateKeyHex || !tokenId) {
-                showError('complete', 'Please fill in all fields');
+            if (!contract || !tokenId) {
+                showError('complete', 'Please fill in contract and token ID');
                 return;
             }
 
-            if (sellerPrivateKeyHex.length !== 64) {
-                showError('complete', 'Private key must be 64 hex characters');
+            // Get credentials
+            let credentials;
+            try {
+                credentials = await getCredentials();
+            } catch (error) {
+                showError('complete', error.message);
                 return;
             }
+
+            const seller = credentials.accountId;
+            const signerKey = credentials.signingKeyPair;
+            const sellerPrivateKeyHex = credentials.encryptionKeyPair.private_scalar_hex;
 
             try {
                 showLoading('complete', true);
