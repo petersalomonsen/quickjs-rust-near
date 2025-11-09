@@ -295,9 +295,8 @@
         <!-- Credential Management Section -->
         <div class="info-box" style="background: #e8f5e9; border-left-color: #4caf50;">
             🔐 <strong>Credentials:</strong>
-            <span id="credential-status">No credentials loaded</span>
-            <button onclick="loadCredentials()" style="margin-left: 10px; padding: 6px 12px; font-size: 12px; width: auto; display: inline-block;">
-                Load Credentials
+            <button onclick="viewCredentialAddress()" style="margin-left: 10px; padding: 6px 12px; font-size: 12px; width: auto; display: inline-block;">
+                View Address
             </button>
             <button onclick="createCredentials()" style="margin-left: 10px; padding: 6px 12px; font-size: 12px; width: auto; display: inline-block;">
                 Create New Credentials
@@ -820,24 +819,6 @@
 
                 const credentialData = JSON.parse(atob(credentials.password));
 
-                // Store globally for view address feature
-                currentCredentials = credentialData;
-
-                // Update UI to show loaded credentials
-                document.getElementById('credential-status').textContent =
-                    `Loaded: ${credentials.name} (${credentialData.accountId.substring(0, 16)}...)`;
-
-                // Add "View Full Address" button if not already present
-                if (!document.getElementById('view-address-btn')) {
-                    const statusSpan = document.getElementById('credential-status');
-                    const viewBtn = document.createElement('button');
-                    viewBtn.id = 'view-address-btn';
-                    viewBtn.textContent = 'View Full Address';
-                    viewBtn.style.cssText = 'margin-left: 10px; padding: 4px 8px; font-size: 11px; background: #2196F3; color: white; border: none; border-radius: 4px; cursor: pointer;';
-                    viewBtn.onclick = viewFullAddress;
-                    statusSpan.parentNode.insertBefore(viewBtn, statusSpan.nextSibling);
-                }
-
                 return credentialData;
             } catch (error) {
                 console.error('Failed to get credentials:', error);
@@ -845,47 +826,33 @@
             }
         }
 
-        let currentCredentials = null;
-
-        window.loadCredentials = async function() {
+        window.viewCredentialAddress = async function() {
             try {
-                currentCredentials = await getCredentials();
-                // Status already updated by getCredentials()
+                const credentials = await navigator.credentials.get({
+                    mediation: "required",
+                    password: true
+                });
 
-                // Add "View Full Address" button if not already present
-                if (!document.getElementById('view-address-btn')) {
-                    const statusSpan = document.getElementById('credential-status');
-                    const viewBtn = document.createElement('button');
-                    viewBtn.id = 'view-address-btn';
-                    viewBtn.textContent = 'View Full Address';
-                    viewBtn.style.cssText = 'margin-left: 10px; padding: 4px 8px; font-size: 11px; background: #2196F3; color: white; border: none; border-radius: 4px; cursor: pointer;';
-                    viewBtn.onclick = viewFullAddress;
-                    statusSpan.parentNode.insertBefore(viewBtn, statusSpan.nextSibling);
+                if (!credentials) {
+                    alert('No credentials selected');
+                    return;
                 }
 
-                alert(`✅ Credentials loaded!\n\nAccount ID: ${currentCredentials.accountId}\n\nYou can now use the marketplace functions.`);
+                const credentialData = JSON.parse(atob(credentials.password));
+                const accountId = credentialData.accountId;
+                const message = `Full Account ID (Implicit Account):\n\n${accountId}\n\nClick OK to copy to clipboard.`;
+
+                if (confirm(message)) {
+                    // Copy to clipboard
+                    navigator.clipboard.writeText(accountId).then(() => {
+                        alert('✅ Account ID copied to clipboard!\n\nYou can now send NEAR tokens to this address.');
+                    }).catch(err => {
+                        // Fallback if clipboard API fails
+                        prompt('Copy this account ID:', accountId);
+                    });
+                }
             } catch (error) {
-                alert('Failed to load credentials: ' + error.message);
-            }
-        };
-
-        window.viewFullAddress = function() {
-            if (!currentCredentials) {
-                alert('No credentials loaded. Please load credentials first.');
-                return;
-            }
-
-            const accountId = currentCredentials.accountId;
-            const message = `Full Account ID (Implicit Account):\n\n${accountId}\n\nClick OK to copy to clipboard.`;
-
-            if (confirm(message)) {
-                // Copy to clipboard
-                navigator.clipboard.writeText(accountId).then(() => {
-                    alert('✅ Account ID copied to clipboard!\n\nYou can now send NEAR tokens to this address.');
-                }).catch(err => {
-                    // Fallback if clipboard API fails
-                    prompt('Copy this account ID:', accountId);
-                });
+                alert('Failed to retrieve credentials: ' + error.message);
             }
         };
 
@@ -930,10 +897,6 @@
                 await navigator.credentials.store(credentials);
 
                 alert(`✅ Credentials created successfully!\n\nAccount ID (implicit): ${accountId}\nName: ${credentialName}\n\nYour credentials are now stored in your browser's password manager.`);
-
-                // Update status
-                document.getElementById('credential-status').textContent =
-                    `Created: ${credentialName} (${accountId.substring(0, 16)}...)`;
             } catch (error) {
                 console.error('Failed to create credentials:', error);
                 alert('Failed to create credentials: ' + error.message);
