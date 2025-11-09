@@ -1080,9 +1080,7 @@
                     <strong>Encrypted size:</strong> ${encryptedContent.length.toLocaleString()} bytes<br>
                     <strong>Deposit:</strong> ${deposit} NEAR<br><br>
                     <strong>Transaction:</strong> <a href="${explorerUrl}" target="_blank">${txId}</a><br><br>
-                    <strong>Save this info:</strong><br>
-                    Private key (hex): <code>${privateKeyHex}</code><br>
-                    Public key (base64): <code>${bytesToBase64(publicKeyBytes)}</code>
+                    <em>🔐 Your encryption keys are securely stored in your browser's password manager.</em>
                 `);
 
             } catch (error) {
