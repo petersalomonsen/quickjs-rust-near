@@ -779,9 +779,23 @@
 
                 const credentialData = JSON.parse(atob(credentials.password));
 
+                // Store globally for view address feature
+                currentCredentials = credentialData;
+
                 // Update UI to show loaded credentials
                 document.getElementById('credential-status').textContent =
                     `Loaded: ${credentials.name} (${credentialData.accountId.substring(0, 16)}...)`;
+
+                // Add "View Full Address" button if not already present
+                if (!document.getElementById('view-address-btn')) {
+                    const statusSpan = document.getElementById('credential-status');
+                    const viewBtn = document.createElement('button');
+                    viewBtn.id = 'view-address-btn';
+                    viewBtn.textContent = 'View Full Address';
+                    viewBtn.style.cssText = 'margin-left: 10px; padding: 4px 8px; font-size: 11px; background: #2196F3; color: white; border: none; border-radius: 4px; cursor: pointer;';
+                    viewBtn.onclick = viewFullAddress;
+                    statusSpan.parentNode.insertBefore(viewBtn, statusSpan.nextSibling);
+                }
 
                 return credentialData;
             } catch (error) {
@@ -790,13 +804,47 @@
             }
         }
 
+        let currentCredentials = null;
+
         window.loadCredentials = async function() {
             try {
-                const credentials = await getCredentials();
+                currentCredentials = await getCredentials();
                 // Status already updated by getCredentials()
-                alert(`✅ Credentials loaded!\n\nAccount ID: ${credentials.accountId}\n\nYou can now use the marketplace functions.`);
+
+                // Add "View Full Address" button if not already present
+                if (!document.getElementById('view-address-btn')) {
+                    const statusSpan = document.getElementById('credential-status');
+                    const viewBtn = document.createElement('button');
+                    viewBtn.id = 'view-address-btn';
+                    viewBtn.textContent = 'View Full Address';
+                    viewBtn.style.cssText = 'margin-left: 10px; padding: 4px 8px; font-size: 11px; background: #2196F3; color: white; border: none; border-radius: 4px; cursor: pointer;';
+                    viewBtn.onclick = viewFullAddress;
+                    statusSpan.parentNode.insertBefore(viewBtn, statusSpan.nextSibling);
+                }
+
+                alert(`✅ Credentials loaded!\n\nAccount ID: ${currentCredentials.accountId}\n\nYou can now use the marketplace functions.`);
             } catch (error) {
                 alert('Failed to load credentials: ' + error.message);
+            }
+        };
+
+        window.viewFullAddress = function() {
+            if (!currentCredentials) {
+                alert('No credentials loaded. Please load credentials first.');
+                return;
+            }
+
+            const accountId = currentCredentials.accountId;
+            const message = `Full Account ID (Implicit Account):\n\n${accountId}\n\nClick OK to copy to clipboard.`;
+
+            if (confirm(message)) {
+                // Copy to clipboard
+                navigator.clipboard.writeText(accountId).then(() => {
+                    alert('✅ Account ID copied to clipboard!\n\nYou can now send NEAR tokens to this address.');
+                }).catch(err => {
+                    // Fallback if clipboard API fails
+                    prompt('Copy this account ID:', accountId);
+                });
             }
         };
 
