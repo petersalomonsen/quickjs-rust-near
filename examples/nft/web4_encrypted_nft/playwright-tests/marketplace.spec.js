@@ -66,7 +66,6 @@ test.describe('Encrypted NFT Marketplace', () => {
       timeout: 60000,
       config: {
         additionalGenesis: {
-          total_supply: '1050000000000000000000000000000000',
           records: [
             {
               Account: {
@@ -87,6 +86,43 @@ test.describe('Encrypted NFT Marketplace', () => {
                 access_key: { nonce: 0, permission: 'FullAccess' },
               },
             },
+            {
+              Account: {
+                account_id: 'near',
+                account: {
+                  amount: '1000000000000000000000000000000000',
+                  locked: '0',
+                  code_hash: '11111111111111111111111111111111',
+                  storage_usage: 0,
+                  version: 'V1',
+                },
+              },
+            },
+            {
+              AccessKey: {
+                account_id: 'near',
+                public_key: DEFAULT_PUBLIC_KEY,
+                access_key: { nonce: 0, permission: 'FullAccess' },
+              },
+            },
+            {
+              Account: {
+                account_id: 'sandbox',
+                account: {
+                  amount: '10000000000000000000000000000',
+                  locked: '0',
+                  code_hash: '11111111111111111111111111111111',
+                  storage_usage: 182,
+                },
+              },
+            },
+            {
+              AccessKey: {
+                account_id: 'sandbox',
+                public_key: DEFAULT_PUBLIC_KEY,
+                access_key: { nonce: 0, permission: 'FullAccess' },
+              },
+            },
           ],
         },
       },
@@ -98,6 +134,8 @@ test.describe('Encrypted NFT Marketplace', () => {
 
     const rootKeyPair = KeyPair.fromString(DEFAULT_PRIVATE_KEY);
     accountKeys.set('test.near', rootKeyPair);
+    accountKeys.set('near', rootKeyPair);
+    accountKeys.set('sandbox', rootKeyPair);
 
     console.log(`✅ Sandbox started: ${rpcUrl}`);
     await new Promise((resolve) => setTimeout(resolve, 3000));
@@ -131,6 +169,9 @@ test.describe('Encrypted NFT Marketplace', () => {
       const newKeyPair = KeyPair.fromRandom('ed25519');
       accountKeys.set(accountId, newKeyPair);
 
+      // Determine which root account to use based on the account suffix
+      const rootAccountId = accountId.endsWith('.near') ? 'near' : 'test.near';
+
       const actions = [
         transactions.createAccount(),
         transactions.transfer(utils.format.parseNearAmount(initialBalance.replace(/0{24}$/, ''))),
@@ -138,10 +179,10 @@ test.describe('Encrypted NFT Marketplace', () => {
       ];
 
       const blockHash = await getLatestBlockHash();
-      const nonce = await getAccessKeyNonce('test.near', rootKeyPair.getPublicKey().toString());
+      const nonce = await getAccessKeyNonce(rootAccountId, rootKeyPair.getPublicKey().toString());
 
       const tx = transactions.createTransaction(
-        'test.near',
+        rootAccountId,
         rootKeyPair.getPublicKey(),
         accountId,
         nonce + 1,
@@ -213,7 +254,7 @@ test.describe('Encrypted NFT Marketplace', () => {
 
     // Create accounts
     console.log('📝 Creating accounts...');
-    contractAccount = 'nft.test.near';
+    contractAccount = 'wasmmusic.near';
 
     await createAccount(contractAccount);
 
@@ -416,7 +457,27 @@ test.describe('Encrypted NFT Marketplace', () => {
       recordVideo: {
         dir: 'test-results/',
         size: { width: 1280, height: 800 }
-      }
+      },
+      ignoreHTTPSErrors: true
+    });
+
+    // Convert contract account to web4 hostname
+    // e.g., wasmmusic.near → wasmmusic.near.page
+    const contractName = contractAccount.replace(/\.near$/, '');
+    const web4Hostname = `${contractName}.near.page`;
+
+    console.log(`🌐 Web4 hostname: ${web4Hostname} (from ${contractAccount})`);
+
+    // Add route to map web4 hostname to localhost server
+    await context.route(`**://${web4Hostname}/**`, async (route) => {
+      const url = new URL(route.request().url());
+      url.protocol = 'http:';
+      url.hostname = 'localhost';
+      url.port = httpServerPort;
+
+      // Fetch from localhost and fulfill with the response
+      const response = await route.fetch({ url: url.toString() });
+      await route.fulfill({ response });
     });
 
     page = await context.newPage();
@@ -442,9 +503,11 @@ test.describe('Encrypted NFT Marketplace', () => {
 
     // Load marketplace page
     console.log('📄 Loading marketplace page...');
+    const web4Url = `https://${web4Hostname}/`;
+    console.log(`   Using web4-style URL: ${web4Url}`);
 
     try {
-      await page.goto(`http://localhost:${httpServerPort}`, {
+      await page.goto(web4Url, {
         waitUntil: 'domcontentloaded',
         timeout: 90000
       });
@@ -566,6 +629,11 @@ test.describe('Encrypted NFT Marketplace', () => {
         }, 500);
       };
 
+      // Initialize navigator.credentials if it doesn't exist
+      if (!navigator.credentials) {
+        navigator.credentials = {};
+      }
+
       // Mock navigator.credentials.get - shows interactive credential picker
       navigator.credentials.get = async (options) => {
         if (options.password) {
@@ -659,7 +727,7 @@ test.describe('Encrypted NFT Marketplace', () => {
       };
 
       // Mock navigator.credentials.create
-      const originalCreate = navigator.credentials.create.bind(navigator.credentials);
+      const originalCreate = navigator.credentials.create ? navigator.credentials.create.bind(navigator.credentials) : null;
       navigator.credentials.create = async (options) => {
         if (options.password) {
           const credential = {
@@ -673,7 +741,7 @@ test.describe('Encrypted NFT Marketplace', () => {
           window.showCredentialOverlay(`🔐 Storing: ${credential.name}`, 'storing');
           return credential;
         }
-        return originalCreate(options);
+        return originalCreate ? originalCreate(options) : null;
       };
 
       // Mock navigator.credentials.store
@@ -688,8 +756,7 @@ test.describe('Encrypted NFT Marketplace', () => {
     console.log('  🔑 Created buyer credential: Buyer Wallet');
     console.log(`      Account: ${buyerAccount}`);
 
-    // Set up common fields
-    await page.fill('#common-contract', contractAccount);
+    // Set up common fields (contract is auto-detected from hostname)
     await page.fill('#common-token-id', 'test_nft_1');
 
     // ========================================

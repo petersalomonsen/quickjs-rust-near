@@ -314,18 +314,9 @@
 
         <!-- Common Settings Section -->
         <div class="info-box">
-            <div class="input-group">
-                <label for="common-network">Network</label>
-                <select id="common-network">
-                    <option value="testnet">Testnet</option>
-                    <option value="mainnet">Mainnet</option>
-                </select>
-            </div>
-
-            <div class="input-group">
-                <label for="common-contract">Contract Address</label>
-                <input type="text" id="common-contract" value="wasmmusic.testnet" placeholder="example.testnet">
-            </div>
+            <!-- Network and contract are hidden, auto-detected from hostname -->
+            <input type="hidden" id="common-network" value="testnet">
+            <input type="hidden" id="common-contract" value="">
 
             <div class="input-group" style="margin-bottom: 0;">
                 <label for="common-token-id">Token ID</label>
@@ -551,7 +542,42 @@
         // Helper Functions
         // ============================================================================
 
+        // Parse contract and network from hostname (e.g., wasmmusic.testnet.page or wasmmusic.near.page)
+        function parseHostname() {
+            const hostname = window.location.hostname;
+
+            // Check if it matches web4 pattern: contract.{testnet|near}.page
+            const testnetMatch = hostname.match(/^([^.]+)\.testnet\.page$/);
+            const mainnetMatch = hostname.match(/^([^.]+)\.near\.page$/);
+
+            if (testnetMatch) {
+                return {
+                    contract: testnetMatch[1] + '.testnet',
+                    network: 'testnet'
+                };
+            } else if (mainnetMatch) {
+                return {
+                    contract: mainnetMatch[1] + '.near',
+                    network: 'mainnet'
+                };
+            }
+
+            // Fallback: check for localhost or other patterns
+            // Return default values that can be overridden
+            return {
+                contract: null,
+                network: 'testnet'
+            };
+        }
+
         function getRpcUrl(network) {
+            // Allow test override
+            if (window.testRpcUrl) {
+                return window.testRpcUrl;
+            }
+            if (window.getRpcUrl) {
+                return window.getRpcUrl();
+            }
             return network === 'mainnet'
                 ? 'https://rpc.mainnet.fastnear.com'
                 : 'https://rpc.testnet.fastnear.com';
@@ -1513,6 +1539,24 @@
                 showError('view', `Error: ${error.message}`);
             }
         };
+
+        // ============================================================================
+        // Initialize from hostname
+        // ============================================================================
+        window.addEventListener('DOMContentLoaded', () => {
+            const { contract, network } = parseHostname();
+
+            if (contract) {
+                // Set the values for the hidden fields
+                document.getElementById('common-network').value = network;
+                document.getElementById('common-contract').value = contract;
+
+                console.log(`📍 Detected from hostname: ${contract} on ${network}`);
+            } else {
+                console.log('📍 Manual contract configuration required');
+                console.log('⚠️  Please set contract via common-contract input');
+            }
+        });
     </script>
 </body>
 </html>
