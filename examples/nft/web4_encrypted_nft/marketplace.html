@@ -12,58 +12,65 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: monospace;
+            background: #000;
+            color: #0f0;
             min-height: 100vh;
-            padding: 20px;
+            padding: 10px;
         }
 
         .container {
-            max-width: 800px;
+            max-width: 900px;
             margin: 0 auto;
         }
 
         h1 {
-            color: white;
+            color: #0f0;
             text-align: center;
-            margin-bottom: 30px;
-            font-size: 32px;
+            margin-bottom: 20px;
+            font-size: 28px;
+            text-shadow: 0 0 10px #0f0;
         }
 
         .tabs {
             display: flex;
-            gap: 10px;
+            gap: 5px;
             margin-bottom: 20px;
+            flex-wrap: wrap;
         }
 
         .tab {
             flex: 1;
-            padding: 15px;
-            background: rgba(255, 255, 255, 0.2);
-            color: white;
-            border: none;
-            border-radius: 12px;
-            font-size: 16px;
-            font-weight: 600;
+            min-width: 120px;
+            padding: 10px;
+            background-color: #cfc;
+            color: #050;
+            border: 3px solid #4a4;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: bold;
             cursor: pointer;
-            transition: all 0.3s;
+            transition: all 0.2s;
+            font-family: monospace;
+            user-select: none;
         }
 
         .tab:hover {
-            background: rgba(255, 255, 255, 0.3);
+            background-color: #9f9;
         }
 
         .tab.active {
-            background: white;
-            color: #667eea;
+            background: #0f0;
+            color: #000;
+            box-shadow: 0 0 15px #0f0;
         }
 
         .panel {
             display: none;
-            background: white;
-            border-radius: 20px;
-            padding: 40px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            background: #030;
+            border: 3px solid #4a4;
+            border-radius: 12px;
+            padding: 20px;
         }
 
         .panel.active {
@@ -74,51 +81,55 @@
         @keyframes fadeIn {
             from {
                 opacity: 0;
-                transform: translateY(10px);
             }
             to {
                 opacity: 1;
-                transform: translateY(0);
             }
         }
 
         h2 {
-            color: #333;
-            margin-bottom: 20px;
-            font-size: 24px;
+            color: #0f0;
+            margin-bottom: 15px;
+            font-size: 20px;
+            text-shadow: 0 0 8px #0f0;
         }
 
         .input-group {
-            margin-bottom: 20px;
+            margin-bottom: 15px;
         }
 
         label {
             display: block;
-            color: #555;
-            font-weight: 600;
-            margin-bottom: 8px;
+            color: #0f0;
+            font-weight: bold;
+            margin-bottom: 5px;
             font-size: 14px;
         }
 
         input, select, textarea {
             width: 100%;
-            padding: 12px 16px;
-            border: 2px solid #e0e0e0;
+            padding: 8px;
+            background-color: #cfc;
+            border: 3px solid #4a4;
             border-radius: 8px;
+            color: #050;
             font-size: 14px;
-            transition: all 0.3s;
             font-family: monospace;
         }
 
+        input::placeholder {
+            color: #888;
+        }
+
         textarea {
-            min-height: 100px;
+            min-height: 80px;
             resize: vertical;
         }
 
         input:focus, select:focus, textarea:focus {
             outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            background-color: #9f9;
+            box-shadow: 0 0 10px #0f0;
         }
 
         .file-input-wrapper {
@@ -135,81 +146,87 @@
 
         .file-input-label {
             display: block;
-            padding: 12px 16px;
-            background: #f8f9fa;
-            border: 2px dashed #e0e0e0;
+            padding: 10px;
+            background-color: #cfc;
+            border: 3px dashed #4a4;
             border-radius: 8px;
             text-align: center;
             cursor: pointer;
             transition: all 0.3s;
+            color: #050;
         }
 
         .file-input-label:hover {
-            border-color: #667eea;
-            background: #f0f4ff;
+            background-color: #9f9;
+            box-shadow: 0 0 10px #0f0;
         }
 
         .file-name {
             margin-top: 8px;
-            font-size: 13px;
-            color: #666;
+            font-size: 12px;
+            color: #0f0;
         }
 
         button {
             width: 100%;
-            padding: 14px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
+            padding: 10px;
+            background-color: #cfc;
+            color: #050;
+            border: 3px solid #4a4;
             border-radius: 8px;
             font-size: 16px;
-            font-weight: 600;
+            font-weight: bold;
             cursor: pointer;
             transition: all 0.2s;
             margin-top: 10px;
+            font-family: monospace;
+            user-select: none;
         }
 
         button:hover:not(:disabled) {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+            background-color: #9f9;
+            box-shadow: 0 0 15px #0f0;
         }
 
         button:active:not(:disabled) {
-            transform: translateY(0);
+            background-color: #0f0;
         }
 
         button:disabled {
-            background: #ccc;
+            background: #666;
+            border-color: #444;
+            color: #999;
             cursor: not-allowed;
-            transform: none;
         }
 
         .info-box {
-            background: #e8f4ff;
-            padding: 15px;
+            background: rgba(0, 255, 0, 0.1);
+            padding: 12px;
             border-radius: 8px;
-            margin-bottom: 20px;
-            border-left: 4px solid #2196F3;
+            margin-bottom: 15px;
+            border: 2px solid #4a4;
             font-size: 13px;
-            color: #555;
+            color: #0f0;
+            line-height: 1.6;
         }
 
         .warning-box {
-            background: #fff3cd;
-            padding: 15px;
+            background: rgba(255, 255, 0, 0.1);
+            padding: 12px;
             border-radius: 8px;
-            margin-bottom: 20px;
-            border-left: 4px solid #ffc107;
+            margin-bottom: 15px;
+            border: 2px solid #aa4;
             font-size: 13px;
-            color: #856404;
+            color: #ff0;
+            line-height: 1.6;
         }
 
         .result {
-            margin-top: 30px;
-            padding: 20px;
-            background: #f8f9fa;
-            border-radius: 12px;
-            border-left: 4px solid #667eea;
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(0, 255, 0, 0.15);
+            border-radius: 8px;
+            border: 2px solid #0f0;
             display: none;
         }
 
@@ -218,35 +235,37 @@
         }
 
         .result h3 {
-            color: #333;
-            margin-bottom: 15px;
-            font-size: 18px;
+            color: #0f0;
+            margin-bottom: 10px;
+            font-size: 16px;
+            text-shadow: 0 0 8px #0f0;
         }
 
         .result-content {
-            background: white;
-            padding: 15px;
-            border-radius: 8px;
-            color: #333;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 12px;
+            border-radius: 6px;
+            color: #0f0;
             word-wrap: break-word;
             line-height: 1.6;
-            font-size: 14px;
+            font-size: 13px;
         }
 
         .result-content code {
-            background: #f0f0f0;
+            background: rgba(0, 255, 0, 0.2);
             padding: 2px 6px;
             border-radius: 4px;
             font-family: monospace;
         }
 
         .error {
-            color: #e74c3c;
-            background: #ffe5e5;
+            color: #f00;
+            background: rgba(255, 0, 0, 0.2);
             padding: 12px;
+            border: 2px solid #f00;
             border-radius: 8px;
             margin-top: 15px;
-            font-size: 14px;
+            font-size: 13px;
             display: none;
         }
 
@@ -258,8 +277,8 @@
             display: none;
             text-align: center;
             margin-top: 20px;
-            color: #667eea;
-            font-weight: 600;
+            color: #0f0;
+            font-weight: bold;
         }
 
         .loading.show {
@@ -267,13 +286,14 @@
         }
 
         .spinner {
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid #667eea;
+            border: 3px solid #030;
+            border-top: 3px solid #0f0;
             border-radius: 50%;
             width: 40px;
             height: 40px;
             animation: spin 1s linear infinite;
             margin: 20px auto;
+            box-shadow: 0 0 10px #0f0;
         }
 
         @keyframes spin {
@@ -293,8 +313,8 @@
         <h1>Encrypted NFT Marketplace</h1>
 
         <!-- Common Settings Section -->
-        <div class="info-box" style="background: #e8f5e9; border-left-color: #4caf50;">
-            <div class="input-group" style="margin-bottom: 15px;">
+        <div class="info-box">
+            <div class="input-group">
                 <label for="common-network">Network</label>
                 <select id="common-network">
                     <option value="testnet">Testnet</option>
@@ -302,7 +322,7 @@
                 </select>
             </div>
 
-            <div class="input-group" style="margin-bottom: 15px;">
+            <div class="input-group">
                 <label for="common-contract">Contract Address</label>
                 <input type="text" id="common-contract" value="wasmmusic.testnet" placeholder="example.testnet">
             </div>
@@ -330,19 +350,19 @@
                 🔐 Create and manage your credentials for the encrypted NFT marketplace. Your credentials are stored securely in your browser's password manager and include your signing keys and encryption keys.
             </div>
 
-            <div class="info-box" style="background: #fff3cd; border-left-color: #ffc107; margin-top: 20px;">
+            <div class="warning-box">
                 💡 <strong>Implicit Accounts:</strong> Your account ID is derived from your Ed25519 public key. This allows you to use the marketplace without pre-registering a NEAR account. Just fund your implicit account address with NEAR tokens to get started.
             </div>
 
-            <button onclick="createCredentials()" style="margin-top: 20px;">
+            <button onclick="createCredentials()">
                 Create New Credentials
             </button>
 
-            <button onclick="viewCredentialAddress()" style="margin-top: 10px; background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);">
+            <button onclick="viewCredentialAddress()">
                 View Account Address
             </button>
 
-            <div class="info-box" style="background: #e3f2fd; border-left-color: #2196F3; margin-top: 30px;">
+            <div class="info-box">
                 <strong>What are credentials?</strong><br><br>
                 Each credential contains:<br>
                 • <strong>Account ID:</strong> Your implicit account address (derived from public key)<br>
