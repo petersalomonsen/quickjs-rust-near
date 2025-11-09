@@ -296,6 +296,9 @@
         <div class="info-box" style="background: #e8f5e9; border-left-color: #4caf50;">
             🔐 <strong>Credentials:</strong>
             <span id="credential-status">No credentials loaded</span>
+            <button onclick="loadCredentials()" style="margin-left: 10px; padding: 6px 12px; font-size: 12px; width: auto; display: inline-block;">
+                Load Credentials
+            </button>
             <button onclick="createCredentials()" style="margin-left: 10px; padding: 6px 12px; font-size: 12px; width: auto; display: inline-block;">
                 Create New Credentials
             </button>
@@ -786,6 +789,16 @@
                 throw new Error('Failed to retrieve credentials. Please create credentials first.');
             }
         }
+
+        window.loadCredentials = async function() {
+            try {
+                const credentials = await getCredentials();
+                // Status already updated by getCredentials()
+                alert(`✅ Credentials loaded!\n\nAccount ID: ${credentials.accountId}\n\nYou can now use the marketplace functions.`);
+            } catch (error) {
+                alert('Failed to load credentials: ' + error.message);
+            }
+        };
 
         window.createCredentials = async function() {
             const credentialName = prompt('Enter a name for these credentials (e.g., "My Main Wallet"):');
