@@ -213,12 +213,65 @@ test.describe('Encrypted NFT Marketplace', () => {
     // Create accounts
     console.log('📝 Creating accounts...');
     contractAccount = 'nft.test.near';
-    sellerAccount = 'seller.test.near';
-    buyerAccount = 'buyer.test.near';
 
     await createAccount(contractAccount);
-    sellerKeyPair = await createAccount(sellerAccount);
-    buyerKeyPair = await createAccount(buyerAccount);
+
+    // Generate keypairs for seller and buyer (implicit accounts)
+    sellerKeyPair = KeyPair.fromRandom('ed25519');
+    buyerKeyPair = KeyPair.fromRandom('ed25519');
+
+    // Derive implicit account IDs from public keys (hex representation of public key data)
+    sellerAccount = Buffer.from(sellerKeyPair.getPublicKey().data).toString('hex');
+    buyerAccount = Buffer.from(buyerKeyPair.getPublicKey().data).toString('hex');
+
+    // Store keypairs FIRST so the funding transactions can use them
+    accountKeys.set(sellerAccount, sellerKeyPair);
+    accountKeys.set(buyerAccount, buyerKeyPair);
+
+    // Fund the implicit accounts by transferring NEAR to them
+    // For implicit accounts, we just transfer funds - the account is created automatically
+    // and the access key is implicitly the public key that the account ID is derived from
+    async function fundImplicitAccount(accountId, amount) {
+      const actions = [
+        transactions.transfer(utils.format.parseNearAmount(amount.replace(/0{24}$/, '')))
+      ];
+
+      const blockHash = await getLatestBlockHash();
+      const nonce = await getAccessKeyNonce('test.near', rootKeyPair.getPublicKey().toString());
+
+      const tx = transactions.createTransaction(
+        'test.near',
+        rootKeyPair.getPublicKey(),
+        accountId,
+        nonce + 1,
+        actions,
+        utils.serialize.base_decode(blockHash)
+      );
+
+      const serializedTx = utils.serialize.serialize(transactions.SCHEMA.Transaction, tx);
+      const txHash = crypto.createHash('sha256').update(serializedTx).digest();
+      const signature = rootKeyPair.sign(txHash);
+
+      const signedTx = new transactions.SignedTransaction({
+        transaction: tx,
+        signature: new transactions.Signature({
+          keyType: tx.publicKey.keyType,
+          data: signature.signature,
+        }),
+      });
+
+      const signedTxBytes = signedTx.encode();
+      const signedTxBase64 = Buffer.from(signedTxBytes).toString('base64');
+      await broadcastTxCommit(rpcClient, {
+        signedTxBase64,
+        waitUntil: 'FINAL',
+      });
+
+      console.log(`  ✅ Funded implicit account: ${accountId}`);
+    }
+
+    await fundImplicitAccount(sellerAccount, '100000000000000000000000000');
+    await fundImplicitAccount(buyerAccount, '100000000000000000000000000');
 
     // Deploy contract
     console.log('📦 Deploying contract...');
@@ -352,9 +405,13 @@ test.describe('Encrypted NFT Marketplace', () => {
       });
     });
 
-    // Create browser context
+    // Create browser context with headed mode for visualization
     page = await browser.newPage();
     page.setDefaultTimeout(60000);
+
+    // Create test-results directory if it doesn't exist
+    const { mkdirSync } = await import('fs');
+    mkdirSync('test-results', { recursive: true });
 
     // Listen to console messages
     page.on('console', (msg) => {
@@ -416,40 +473,98 @@ test.describe('Encrypted NFT Marketplace', () => {
       window.getRpcUrl = () => url;
     }, rpcUrl);
 
-    // Mock the credentials API for seller
-    await page.evaluate(({ account, signingKey, privateKey, publicKey }) => {
+    // Set up credential storage and mocking
+    await page.evaluate(({ sellerAccount, sellerKeyPair, sellerPrivateKey, sellerPublicKey, buyerAccount, buyerKeyPair, buyerPrivateKey, buyerPublicKey }) => {
+      // Create an in-memory credential store
+      window.testCredentialStore = [];
+
+      // IMPORTANT: The accountId in credentials must match the implicit account ID
+      // which is derived from the Ed25519 public key (hex of public key data)
+      // The sellerAccount and buyerAccount passed in are already the implicit account IDs
+
+      // Create seller credentials (using the pre-generated keypair)
       const sellerCreds = {
-        accountId: account,
-        signingKeyPair: signingKey,
+        accountId: sellerAccount,  // This is the implicit account ID (hex of public key)
+        signingKeyPair: sellerKeyPair,
         encryptionKeyPair: {
-          private_scalar_hex: privateKey,
-          public_key_base64: publicKey
+          private_scalar_hex: sellerPrivateKey,
+          public_key_base64: sellerPublicKey
         }
       };
 
-      // Store seller credentials globally for the test
-      window.testSellerCredentials = sellerCreds;
-
-      // Mock navigator.credentials.get to return seller credentials
-      const originalGet = navigator.credentials.get.bind(navigator.credentials);
-      navigator.credentials.get = async (options) => {
-        if (window.testCurrentCredentials === 'buyer') {
-          return {
-            name: 'Test Buyer',
-            password: btoa(JSON.stringify(window.testBuyerCredentials))
-          };
+      // Create buyer credentials (using the pre-generated keypair)
+      const buyerCreds = {
+        accountId: buyerAccount,  // This is the implicit account ID (hex of public key)
+        signingKeyPair: buyerKeyPair,
+        encryptionKeyPair: {
+          private_scalar_hex: buyerPrivateKey,
+          public_key_base64: buyerPublicKey
         }
-        return {
-          name: 'Test Seller',
-          password: btoa(JSON.stringify(sellerCreds))
-        };
+      };
+
+      // Store both credentials
+      window.testCredentialStore.push({
+        id: 'Seller Wallet',
+        name: 'Seller Wallet',
+        password: btoa(JSON.stringify(sellerCreds)),
+        type: 'password'
+      });
+
+      window.testCredentialStore.push({
+        id: 'Buyer Wallet',
+        name: 'Buyer Wallet',
+        password: btoa(JSON.stringify(buyerCreds)),
+        type: 'password'
+      });
+
+      // Track current credential selection (default to seller)
+      window.testSelectCredential = 0;
+
+      // Mock navigator.credentials.create
+      const originalCreate = navigator.credentials.create.bind(navigator.credentials);
+      navigator.credentials.create = async (options) => {
+        if (options.password) {
+          const credential = {
+            id: options.password.id,
+            name: options.password.name,
+            password: options.password.password,
+            type: 'password'
+          };
+          window.testCredentialStore.push(credential);
+          return credential;
+        }
+        return originalCreate(options);
+      };
+
+      // Mock navigator.credentials.get to return selected credential
+      navigator.credentials.get = async (options) => {
+        if (options.password && window.testCredentialStore.length > 0) {
+          const index = window.testSelectCredential || 0;
+          return window.testCredentialStore[index];
+        }
+        return null;
+      };
+
+      // Mock navigator.credentials.store
+      navigator.credentials.store = async (credential) => {
+        return credential;
       };
     }, {
-      account: sellerAccount,
-      signingKey: sellerKeyPair.toString(),
-      privateKey: scalarToBuffer(sellerRistrettoPrivateKey).toString('hex'),
-      publicKey: Buffer.from(RistrettoPoint.BASE.multiply(sellerRistrettoPrivateKey).toRawBytes()).toString('base64')
+      sellerAccount: sellerAccount,
+      sellerKeyPair: sellerKeyPair.toString(),
+      sellerPrivateKey: scalarToBuffer(sellerRistrettoPrivateKey).toString('hex'),
+      sellerPublicKey: Buffer.from(RistrettoPoint.BASE.multiply(sellerRistrettoPrivateKey).toRawBytes()).toString('base64'),
+      buyerAccount: buyerAccount,
+      buyerKeyPair: buyerKeyPair.toString(),
+      buyerPrivateKey: scalarToBuffer(buyerRistrettoPrivateKey).toString('hex'),
+      buyerPublicKey: Buffer.from(RistrettoPoint.BASE.multiply(buyerRistrettoPrivateKey).toRawBytes()).toString('base64')
     });
+
+    // Log credential creation
+    console.log('  🔑 Created seller credential: Seller Wallet');
+    console.log(`      Account: ${sellerAccount}`);
+    console.log('  🔑 Created buyer credential: Buyer Wallet');
+    console.log(`      Account: ${buyerAccount}`);
 
     // Set up common fields
     await page.fill('#common-contract', contractAccount);
@@ -516,29 +631,79 @@ test.describe('Encrypted NFT Marketplace', () => {
     console.log('    ✅ NFT listed successfully');
 
     // ========================================
+    // Step 2a: Seller can view their NFT
+    // ========================================
+    console.log('\n  📝 Step 2a: Verifying seller can view their NFT...');
+
+    await page.click('button.tab:has-text("View NFT")');
+    await page.screenshot({ path: 'test-results/01-seller-viewing-nft.png' });
+
+    // Clear any previous results
+    await page.evaluate(() => {
+      document.getElementById('view-error').classList.remove('show');
+      document.getElementById('view-result').classList.remove('show');
+    });
+
+    await page.click('#view-panel button:has-text("Decrypt & View Content")');
+
+    // Wait for either result or error
+    await Promise.race([
+      page.waitForSelector('#view-result.show', { timeout: 30000 }),
+      page.waitForSelector('#view-error.show', { timeout: 30000 }),
+    ]);
+
+    const sellerViewError = await page.isVisible('#view-error.show');
+    expect(sellerViewError).toBe(false);
+
+    const sellerViewResult = await page.textContent('#view-result-content');
+    expect(sellerViewResult).toContain('This is my secret NFT content!');
+    console.log('    ✅ Seller successfully viewed NFT content');
+    await page.screenshot({ path: 'test-results/02-seller-viewing-success.png' });
+
+    // ========================================
+    // Step 2b: Buyer cannot view NFT (not owner yet)
+    // ========================================
+    console.log('\n  📝 Step 2b: Verifying buyer cannot view NFT (not owner)...');
+
+    // Switch to buyer credential
+    await page.evaluate(() => {
+      window.testSelectCredential = 1; // Select buyer (index 1)
+    });
+
+    console.log('  🔑 Switched to buyer credential: Buyer Wallet');
+    await page.screenshot({ path: 'test-results/03-buyer-credential-selected.png' });
+
+    // Clear previous results
+    await page.evaluate(() => {
+      document.getElementById('view-error').classList.remove('show');
+      document.getElementById('view-result').classList.remove('show');
+    });
+
+    // Try to view - should fail
+    await page.click('#view-panel button:has-text("Decrypt & View Content")');
+
+    await Promise.race([
+      page.waitForSelector('#view-result.show', { timeout: 30000 }),
+      page.waitForSelector('#view-error.show', { timeout: 30000 }),
+    ]);
+
+    const buyerViewError = await page.isVisible('#view-error.show');
+    expect(buyerViewError).toBe(true);
+
+    const buyerErrorText = await page.textContent('#view-error');
+    console.log(`    ✅ Buyer correctly blocked from viewing: ${buyerErrorText.substring(0, 50)}...`);
+    await page.screenshot({ path: 'test-results/04-buyer-viewing-blocked.png' });
+
+    // ========================================
     // Step 3: Buy NFT
     // ========================================
     console.log('\n  📝 Step 3: Buying NFT...');
 
-    // Set up buyer credentials
-    await page.evaluate(({ account, signingKey, privateKey, publicKey }) => {
-      window.testBuyerCredentials = {
-        accountId: account,
-        signingKeyPair: signingKey,
-        encryptionKeyPair: {
-          private_scalar_hex: privateKey,
-          public_key_base64: publicKey
-        }
-      };
-      window.testCurrentCredentials = 'buyer';
-    }, {
-      account: buyerAccount,
-      signingKey: buyerKeyPair.toString(),
-      privateKey: scalarToBuffer(buyerRistrettoPrivateKey).toString('hex'),
-      publicKey: Buffer.from(RistrettoPoint.BASE.multiply(buyerRistrettoPrivateKey).toRawBytes()).toString('base64')
-    });
+    // Buyer is already selected from previous step
+    console.log('  🔑 Using buyer credential: Buyer Wallet');
 
     await page.click('button.tab:has-text("Buy NFT")');
+    await page.screenshot({ path: 'test-results/05-buy-nft-tab.png' });
 
     // Contract and token ID already in common fields, just click buy
 
@@ -549,16 +714,19 @@ test.describe('Encrypted NFT Marketplace', () => {
     expect(buyResultText).toContain('test_nft_1');
     expect(buyResultText).toContain('Funds in escrow');
     console.log('    ✅ NFT purchased successfully');
+    await page.screenshot({ path: 'test-results/06-buy-success.png' });
 
     // ========================================
     // Step 4: Complete sale with re-encryption
     // ========================================
     console.log('\n  📝 Step 4: Completing sale...');
 
-    // Switch back to seller credentials
+    // Switch back to seller credential
     await page.evaluate(() => {
-      window.testCurrentCredentials = 'seller';
+      window.testSelectCredential = 0; // Select seller (index 0)
     });
+
+    console.log('  🔑 Switched back to seller credential: Seller Wallet');
 
     await page.click('button.tab:has-text("Complete Sale")');
 
@@ -571,7 +739,79 @@ test.describe('Encrypted NFT Marketplace', () => {
     expect(completeResultText).toContain('test_nft_1');
     expect(completeResultText).toContain('Sale completed');
     console.log('    ✅ Sale completed successfully');
+    await page.screenshot({ path: 'test-results/07-sale-completed.png' });
+
+    // ========================================
+    // Step 5: Buyer can now view NFT (new owner)
+    // ========================================
+    console.log('\n  📝 Step 5: Verifying buyer can now view NFT (new owner)...');
+
+    // Switch to buyer credential
+    await page.evaluate(() => {
+      window.testSelectCredential = 1; // Select buyer (index 1)
+    });
+
+    console.log('  🔑 Switched to buyer credential: Buyer Wallet');
+
+    await page.click('button.tab:has-text("View NFT")');
+    await page.screenshot({ path: 'test-results/08-buyer-viewing-after-purchase.png' });
+
+    // Clear previous results
+    await page.evaluate(() => {
+      document.getElementById('view-error').classList.remove('show');
+      document.getElementById('view-result').classList.remove('show');
+    });
+
+    await page.click('#view-panel button:has-text("Decrypt & View Content")');
+
+    await Promise.race([
+      page.waitForSelector('#view-result.show', { timeout: 30000 }),
+      page.waitForSelector('#view-error.show', { timeout: 30000 }),
+    ]);
+
+    const buyerViewError2 = await page.isVisible('#view-error.show');
+    expect(buyerViewError2).toBe(false);
+
+    const buyerViewResult = await page.textContent('#view-result-content');
+    expect(buyerViewResult).toContain('This is my secret NFT content!');
+    console.log('    ✅ Buyer successfully viewed NFT content (after purchase)');
+    await page.screenshot({ path: 'test-results/09-buyer-viewing-success.png' });
+
+    // ========================================
+    // Step 6: Seller can no longer view NFT (no longer owner)
+    // ========================================
+    console.log('\n  📝 Step 6: Verifying seller can no longer view NFT...');
+
+    // Switch back to seller credential
+    await page.evaluate(() => {
+      window.testSelectCredential = 0; // Select seller (index 0)
+    });
+
+    console.log('  🔑 Switched to seller credential: Seller Wallet');
+    await page.screenshot({ path: 'test-results/10-seller-credential-selected.png' });
+
+    // Clear previous results
+    await page.evaluate(() => {
+      document.getElementById('view-error').classList.remove('show');
+      document.getElementById('view-result').classList.remove('show');
+    });
+
+    // Try to view - should fail now
+    await page.click('#view-panel button:has-text("Decrypt & View Content")');
+
+    await Promise.race([
+      page.waitForSelector('#view-result.show', { timeout: 30000 }),
+      page.waitForSelector('#view-error.show', { timeout: 30000 }),
+    ]);
+
+    const sellerViewError2 = await page.isVisible('#view-error.show');
+    expect(sellerViewError2).toBe(true);
+
+    const sellerErrorText = await page.textContent('#view-error');
+    console.log(`    ✅ Seller correctly blocked from viewing: ${sellerErrorText.substring(0, 50)}...`);
+    await page.screenshot({ path: 'test-results/11-seller-viewing-blocked.png' });
 
     console.log('\n✅ Full marketplace flow completed successfully!');
+    console.log('📸 Screenshots saved to test-results/ directory');
   });
 });
