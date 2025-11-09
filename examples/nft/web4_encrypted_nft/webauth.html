@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+<head></head>
+<script type="importmap">
+    {
+        "imports": {
+            "@noble/curves/ed25519": "https://esm.sh/@noble/curves@1.3.0/ed25519",
+            "near-api-js": "https://esm.sh/near-api-js@5.0.1",
+            "@near-js/jsonrpc-client": "https://esm.sh/@near-js/jsonrpc-client@1.4.0",
+            "@near-js/types": "https://esm.sh/@near-js/types@0.3.0",
+            "@near-js/utils": "https://esm.sh/@near-js/utils@0.3.0",
+            "@near-js/crypto": "https://esm.sh/@near-js/crypto@1.4.0",
+            "@near-js/transactions": "https://esm.sh/@near-js/transactions@1.3.0"
+        }
+    }
+    </script>
+<body>
+    <p>
+
+        
+        <button id="get-credentials-button">Get credentials</button>
+        <div id="getCredentialsResult"></div>
+    </p>
+    <p>
+        <h1>Create credentials</h1>
+        <input type="text" id="credentialName" placeholder="Credentials name" />
+        <button id="create-credentials-button">Create credentials</button>
+    </p>
+</body>
+<script type="module">
+    import { KeyPair, transactions, utils } from 'near-api-js';
+    import { RistrettoPoint } from '@noble/curves/ed25519';
+
+    const CURVE_ORDER = 2n ** 252n + 27742317777372353535851937790883648493n;
+    function bufferToScalar(buffer) {
+        let value = 0n;
+        for (let i = buffer.length - 1; i >= 0; i--) {
+            value = (value << 8n) | BigInt(buffer[i]);
+        }
+        value = value % CURVE_ORDER;
+        return value === 0n ? 1n : value;
+    }
+
+    function scalarToBuffer(scalar) {
+        const buffer = new Uint8Array(32);
+        let value = scalar;
+        for (let i = 0; i < 32; i++) {
+            buffer[i] = Number(value & 0xFFn);
+            value = value >> 8n;
+        }
+        return buffer;
+    }
+
+    function hexToBytes(hex) {
+        const bytes = new Uint8Array(hex.length / 2);
+        for (let i = 0; i < hex.length; i += 2) {
+            bytes[i / 2] = parseInt(hex.substr(i, 2), 16);
+        }
+        return bytes;
+    }
+
+    function base64ToBytes(base64) {
+        const binary = atob(base64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) {
+            bytes[i] = binary.charCodeAt(i);
+        }
+        return bytes;
+    }
+
+    function bytesToBase64(bytes) {
+        return btoa(String.fromCharCode(...bytes));
+    }
+
+    document.getElementById("create-credentials-button").onclick = async () => {
+        const signingKeyPair = KeyPair.fromRandom("ed25519");
+        const accountId = signingKeyPair.publicKey.data.toHex(); // Implicit account ID
+
+        // Generate random 32-byte private scalar
+        const randomValues = new Uint8Array(32);
+        crypto.getRandomValues(randomValues);
+        const privateScalar = bufferToScalar(randomValues);
+        const privateScalarBytes = scalarToBuffer(privateScalar);
+
+        // Compute public key: P = scalar * G (basepoint)
+        const publicKey = RistrettoPoint.BASE.multiply(privateScalar);
+
+        // Get compressed point representation (32 bytes)
+        const publicKeyBytes = publicKey.toRawBytes();
+
+        const encryptionKeyPair = {
+            private_scalar_base64: bytesToBase64(privateScalarBytes),
+            private_scalar_hex: privateScalarBytes.toHex(),
+            public_key_base64: bytesToBase64(publicKeyBytes),
+            public_key_hex: publicKeyBytes.toHex(),
+        };
+
+        const credentialName = document.getElementById("credentialName").value;
+
+        const credentials = await navigator.credentials.create({
+            password: {
+                id: credentialName, // User's custom name (shown as username in password manager)
+                name: credentialName, // User's custom name for easy identification
+                origin: location.origin,
+                password: btoa(JSON.stringify({
+                    accountId: accountId,
+                    signingKeyPair: signingKeyPair.toString(),
+                    encryptionKeyPair: encryptionKeyPair
+                })),
+            }
+        });
+        await navigator.credentials.store(credentials);
+
+        alert(`Credentials created!\nAccount ID (implicit): ${accountId}\nName: ${credentialName}`);
+    };
+    document.getElementById("get-credentials-button").onclick = async () => {
+        const credentials = await navigator.credentials.get({
+            mediation:"required",
+            password: true
+        });
+        document.getElementById("getCredentialsResult").innerText = `Credentials for ${credentials.name}: ${atob(credentials.password)}`;
+    }
+</script>
+</html>
