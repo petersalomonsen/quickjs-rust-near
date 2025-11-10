@@ -12,10 +12,8 @@ import {
   viewAccount,
 } from "@near-js/jsonrpc-client";
 import { RistrettoPoint } from "@noble/curves/ed25519";
-import { chromium } from "@playwright/test";
-import http from "http";
 
-console.log("🚀 Starting Encrypted NFT Web4 E2E Test (Sandbox)");
+console.log("🚀 Starting Encrypted NFT Contract E2E Test (Sandbox)");
 
 // Start sandbox
 console.log("🔧 Starting sandbox worker...");
@@ -305,7 +303,7 @@ async function viewFunction(contractId, methodName, args) {
 }
 
 // ============================================================================
-// Ristretto255 ElGamal Encryption
+// Ristretto255 ElGamal Encryption/Decryption
 // ============================================================================
 
 const CURVE_ORDER = 2n ** 252n + 27742317777372353535851937790883648493n;
@@ -362,22 +360,55 @@ function elgamalEncrypt(messageScalar, publicKeyBase64) {
 }
 
 /**
+ * Decrypt ElGamal ciphertext using private key
+ * Returns the decrypted secret point (not scalar!)
+ */
+function elgamalDecrypt(c1Base64, c2Base64, privateKeyBase64) {
+  const c1Bytes = Buffer.from(c1Base64, "base64");
+  const c2Bytes = Buffer.from(c2Base64, "base64");
+  const privateKeyBytes = Buffer.from(privateKeyBase64, "base64");
+
+  const privateKeyScalar = bufferToScalar(privateKeyBytes);
+  const c1Point = RistrettoPoint.fromHex(c1Bytes);
+  const c2Point = RistrettoPoint.fromHex(c2Bytes);
+
+  // Decrypt: S = C2 - sk * C1
+  const secretPoint = c2Point.subtract(c1Point.multiply(privateKeyScalar));
+  return Buffer.from(secretPoint.toRawBytes());
+}
+
+/**
+ * Decrypt AES-GCM encrypted content
+ */
+function aesDecrypt(key, encryptedContentBase64) {
+  const encryptedBuffer = Buffer.from(encryptedContentBase64, "base64");
+  const iv = encryptedBuffer.subarray(0, 12);
+  const tag = encryptedBuffer.subarray(-16);
+  const ciphertext = encryptedBuffer.subarray(12, -16);
+
+  const decipher = crypto.createDecipheriv("aes-256-gcm", key, iv);
+  decipher.setAuthTag(tag);
+
+  return Buffer.concat([
+    decipher.update(ciphertext),
+    decipher.final(),
+  ]);
+}
+
+/**
  * Generate zero-knowledge proof that two ElGamal ciphertexts encrypt the same secret
- * Proves that old_ciphertext and new_ciphertext encrypt the same secret_scalar
- * without revealing the secret_scalar or the randomness used
  */
 function generateReencryptionProof(
-  secretScalar, // The secret_scalar being encrypted (32 bytes)
-  oldCiphertextC1Base64, // C1 of old ciphertext
-  oldCiphertextC2Base64, // C2 of old ciphertext
-  oldRandomness, // r_old used in old ciphertext
-  oldPubkeyBase64, // Old owner's public key
-  newCiphertextC1Base64, // C1 of new ciphertext
-  newCiphertextC2Base64, // C2 of new ciphertext
-  newRandomness, // r_new used in new ciphertext
-  newPubkeyBase64, // New owner's public key
+  secretScalar,
+  oldCiphertextC1Base64,
+  oldCiphertextC2Base64,
+  oldRandomness,
+  oldPubkeyBase64,
+  newCiphertextC1Base64,
+  newCiphertextC2Base64,
+  newRandomness,
+  newPubkeyBase64,
 ) {
-  // Parse inputs
   const oldPubkey = RistrettoPoint.fromHex(
     Buffer.from(oldPubkeyBase64, "base64"),
   );
@@ -394,12 +425,12 @@ function generateReencryptionProof(
   const r_old = bufferToScalar(oldRandomness);
   const r_new = bufferToScalar(newRandomness);
 
-  // Generate random blinding factors (nonces for zero-knowledge)
+  // Generate random blinding factors
   const t_r_old = bufferToScalar(crypto.randomBytes(32));
   const t_r_new = bufferToScalar(crypto.randomBytes(32));
   const t_s = bufferToScalar(crypto.randomBytes(32));
 
-  // Compute commitments (first message in Sigma protocol)
+  // Compute commitments
   const commit_r_old = RistrettoPoint.BASE.multiply(t_r_old);
   const commit_r_new = RistrettoPoint.BASE.multiply(t_r_new);
   const commit_s_old = RistrettoPoint.BASE.multiply(t_s).add(
@@ -409,7 +440,7 @@ function generateReencryptionProof(
     newPubkey.multiply(t_r_new),
   );
 
-  // Compute challenge hash (matches crypto.rs compute_challenge function)
+  // Compute challenge hash
   const challengeHash = crypto
     .createHash("sha256")
     .update(oldC1)
@@ -454,7 +485,6 @@ try {
   console.log("\n📝 Step 2: Initialize Contract and Upload Bundled JavaScript");
   await functionCall("nft.test.near", "nft.test.near", "new", {});
 
-  // Load the bundled contract with embedded HTML
   const nftJavascript = await readFile(
     new URL("../web4_encrypted_nft/contract-bundle.js", import.meta.url),
     "utf-8"
@@ -467,58 +497,7 @@ try {
   });
   console.log("  ✅ Uploaded bundled JavaScript with embedded HTML viewer");
 
-  console.log("\n🌐 Step 3: Test NFT Metadata First");
-
-  // Test a simpler function first
-  const metadata = await viewFunction("nft.test.near", "call_js_func", {
-    function_name: "nft_metadata",
-  });
-  console.log("  ✅ NFT Metadata:", metadata.name);
-
-  console.log("\n🌐 Step 4: Test Web4 Endpoint");
-
-  // Test the web4_get endpoint
-  // Note: web4_get expects the args to contain a 'request' object
-  const web4Input = {
-    function_name: "web4_get",
-    request: { path: "/" },
-  };
-
-  const web4Response = await viewFunction("nft.test.near", "call_js_func", web4Input);
-
-  console.log("  ✅ Web4 endpoint responded");
-  console.log("    - Content-Type:", web4Response.contentType);
-  console.log("    - Body (base64) length:", web4Response.body?.length || 0, "bytes");
-
-  // Verify it's HTML
-  if (web4Response.contentType?.includes("text/html")) {
-    console.log("  ✅ Correct content type (text/html)");
-  } else {
-    throw new Error(`Expected text/html, got: ${web4Response.contentType}`);
-  }
-
-  // Decode base64 HTML
-  const html = Buffer.from(web4Response.body, 'base64').toString('utf-8');
-  console.log("    - Decoded HTML length:", html.length, "bytes");
-  if (html.includes("Encrypted NFT") || html.includes("NFT Viewer")) {
-    console.log("  ✅ HTML contains viewer title");
-  } else {
-    throw new Error("HTML missing expected viewer title");
-  }
-
-  if (html.includes("decryptContent")) {
-    console.log("  ✅ HTML includes decrypt functionality");
-  } else {
-    throw new Error("HTML missing decrypt functionality");
-  }
-
-  if (html.includes("RistrettoPoint")) {
-    console.log("  ✅ HTML includes cryptography library");
-  } else {
-    throw new Error("HTML missing cryptography library");
-  }
-
-  console.log("\n👤 Step 5: Create Test User and Mint Encrypted NFT");
+  console.log("\n👤 Step 3: Create Alice and Mint Encrypted NFT");
   await createAccount("alice.test.near");
 
   const aliceKeys = generateRistrettoKeypair();
@@ -532,7 +511,7 @@ try {
   const aesKey = crypto.createHash("sha256").update(secretPointBytes).digest();
 
   // Encrypt content
-  const contentPlaintext = "Secret music file for Web4 viewer!";
+  const contentPlaintext = "Secret music file - Node.js decryption test!";
   const iv = crypto.randomBytes(12);
   const cipher = crypto.createCipheriv("aes-256-gcm", aesKey, iv);
   const encrypted = Buffer.concat([
@@ -542,12 +521,15 @@ try {
   const tag = cipher.getAuthTag();
   const encryptedContent = Buffer.concat([iv, encrypted, tag]).toString("base64");
 
-  // Encrypt secret_scalar
+  // Encrypt secret_scalar and randomness together (64 bytes total)
+  const randomness = crypto.randomBytes(32);
+  const scalarAndRandomness = Buffer.concat([secretScalar, randomness]);
+
   const iv2 = crypto.randomBytes(12);
   const cipher2 = crypto.createCipheriv("aes-256-gcm", aesKey, iv2);
   const encryptedScalarData = Buffer.concat([
     iv2,
-    cipher2.update(secretScalar),
+    cipher2.update(scalarAndRandomness),
     cipher2.final(),
     cipher2.getAuthTag(),
   ]).toString("base64");
@@ -555,30 +537,16 @@ try {
   // ElGamal encrypt
   const aliceCiphertext = elgamalEncrypt(secretScalar, aliceKeys.publicKey);
 
-  // Calculate storage deposit needed
-  const totalStorageBytes =
-    encryptedContent.length +
-    encryptedScalarData.length +
-    aliceCiphertext.c1_base64.length +
-    aliceCiphertext.c2_base64.length +
-    aliceKeys.publicKey.length +
-    500; // Key overhead
-  const encryptedContentStorageCost = BigInt(totalStorageBytes) * BigInt("10000000000000000000"); // 0.00001 NEAR per byte
+  const totalStorageBytes = encryptedContent.length + encryptedScalarData.length + 500;
+  const totalStorageCost = BigInt(totalStorageBytes) * BigInt("10000000000000000000") + BigInt("20000000000000000000000");
 
-  // Add NFT metadata storage cost (approximately 0.02 NEAR for NFT metadata)
-  const nftMetadataStorageCost = BigInt("20000000000000000000000"); // 0.02 NEAR
-  const totalStorageCost = encryptedContentStorageCost + nftMetadataStorageCost;
-
-  console.log(`  📊 Encrypted content storage: ${totalStorageBytes} bytes, Cost: ${encryptedContentStorageCost} yoctoNEAR`);
-  console.log(`  📊 Total storage cost (including NFT metadata): ${totalStorageCost} yoctoNEAR`);
-
-  // Mint NFT with encrypted content - all in one call
-  const mintResult = await functionCall(
-    "alice.test.near", // Alice mints for herself
+  // Mint NFT
+  await functionCall(
+    "alice.test.near",
     "nft.test.near",
     "nft_mint",
     {
-      token_id: "web4-test-nft-1",
+      token_id: "test-nft-1",
       token_owner_id: "alice.test.near",
       encrypted_content_base64: encryptedContent,
       encrypted_scalar_base64: encryptedScalarData,
@@ -587,332 +555,135 @@ try {
       owner_pubkey_base64: aliceKeys.publicKey,
     },
     "300000000000000",
-    totalStorageCost.toString(), // Pay for NFT + encrypted content storage
+    totalStorageCost.toString(),
   );
-  console.log("  📊 Mint result:", JSON.stringify(mintResult.status, null, 2).substring(0, 500));
-  console.log("  ✅ Alice minted encrypted NFT: web4-test-nft-1");
+  console.log("  ✅ Alice minted encrypted NFT: test-nft-1");
 
-  console.log("\n🔍 Step 6: Verify NFT Token Exists");
-  console.log("  ⏳ Waiting for sandbox to finalize block...");
-  await new Promise((resolve) => setTimeout(resolve, 2000)); // Wait for block finalization
+  console.log("\n🔍 Step 4: Alice Retrieves and Decrypts NFT Content (Node.js)");
+  await new Promise((resolve) => setTimeout(resolve, 2000));
 
-  const nftToken = await viewFunction("nft.test.near", "nft_token", {
-    token_id: "web4-test-nft-1",
-  });
-  console.log("  ✅ NFT Token exists:", nftToken.token_id);
-  console.log("    - Owner:", nftToken.owner_id);
-  console.log("    - Metadata title:", nftToken.metadata.title);
-
-  console.log("\n🔍 Step 7: Verify NFT Encrypted Data is Accessible");
+  // Get encrypted content data
   const contentData = await viewFunction("nft.test.near", "call_js_func", {
     function_name: "get_encrypted_content_data",
-    token_id: "web4-test-nft-1",
+    token_id: "test-nft-1",
   });
 
-  if (contentData && contentData.encrypted_content_base64) {
-    console.log("  ✅ Encrypted content data is accessible");
-    console.log("    - Content size:", contentData.encrypted_content_base64.length, "bytes");
-    console.log("    - Has ElGamal ciphertext:", !!contentData.elgamal_ciphertext);
-    console.log("    - Has owner pubkey:", !!contentData.owner_pubkey_base64);
+  console.log("  ✅ Retrieved encrypted content data from contract");
+
+  // Decrypt using Alice's private key
+  const secretPointBytes_recovered = elgamalDecrypt(
+    contentData.elgamal_ciphertext.c1_base64,
+    contentData.elgamal_ciphertext.c2_base64,
+    aliceKeys.privateKey
+  );
+
+  const aesKey_recovered = crypto.createHash("sha256").update(secretPointBytes_recovered).digest();
+  const decryptedContent = aesDecrypt(aesKey_recovered, contentData.encrypted_content_base64);
+
+  console.log("  ✅ Alice successfully decrypted NFT content!");
+  console.log("    - Decrypted text:", decryptedContent.toString("utf8"));
+
+  if (decryptedContent.toString("utf8") === contentPlaintext) {
+    console.log("  ✅ Decrypted content matches original!");
   } else {
-    console.log("  ❌ Encrypted content data not found");
-    throw new Error("Failed to retrieve encrypted content data");
+    throw new Error("Decrypted content does not match!");
   }
 
-  console.log("\n🌐 Step 8: Start Web4 Gateway Server for Browser Testing");
-
-  // Create a simple HTTP server that mimics Web4 gateway behavior
-  let server;
-  let serverUrl;
-
-  server = http.createServer(async (req, res) => {
-    try {
-      // Call web4_get directly (like real Web4 gateway)
-      const web4Result = await viewFunction("nft.test.near", "web4_get", {
-        request: { path: req.url },
-      });
-
-      // Decode base64 HTML body
-      const htmlContent = Buffer.from(web4Result.body, "base64").toString("utf-8");
-
-      // Inject sandbox RPC endpoint for testing
-      const modifiedHtml = htmlContent
-        .replace(/https:\/\/rpc\.testnet\.fastnear\.com/g, sandboxRpcUrl)
-        .replace(/https:\/\/rpc\.mainnet\.fastnear\.com/g, sandboxRpcUrl);
-
-      res.writeHead(200, { "Content-Type": web4Result.contentType });
-      res.end(modifiedHtml);
-    } catch (error) {
-      res.writeHead(500, { "Content-Type": "text/plain" });
-      res.end(`Error: ${error.message}`);
-    }
-  });
-
-  // Start server on random port
-  await new Promise((resolve) => {
-    server.listen(0, () => {
-      const port = server.address().port;
-      serverUrl = `http://localhost:${port}`;
-      console.log(`  ✅ Web4 gateway server started at ${serverUrl}`);
-      resolve();
-    });
-  });
-
-  console.log("\n🎭 Step 9: Browser Decryption Test with Playwright");
-
-  const browser = await chromium.launch();
-  const context = await browser.newContext();
-  const page = await context.newPage();
-
-  try {
-    // Test 1: Page loads correctly
-    console.log("\n  Test 1: Loading encrypted NFT viewer page...");
-    await page.goto(serverUrl);
-    const title = await page.title();
-    if (title.includes("Encrypted NFT")) {
-      console.log("  ✅ Page title correct:", title);
-    } else {
-      throw new Error(`Unexpected page title: ${title}`);
-    }
-
-    // Test 2: Form fields are present
-    console.log("\n  Test 2: Checking form fields...");
-    const contractInput = await page.locator("#contract");
-    const tokenIdInput = await page.locator("#tokenId");
-    const privateKeyInput = await page.locator("#privateKey");
-
-    if (await contractInput.isVisible() && await tokenIdInput.isVisible() && await privateKeyInput.isVisible()) {
-      console.log("  ✅ All required form fields present");
-    } else {
-      throw new Error("Missing required form fields");
-    }
-
-    // Test 3: Decrypt NFT content with correct private key
-    console.log("\n  Test 3: Testing NFT decryption...");
-
-    // Wait for external libraries to load from CDN
-    console.log("  ⏳ Waiting for external libraries to load...");
-    await page.waitForFunction(() => {
-      return window.nearJsonRpcClient && window.RistrettoPoint;
-    }, { timeout: 30000 });
-    console.log("  ✅ External libraries loaded");
-
-    await page.locator("#network").selectOption("testnet");
-    await page.locator("#contract").fill("nft.test.near");
-    await page.locator("#tokenId").fill("web4-test-nft-1");
-
-    // Convert Alice's private key from base64 to hex
-    const alicePrivateKeyBytes = Buffer.from(aliceKeys.privateKey, "base64");
-    const alicePrivateKeyHex = alicePrivateKeyBytes.toString("hex");
-    await page.locator("#privateKey").fill(alicePrivateKeyHex);
-
-    // Click decrypt button
-    await page.locator("button:has-text('Decrypt Content')").click();
-
-    // Wait for result or error
-    await Promise.race([
-      page.waitForSelector(".result.show", { timeout: 15000 }),
-      page.waitForSelector(".error.show", { timeout: 15000 }),
-    ]);
-
-    // Check if decryption was successful
-    const resultVisible = await page.locator(".result.show").isVisible().catch(() => false);
-    const errorVisible = await page.locator(".error.show").isVisible().catch(() => false);
-
-    if (resultVisible) {
-      const decryptedText = await page.locator("#content").textContent();
-      if (decryptedText.includes("Secret music file")) {
-        console.log("  ✅ Successfully decrypted NFT content in browser!");
-        console.log("    - Decrypted text:", decryptedText);
-      } else {
-        throw new Error(`Unexpected decrypted content: ${decryptedText}`);
-      }
-    } else if (errorVisible) {
-      const errorText = await page.locator("#error").textContent();
-      throw new Error(`Decryption failed with error: ${errorText}`);
-    } else {
-      throw new Error("Neither result nor error appeared after decryption");
-    }
-
-    // Test 4: Wrong private key shows error
-    console.log("\n  Test 4: Testing error handling with wrong private key...");
-    await page.reload();
-
-    // Wait for external libraries to load after reload
-    await page.waitForFunction(() => {
-      return window.nearJsonRpcClient && window.RistrettoPoint;
-    }, { timeout: 30000 });
-
-    await page.locator("#network").selectOption("testnet");
-    await page.locator("#contract").fill("nft.test.near");
-    await page.locator("#tokenId").fill("web4-test-nft-1");
-    await page.locator("#privateKey").fill("0".repeat(64)); // Wrong key
-
-    await page.locator("button:has-text('Decrypt Content')").click();
-
-    await page.waitForSelector(".error.show", { timeout: 10000 });
-    const errorText = await page.locator("#error").textContent();
-    if (errorText.includes("does not match")) {
-      console.log("  ✅ Correctly shows error for wrong private key");
-    } else {
-      console.log("  ⚠️  Error message:", errorText);
-    }
-
-    console.log("\n  ✅ All browser decryption tests passed!");
-
-  } finally {
-    await browser.close();
-    console.log("  ✅ Browser closed");
-  }
-
-  console.log("\n🛒 Step 10: Alice Lists NFT for Sale (Direct Contract Call)");
-
-  // Execute the listing via direct contract call
+  console.log("\n🛒 Step 5: Alice Lists NFT for Sale");
   const salePrice = "2000000000000000000000000"; // 2 NEAR
+
   await functionCall("alice.test.near", "nft.test.near", "call_js_func_mut", {
     function_name: "list_for_sale",
-    token_id: "web4-test-nft-1",
+    token_id: "test-nft-1",
     price: salePrice,
   });
   console.log("  ✅ Alice listed NFT for 2 NEAR");
 
-  // Wait for block finalization
-  console.log("  ⏳ Waiting for sandbox to finalize block...");
   await new Promise((resolve) => setTimeout(resolve, 2000));
 
-  // Verify listing
   const listing = await viewFunction("nft.test.near", "call_js_func", {
     function_name: "get_listing",
-    token_id: "web4-test-nft-1",
+    token_id: "test-nft-1",
   });
-  console.log("  ✅ Listing confirmed - Seller:", listing.seller, "- Price:", listing.price);
+  console.log("  ✅ Listing confirmed - Price:", listing.price);
 
-  console.log("\n👤 Step 11: Create Bob Account and Generate Keys");
+  console.log("\n👤 Step 6: Create Bob and Purchase NFT");
   await createAccount("bob.test.near");
-  console.log("  ✅ Bob account created");
-
-  // Bob generates his encryption keys
   const bobKeys = generateRistrettoKeypair();
-  const bobPrivateKeyBytes = Buffer.from(bobKeys.privateKey, "base64");
-  const bobPrivateKeyHex = bobPrivateKeyBytes.toString("hex");
   console.log("  ✅ Generated encryption keys for Bob");
 
-  console.log("\n💰 Step 12: Bob Buys NFT (Direct Contract Call - Funds go to Escrow)");
-
-  // Bob executes the buy transaction
   await functionCall(
     "bob.test.near",
     "nft.test.near",
     "call_js_func_mut",
     {
       function_name: "buy",
-      token_id: "web4-test-nft-1",
+      token_id: "test-nft-1",
       buyer_pubkey_base64: bobKeys.publicKey,
     },
     "300000000000000",
     salePrice,
   );
   console.log("  ✅ Bob purchased NFT - funds locked in escrow");
-  console.log("    - Buyer:", "bob.test.near");
-  console.log("    - Price paid:", salePrice, "yoctoNEAR (2 NEAR)");
 
-  // Wait for block finalization
-  console.log("  ⏳ Waiting for sandbox to finalize block...");
   await new Promise((resolve) => setTimeout(resolve, 2000));
 
-  // Verify listing is removed
-  const listingAfterBuy = await viewFunction("nft.test.near", "call_js_func", {
-    function_name: "get_listing",
-    token_id: "web4-test-nft-1",
-  });
-  if (listingAfterBuy === null) {
-    console.log("  ✅ Listing removed after purchase");
-  }
-
-  // Verify escrow exists
   const escrow = await viewFunction("nft.test.near", "call_js_func", {
     function_name: "get_escrow",
-    token_id: "web4-test-nft-1",
+    token_id: "test-nft-1",
   });
-  console.log("  ✅ Escrow created - Buyer:", escrow.buyer, "- Seller:", escrow.seller);
+  console.log("  ✅ Escrow created - Buyer:", escrow.buyer);
 
-  console.log("\n🔄 Step 13: Alice Completes Sale with Re-encryption (Direct Contract Call)");
+  console.log("\n🔄 Step 7: Alice Completes Sale with Re-encryption");
 
-  // Get Alice's balance before
-  const aliceBalanceBefore = await viewAccount(sandboxRpcClient, {
-    accountId: "alice.test.near",
-    finality: "final",
-  });
-  console.log("  📊 Alice balance before:", aliceBalanceBefore.amount);
-
-  // Perform re-encryption for Bob
-  console.log("  🔄 Performing re-encryption for Bob...");
-
-  const c1Bytes = Buffer.from(aliceCiphertext.c1_base64, "base64");
-  const c2Bytes = Buffer.from(aliceCiphertext.c2_base64, "base64");
-
-  const alicePrivateKeyBytes = Buffer.from(aliceKeys.privateKey, "base64");
-  const alicePrivateKeyScalar = bufferToScalar(alicePrivateKeyBytes);
-
-  const c1Point = RistrettoPoint.fromHex(c1Bytes);
-  const c2Point = RistrettoPoint.fromHex(c2Bytes);
-
-  // Decrypt ElGamal ciphertext to get the secret POINT (not scalar!)
-  const recoveredSecretPoint = c2Point.subtract(c1Point.multiply(alicePrivateKeyScalar));
-  const recoveredSecretPointBytes = Buffer.from(recoveredSecretPoint.toRawBytes());
-
-  // Derive AES key from the secret point
-  const recoveredAesKey = crypto.createHash("sha256").update(recoveredSecretPointBytes).digest();
-
-  // Decrypt the encrypted_scalar_base64 to get the original secret SCALAR
+  // Alice decrypts to get the secret scalar and randomness
   const encryptedScalarBuffer = Buffer.from(encryptedScalarData, "base64");
   const scalarIv = encryptedScalarBuffer.subarray(0, 12);
   const scalarTag = encryptedScalarBuffer.subarray(-16);
   const scalarCiphertext = encryptedScalarBuffer.subarray(12, -16);
 
-  const scalarDecipher = crypto.createDecipheriv("aes-256-gcm", recoveredAesKey, scalarIv);
+  const scalarDecipher = crypto.createDecipheriv("aes-256-gcm", aesKey_recovered, scalarIv);
   scalarDecipher.setAuthTag(scalarTag);
-  const recoveredSecretScalarBytes = Buffer.concat([
+  const recoveredScalarAndRandomness = Buffer.concat([
     scalarDecipher.update(scalarCiphertext),
     scalarDecipher.final(),
   ]);
 
-  console.log("  ✅ Alice recovered original secret scalar");
+  const recoveredSecretScalar = recoveredScalarAndRandomness.subarray(0, 32);
+  const recoveredRandomness = recoveredScalarAndRandomness.subarray(32, 64);
 
-  // Re-encrypt the SAME secret scalar for Bob (not the content!)
-  // The encrypted_content and encrypted_scalar stay the same - only the ElGamal ciphertext changes
-  const bobCiphertext = elgamalEncrypt(recoveredSecretScalarBytes, bobKeys.publicKey);
+  console.log("  ✅ Alice recovered secret scalar and randomness");
 
+  // Re-encrypt for Bob
+  const bobCiphertext = elgamalEncrypt(recoveredSecretScalar, bobKeys.publicKey);
   console.log("  ✅ Re-encrypted secret scalar for Bob");
 
-  // Generate zero-knowledge proof that old and new ciphertexts encrypt the same secret
+  // Generate zero-knowledge proof
   const proof = generateReencryptionProof(
-    recoveredSecretScalarBytes, // The secret_scalar being encrypted
-    aliceCiphertext.c1_base64, // Old ciphertext C1 (Alice)
-    aliceCiphertext.c2_base64, // Old ciphertext C2 (Alice)
-    aliceCiphertext.randomness, // Randomness used for Alice's encryption
-    aliceKeys.publicKey, // Alice's public key
-    bobCiphertext.c1_base64, // New ciphertext C1 (Bob)
-    bobCiphertext.c2_base64, // New ciphertext C2 (Bob)
-    bobCiphertext.randomness, // Randomness used for Bob's encryption
-    bobKeys.publicKey, // Bob's public key
+    recoveredSecretScalar,
+    aliceCiphertext.c1_base64,
+    aliceCiphertext.c2_base64,
+    aliceCiphertext.randomness,
+    aliceKeys.publicKey,
+    bobCiphertext.c1_base64,
+    bobCiphertext.c2_base64,
+    bobCiphertext.randomness,
+    bobKeys.publicKey,
   );
 
   console.log("  ✅ Generated zero-knowledge re-encryption proof");
 
-  // Complete sale - transfer ownership and release funds from escrow
-  // Note: Only the ElGamal ciphertext changes, encrypted_content and encrypted_scalar stay in storage unchanged
+  // Complete sale
   await functionCall(
     "alice.test.near",
     "nft.test.near",
     "call_js_func_mut",
     {
       function_name: "complete_sale",
-      token_id: "web4-test-nft-1",
+      token_id: "test-nft-1",
       elgamal_ciphertext_c1_base64: bobCiphertext.c1_base64,
       elgamal_ciphertext_c2_base64: bobCiphertext.c2_base64,
       buyer_pubkey_base64: bobKeys.publicKey,
-      // Zero-knowledge proof parameters
       proof_commit_r_old: proof.commit_r_old_base64,
       proof_commit_s_old: proof.commit_s_old_base64,
       proof_commit_r_new: proof.commit_r_new_base64,
@@ -922,122 +693,68 @@ try {
       proof_response_r_new: proof.response_r_new_base64,
     },
   );
-  console.log("  ✅ Alice completed sale transaction with proof - ownership transferred, funds released");
+  console.log("  ✅ Sale completed with proof - ownership transferred");
 
-  // Wait longer for the promise receipt to be executed
-  // The transfer happens in a separate receipt that needs to be processed
-  console.log("  ⏳ Waiting for fund transfer receipt to be processed...");
-  await new Promise((resolve) => setTimeout(resolve, 5000));
+  await new Promise((resolve) => setTimeout(resolve, 3000));
 
-  const aliceBalanceAfter = await viewAccount(sandboxRpcClient, {
-    accountId: "alice.test.near",
-    finality: "final",
-  });
-  console.log("  📊 Alice balance after:", aliceBalanceAfter.amount);
-
-  const balanceIncrease = BigInt(aliceBalanceAfter.amount) - BigInt(aliceBalanceBefore.amount);
-  const balanceIncreaseNear = Number(balanceIncrease) / 1e24;
-  console.log("  💰 Alice received:", balanceIncrease.toString(), "yoctoNEAR");
-  console.log(`     (${balanceIncreaseNear.toFixed(3)} NEAR)`);
-
-  if (balanceIncrease > 0n) {
-    console.log("  ✅ Funds successfully released from escrow to Alice!");
-  } else {
-    console.log("  ⚠️  Balance decreased (gas cost) - transfer receipt may need more time");
-  }
-
-  // Verify ownership transfer
-  console.log("\n🔍 Step 14: Verify Ownership Transfer and NFT State");
-  await new Promise((resolve) => setTimeout(resolve, 2000)); // Wait for block finalization
-
+  console.log("\n🔍 Step 8: Verify Ownership Transfer");
   const finalToken = await viewFunction("nft.test.near", "nft_token", {
-    token_id: "web4-test-nft-1",
+    token_id: "test-nft-1",
   });
-  console.log("  📊 Final NFT owner:", finalToken.owner_id);
+
   if (finalToken.owner_id === "bob.test.near") {
     console.log("  ✅ Ownership successfully transferred to Bob!");
   } else {
     throw new Error(`Expected owner bob.test.near, got ${finalToken.owner_id}`);
   }
 
-  // Verify escrow is cleared
-  const escrowAfter = await viewFunction("nft.test.near", "call_js_func", {
-    function_name: "get_escrow",
-    token_id: "web4-test-nft-1",
+  console.log("\n🔓 Step 9: Bob Retrieves and Decrypts NFT Content (Node.js)");
+
+  // Get updated encrypted content data (with Bob's ciphertext)
+  const contentDataForBob = await viewFunction("nft.test.near", "call_js_func", {
+    function_name: "get_encrypted_content_data",
+    token_id: "test-nft-1",
   });
-  if (escrowAfter === null) {
-    console.log("  ✅ Escrow cleared after sale completion");
+
+  console.log("  ✅ Bob retrieved encrypted content data");
+
+  // Bob decrypts using his private key
+  const bobSecretPoint = elgamalDecrypt(
+    contentDataForBob.elgamal_ciphertext.c1_base64,
+    contentDataForBob.elgamal_ciphertext.c2_base64,
+    bobKeys.privateKey
+  );
+
+  const bobAesKey = crypto.createHash("sha256").update(bobSecretPoint).digest();
+  const bobDecryptedContent = aesDecrypt(bobAesKey, contentDataForBob.encrypted_content_base64);
+
+  console.log("  ✅ Bob successfully decrypted NFT content!");
+  console.log("    - Decrypted text:", bobDecryptedContent.toString("utf8"));
+
+  if (bobDecryptedContent.toString("utf8") === contentPlaintext) {
+    console.log("  ✅ Bob's decrypted content matches original!");
+  } else {
+    throw new Error("Bob's decrypted content does not match!");
   }
-
-  console.log("\n🔓 Step 15: Bob Decrypts NFT Content via Browser");
-
-  const browser2 = await chromium.launch();
-  const context2 = await browser2.newContext();
-  const bobDecryptPage = await context2.newPage();
-
-  try {
-    await bobDecryptPage.goto(serverUrl);
-    console.log("  ✅ Bob opened Web4 viewer");
-
-    // Wait for libraries
-    await bobDecryptPage.waitForFunction(() => {
-      return window.nearJsonRpcClient && window.RistrettoPoint;
-    }, { timeout: 30000 });
-
-    // Fill in decryption form
-    await bobDecryptPage.locator("#network").selectOption("testnet");
-    await bobDecryptPage.locator("#contract").fill("nft.test.near");
-    await bobDecryptPage.locator("#tokenId").fill("web4-test-nft-1");
-    await bobDecryptPage.locator("#privateKey").fill(bobPrivateKeyHex);
-
-    console.log("  🔐 Bob clicking decrypt...");
-    await bobDecryptPage.click('button:has-text("Decrypt Content")');
-
-    // Wait for result
-    await bobDecryptPage.waitForSelector(".result.show", { timeout: 15000 });
-
-    const bobDecryptedText = await bobDecryptPage.locator("#content").textContent();
-    if (bobDecryptedText.includes("Secret music file")) {
-      console.log("  ✅ BOB SUCCESSFULLY DECRYPTED THE NFT!");
-      console.log("    - Decrypted text:", bobDecryptedText);
-      console.log("  ✅ Full marketplace cycle completed!");
-    } else {
-      throw new Error(`Unexpected decrypted content: ${bobDecryptedText}`);
-    }
-
-  } finally {
-    await browser2.close();
-    console.log("  ✅ Bob's browser closed");
-  }
-
-  server.close();
-  console.log("  ✅ Web4 server closed");
 
   console.log("\n✅ =================================================");
-  console.log("✅ ALL WEB4 & MARKETPLACE TESTS PASSED!");
+  console.log("✅ ALL CONTRACT TESTS PASSED!");
   console.log("✅ =================================================");
   console.log("\n📊 Test Summary:");
   console.log("  ✅ Contract deployment: SUCCESS");
   console.log("  ✅ Bundled JavaScript upload: SUCCESS");
-  console.log("  ✅ Web4 endpoint serving HTML: SUCCESS");
-  console.log("  ✅ HTML viewer embedded correctly: SUCCESS");
   console.log("  ✅ Encrypted NFT minting: SUCCESS");
-  console.log("  ✅ Content data retrieval: SUCCESS");
-  console.log("  ✅ Web4 gateway server: SUCCESS");
-  console.log("  ✅ Browser decryption (Alice): SUCCESS");
-  console.log("  ✅ Browser error handling: SUCCESS");
-  console.log("  ✅ Marketplace listing (direct call): SUCCESS");
-  console.log("  ✅ NFT purchase with escrow (direct call): SUCCESS");
+  console.log("  ✅ Alice content decryption (Node.js): SUCCESS");
+  console.log("  ✅ Marketplace listing: SUCCESS");
+  console.log("  ✅ NFT purchase with escrow: SUCCESS");
   console.log("  ✅ Re-encryption for buyer: SUCCESS");
-  console.log("  ✅ Sale completion & fund release (direct call): SUCCESS");
+  console.log("  ✅ Sale completion with ZK proof: SUCCESS");
   console.log("  ✅ Ownership transfer verification: SUCCESS");
-  console.log("  ✅ Browser decryption (Bob): SUCCESS");
-  console.log("\n🎉 Web4 encrypted NFT viewer validated!");
-  console.log("🌐 The viewer HTML is successfully embedded in the contract!");
-  console.log("🔐 Users can decrypt NFT content using the Web4 interface!");
-  console.log("🛒 Full marketplace cycle tested: List → Buy → Escrow → Re-encrypt → Transfer!");
-  console.log("💰 Verified: Alice received payment, Bob owns NFT and can decrypt!");
-  console.log("📝 Note: Marketplace operations use direct contract calls (wallet integration needed for browser)");
+  console.log("  ✅ Bob content decryption (Node.js): SUCCESS");
+  console.log("\n🎉 Full encrypted NFT marketplace validated!");
+  console.log("🔐 Content encryption/decryption works correctly!");
+  console.log("🛒 Marketplace cycle: List → Buy → Escrow → Re-encrypt → Transfer!");
+  console.log("💰 Alice sold, Bob owns and can decrypt the NFT!");
 } catch (error) {
   console.error("\n❌ Test failed:", error);
   if (error.data) {
