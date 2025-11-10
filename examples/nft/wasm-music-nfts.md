@@ -8,6 +8,10 @@ WebAssembly Music is about turning the web browser into such a host for digital 
 
 A digital music instrument can be created from mathematic formulas that computes the points in a soundwave. Complex and even natural sounding instruments can be implemented through math expressed in computer program code. The idea behind the WebAssembly Music project is to avoid recording sounds, but rather implement all the algorithms and math to render the instrument audio output in real time. This way it is possible to create very small Wasm files, in less than 50 kb, which opens up for new ways of distribution.
 
+# Using the WebAssembly Music synth in a DAW
+
+Wasm is not a file format used by DAWs like Logic, Cubase, Reaper and similar applications. They normally use plugin formats like VSTi or Audio Unit instruments. The WebAssembly Music project has a [DAW plugin](https://github.com/petersalomonsen/javascriptmusic/tree/master/dawplugin) that will connect to these apps and allow you to load Wasm files. This plugin contains a WebAssembly Runtime for playing the WebAssembly Music instrument.
+
 # Distributing musical instrument plugins
 
 With WebAssembly Music, we can distribute instruments plugins as easy as sending the Wasm file. A 50 kb file can easily be sent through messaging, mail, and also it does not cost much to host through web storage either.
@@ -52,3 +56,4 @@ The escrow contract can verify the proof by checking that the responses match th
 
 When the escrow contract has verified the proof, it can release the funds to the seller, without getting any further confirmation from the buyer.
 
+The buyer can now download the encrypted content, which in this case is the synth Wasm file. This Wasm file can be loaded into the DAW.
