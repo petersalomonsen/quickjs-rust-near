@@ -673,6 +673,36 @@ try {
 
   console.log("  ✅ Generated zero-knowledge re-encryption proof");
 
+  // Alice encrypts (secret_scalar + new_randomness) for Bob
+  const bobSecretPoint_forScalar = elgamalDecrypt(
+    bobCiphertext.c1_base64,
+    bobCiphertext.c2_base64,
+    bobKeys.privateKey
+  );
+  const bobAesKey_forScalar = crypto.createHash("sha256").update(bobSecretPoint_forScalar).digest();
+
+  // Combine secret scalar with Bob's new randomness
+  const bobScalarAndRandomness = Buffer.concat([
+    recoveredSecretScalar,
+    Buffer.from(bobCiphertext.randomness, "hex"),
+  ]);
+
+  // Encrypt with Bob's AES key
+  const bobScalarIv_new = crypto.randomBytes(12);
+  const bobScalarCipher = crypto.createCipheriv("aes-256-gcm", bobAesKey_forScalar, bobScalarIv_new);
+  const bobScalarEncrypted = Buffer.concat([
+    bobScalarCipher.update(bobScalarAndRandomness),
+    bobScalarCipher.final(),
+  ]);
+  const bobScalarTag_new = bobScalarCipher.getAuthTag();
+  const bobEncryptedScalarBase64 = Buffer.concat([
+    bobScalarIv_new,
+    bobScalarEncrypted,
+    bobScalarTag_new,
+  ]).toString("base64");
+
+  console.log("  ✅ Encrypted secret scalar + new randomness for Bob");
+
   // Complete sale
   await functionCall(
     "alice.test.near",
@@ -684,6 +714,7 @@ try {
       elgamal_ciphertext_c1_base64: bobCiphertext.c1_base64,
       elgamal_ciphertext_c2_base64: bobCiphertext.c2_base64,
       buyer_pubkey_base64: bobKeys.publicKey,
+      encrypted_scalar_base64: bobEncryptedScalarBase64,
       proof_commit_r_old: proof.commit_r_old_base64,
       proof_commit_s_old: proof.commit_s_old_base64,
       proof_commit_r_new: proof.commit_r_new_base64,
@@ -784,14 +815,32 @@ try {
 
   console.log("\n🔄 Step 12: Bob Completes Sale with Re-encryption for Charlie");
 
-  // Bob decrypts to get the secret scalar and randomness
-  const bobEncryptedScalarData = contentDataForBob.encrypted_scalar_base64;
+  // Bob must retrieve current ciphertext from contract (stateless - no memory of previous sale)
+  await new Promise((resolve) => setTimeout(resolve, 2000));
+  const bobCurrentContentData = await viewFunction("nft.test.near", "call_js_func", {
+    function_name: "get_encrypted_content_data",
+    token_id: "test-nft-1",
+  });
+
+  console.log("  ✅ Bob retrieved current NFT data from contract");
+
+  // Bob decrypts ElGamal to get secret point
+  const bobCurrentSecretPoint = elgamalDecrypt(
+    bobCurrentContentData.elgamal_ciphertext.c1_base64,
+    bobCurrentContentData.elgamal_ciphertext.c2_base64,
+    bobKeys.privateKey
+  );
+
+  const bobCurrentAesKey = crypto.createHash("sha256").update(bobCurrentSecretPoint).digest();
+
+  // Bob decrypts encrypted_scalar to get the secret scalar and randomness
+  const bobEncryptedScalarData = bobCurrentContentData.encrypted_scalar_base64;
   const bobEncryptedScalarBuffer = Buffer.from(bobEncryptedScalarData, "base64");
   const bobScalarIv = bobEncryptedScalarBuffer.subarray(0, 12);
   const bobScalarTag = bobEncryptedScalarBuffer.subarray(-16);
   const bobScalarCiphertext = bobEncryptedScalarBuffer.subarray(12, -16);
 
-  const bobScalarDecipher = crypto.createDecipheriv("aes-256-gcm", bobAesKey, bobScalarIv);
+  const bobScalarDecipher = crypto.createDecipheriv("aes-256-gcm", bobCurrentAesKey, bobScalarIv);
   bobScalarDecipher.setAuthTag(bobScalarTag);
   const bobRecoveredScalarAndRandomness = Buffer.concat([
     bobScalarDecipher.update(bobScalarCiphertext),
@@ -799,20 +848,21 @@ try {
   ]);
 
   const bobRecoveredSecretScalar = bobRecoveredScalarAndRandomness.subarray(0, 32);
-  // const bobRecoveredRandomness = bobRecoveredScalarAndRandomness.subarray(32, 64);
+  const bobRecoveredRandomness = bobRecoveredScalarAndRandomness.subarray(32, 64);
 
-  console.log("  ✅ Bob recovered secret scalar and randomness");
+  console.log("  ✅ Bob recovered secret scalar and randomness from encrypted_scalar");
 
   // Re-encrypt for Charlie
   const charlieCiphertext = elgamalEncrypt(bobRecoveredSecretScalar, charlieKeys.publicKey);
   console.log("  ✅ Re-encrypted secret scalar for Charlie");
 
   // Generate zero-knowledge proof (Bob to Charlie)
+  // IMPORTANT: Use the randomness retrieved from encrypted_scalar (NOT from memory)
   const charlieProof = generateReencryptionProof(
     bobRecoveredSecretScalar,
-    bobCiphertext.c1_base64,
-    bobCiphertext.c2_base64,
-    bobCiphertext.randomness,
+    bobCurrentContentData.elgamal_ciphertext.c1_base64,
+    bobCurrentContentData.elgamal_ciphertext.c2_base64,
+    bobRecoveredRandomness, // ← Using randomness from encrypted_scalar!
     bobKeys.publicKey,
     charlieCiphertext.c1_base64,
     charlieCiphertext.c2_base64,
@@ -821,6 +871,36 @@ try {
   );
 
   console.log("  ✅ Generated zero-knowledge re-encryption proof");
+
+  // Bob encrypts (secret_scalar + new_randomness) for Charlie
+  const charlieSecretPoint_forScalar = elgamalDecrypt(
+    charlieCiphertext.c1_base64,
+    charlieCiphertext.c2_base64,
+    charlieKeys.privateKey
+  );
+  const charlieAesKey_forScalar = crypto.createHash("sha256").update(charlieSecretPoint_forScalar).digest();
+
+  // Combine secret scalar with Charlie's new randomness
+  const charlieScalarAndRandomness = Buffer.concat([
+    bobRecoveredSecretScalar,
+    Buffer.from(charlieCiphertext.randomness, "hex"),
+  ]);
+
+  // Encrypt with Charlie's AES key
+  const charlieScalarIv_new = crypto.randomBytes(12);
+  const charlieScalarCipher = crypto.createCipheriv("aes-256-gcm", charlieAesKey_forScalar, charlieScalarIv_new);
+  const charlieScalarEncrypted = Buffer.concat([
+    charlieScalarCipher.update(charlieScalarAndRandomness),
+    charlieScalarCipher.final(),
+  ]);
+  const charlieScalarTag_new = charlieScalarCipher.getAuthTag();
+  const charlieEncryptedScalarBase64 = Buffer.concat([
+    charlieScalarIv_new,
+    charlieScalarEncrypted,
+    charlieScalarTag_new,
+  ]).toString("base64");
+
+  console.log("  ✅ Encrypted secret scalar + new randomness for Charlie");
 
   // Bob completes sale to Charlie
   await functionCall(
@@ -833,6 +913,7 @@ try {
       elgamal_ciphertext_c1_base64: charlieCiphertext.c1_base64,
       elgamal_ciphertext_c2_base64: charlieCiphertext.c2_base64,
       buyer_pubkey_base64: charlieKeys.publicKey,
+      encrypted_scalar_base64: charlieEncryptedScalarBase64,
       proof_commit_r_old: charlieProof.commit_r_old_base64,
       proof_commit_s_old: charlieProof.commit_s_old_base64,
       proof_commit_r_new: charlieProof.commit_r_new_base64,

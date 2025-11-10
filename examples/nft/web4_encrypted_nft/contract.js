@@ -355,7 +355,7 @@ export function buy() {
  * Complete sale by re-encrypting content for the new buyer
  * Seller provides re-encrypted ElGamal ciphertext and zero-knowledge proof
  * Funds are released from escrow to seller only if proof is valid
- * Note: encrypted_content and encrypted_scalar don't change - only the ElGamal ciphertext changes
+ * Note: encrypted_content stays the same, but encrypted_scalar must be updated with new randomness
  */
 export function complete_sale() {
   const {
@@ -363,6 +363,7 @@ export function complete_sale() {
     elgamal_ciphertext_c1_base64,
     elgamal_ciphertext_c2_base64,
     buyer_pubkey_base64,
+    encrypted_scalar_base64,  // NEW: encrypted (secret_scalar + new_randomness) for buyer
     // Zero-knowledge proof parameters
     proof_commit_r_old,
     proof_commit_s_old,
@@ -423,10 +424,11 @@ export function complete_sale() {
     env.panic("Invalid re-encryption proof - seller must provide valid proof");
   }
 
-  // Update only the ElGamal ciphertext and owner pubkey
-  // The encrypted_content and encrypted_scalar remain unchanged
+  // Update ElGamal ciphertext, encrypted_scalar (with new randomness), and owner pubkey
+  // The encrypted_content stays the same (still encrypted with same secret)
   env.storage_write(`elgamal-ciphertext-c1:${token_id}`, elgamal_ciphertext_c1_base64);
   env.storage_write(`elgamal-ciphertext-c2:${token_id}`, elgamal_ciphertext_c2_base64);
+  env.storage_write(`encrypted-scalar:${token_id}`, encrypted_scalar_base64);
   env.storage_write(`owner-pubkey:${token_id}`, buyer_pubkey_base64);
   env.storage_write(`encryption_key:${token_id}`, buyer_pubkey_base64);
 

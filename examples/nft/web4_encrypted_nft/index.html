@@ -1357,6 +1357,19 @@
                 const response_r_new = (t_r_new + challenge * rNewBigInt) % CURVE_ORDER;
                 const response_s = (t_s + challenge * secretScalarBigInt) % CURVE_ORDER;
 
+                // Encrypt (secret_scalar + new_randomness) for buyer
+                // We use the same secretPoint (it's the same secret S*G across all re-encryptions)
+                const buyerAesKey = await sha256(secretPointBytes);
+
+                // Combine secret scalar with new randomness
+                const newScalarAndRandomness = new Uint8Array(64);
+                newScalarAndRandomness.set(scalarToBuffer(secretScalarBigInt), 0);
+                newScalarAndRandomness.set(scalarToBuffer(rNewBigInt), 32);
+
+                // Encrypt with buyer's AES key (returns combined: IV + ciphertext + tag)
+                const encryptedNewScalar = await aesEncrypt(buyerAesKey, newScalarAndRandomness);
+                const newEncryptedScalarBase64 = bytesToBase64(encryptedNewScalar);
+
                 // Prepare arguments
                 const args = {
                     function_name: 'complete_sale',
@@ -1364,6 +1377,7 @@
                     elgamal_ciphertext_c1_base64: bytesToBase64(c1New.toRawBytes()),
                     elgamal_ciphertext_c2_base64: bytesToBase64(c2New.toRawBytes()),
                     buyer_pubkey_base64: escrow.buyer_pubkey,
+                    encrypted_scalar_base64: newEncryptedScalarBase64,
                     proof_commit_r_old: bytesToBase64(commit_r_old.toRawBytes()),
                     proof_commit_s_old: bytesToBase64(commit_s_old.toRawBytes()),
                     proof_commit_r_new: bytesToBase64(commit_r_new.toRawBytes()),
