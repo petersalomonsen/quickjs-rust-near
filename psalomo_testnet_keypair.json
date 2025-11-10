@@ -1,8 +1,0 @@
-{
-  "account_id": "psalomo.testnet",
-  "private_scalar_base64": "qyAvBxdRt0qT6DLEb7YnD91il6uwHFJt4f2xuU/yXgM=",
-  "private_scalar_hex": "ab202f071751b74a93e832c46fb6270fdd6297abb01c526de1fdb1b94ff25e03",
-  "public_key_base64": "yNBmpauqi4JP5leetlzF57OAz8bfDseeXW8G1P5gEFA=",
-  "public_key_hex": "c8d066a5abaa8b824fe6579eb65cc5e7b380cfc6df0ec79e5d6f06d4fe601050",
-  "generated_at": "2025-11-09T08:12:27.207Z"
-}
