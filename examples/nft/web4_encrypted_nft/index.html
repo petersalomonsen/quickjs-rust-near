@@ -1510,17 +1510,25 @@
 
                 // Try to display as text, or show as hex if binary
                 let displayContent;
+                let isText = false;
                 try {
                     const text = new TextDecoder('utf-8', { fatal: true }).decode(decryptedBytes);
                     displayContent = `<strong>Text Content:</strong><br><pre style="white-space: pre-wrap; word-wrap: break-word;">${text}</pre>`;
+                    isText = true;
                 } catch {
-                    // Binary content
+                    // Binary content - create download button
+                    const blob = new Blob([decryptedBytes], { type: 'application/octet-stream' });
+                    const blobUrl = URL.createObjectURL(blob);
                     const hex = Array.from(decryptedBytes).map(b => b.toString(16).padStart(2, '0')).join('');
+
                     displayContent = `
-                        <strong>Binary Content</strong> (${decryptedBytes.length} bytes)<br>
+                        <strong>Binary Content</strong> (${decryptedBytes.length} bytes)<br><br>
+                        <a href="${blobUrl}" download="${tokenId}.bin" style="display: inline-block; padding: 10px 15px; background: #0f0; color: #000; text-decoration: none; border-radius: 6px; font-weight: bold; margin-bottom: 15px;">
+                            📥 Download File (${tokenId}.bin)
+                        </a><br><br>
                         <details>
-                            <summary>View as hex</summary>
-                            <pre style="white-space: pre-wrap; word-wrap: break-word; font-size: 11px;">${hex}</pre>
+                            <summary style="cursor: pointer; color: #0f0;">View as hex</summary>
+                            <pre style="white-space: pre-wrap; word-wrap: break-word; font-size: 11px; margin-top: 10px;">${hex}</pre>
                         </details>
                     `;
                 }
