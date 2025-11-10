@@ -737,6 +737,155 @@ try {
     throw new Error("Bob's decrypted content does not match!");
   }
 
+  console.log("\n🛒 Step 10: Bob Lists NFT for Sale");
+  const bobSalePrice = "3000000000000000000000000"; // 3 NEAR
+
+  await functionCall("bob.test.near", "nft.test.near", "call_js_func_mut", {
+    function_name: "list_for_sale",
+    token_id: "test-nft-1",
+    price: bobSalePrice,
+  });
+  console.log("  ✅ Bob listed NFT for 3 NEAR");
+
+  await new Promise((resolve) => setTimeout(resolve, 2000));
+
+  const bobListing = await viewFunction("nft.test.near", "call_js_func", {
+    function_name: "get_listing",
+    token_id: "test-nft-1",
+  });
+  console.log("  ✅ Listing confirmed - Price:", bobListing.price);
+
+  console.log("\n👤 Step 11: Create Charlie and Purchase NFT from Bob");
+  await createAccount("charlie.test.near");
+  const charlieKeys = generateRistrettoKeypair();
+  console.log("  ✅ Generated encryption keys for Charlie");
+
+  await functionCall(
+    "charlie.test.near",
+    "nft.test.near",
+    "call_js_func_mut",
+    {
+      function_name: "buy",
+      token_id: "test-nft-1",
+      buyer_pubkey_base64: charlieKeys.publicKey,
+    },
+    "300000000000000",
+    bobSalePrice,
+  );
+  console.log("  ✅ Charlie purchased NFT - funds locked in escrow");
+
+  await new Promise((resolve) => setTimeout(resolve, 2000));
+
+  const charlieEscrow = await viewFunction("nft.test.near", "call_js_func", {
+    function_name: "get_escrow",
+    token_id: "test-nft-1",
+  });
+  console.log("  ✅ Escrow created - Buyer:", charlieEscrow.buyer);
+
+  console.log("\n🔄 Step 12: Bob Completes Sale with Re-encryption for Charlie");
+
+  // Bob decrypts to get the secret scalar and randomness
+  const bobEncryptedScalarData = contentDataForBob.encrypted_scalar_base64;
+  const bobEncryptedScalarBuffer = Buffer.from(bobEncryptedScalarData, "base64");
+  const bobScalarIv = bobEncryptedScalarBuffer.subarray(0, 12);
+  const bobScalarTag = bobEncryptedScalarBuffer.subarray(-16);
+  const bobScalarCiphertext = bobEncryptedScalarBuffer.subarray(12, -16);
+
+  const bobScalarDecipher = crypto.createDecipheriv("aes-256-gcm", bobAesKey, bobScalarIv);
+  bobScalarDecipher.setAuthTag(bobScalarTag);
+  const bobRecoveredScalarAndRandomness = Buffer.concat([
+    bobScalarDecipher.update(bobScalarCiphertext),
+    bobScalarDecipher.final(),
+  ]);
+
+  const bobRecoveredSecretScalar = bobRecoveredScalarAndRandomness.subarray(0, 32);
+  // const bobRecoveredRandomness = bobRecoveredScalarAndRandomness.subarray(32, 64);
+
+  console.log("  ✅ Bob recovered secret scalar and randomness");
+
+  // Re-encrypt for Charlie
+  const charlieCiphertext = elgamalEncrypt(bobRecoveredSecretScalar, charlieKeys.publicKey);
+  console.log("  ✅ Re-encrypted secret scalar for Charlie");
+
+  // Generate zero-knowledge proof (Bob to Charlie)
+  const charlieProof = generateReencryptionProof(
+    bobRecoveredSecretScalar,
+    bobCiphertext.c1_base64,
+    bobCiphertext.c2_base64,
+    bobCiphertext.randomness,
+    bobKeys.publicKey,
+    charlieCiphertext.c1_base64,
+    charlieCiphertext.c2_base64,
+    charlieCiphertext.randomness,
+    charlieKeys.publicKey,
+  );
+
+  console.log("  ✅ Generated zero-knowledge re-encryption proof");
+
+  // Bob completes sale to Charlie
+  await functionCall(
+    "bob.test.near",
+    "nft.test.near",
+    "call_js_func_mut",
+    {
+      function_name: "complete_sale",
+      token_id: "test-nft-1",
+      elgamal_ciphertext_c1_base64: charlieCiphertext.c1_base64,
+      elgamal_ciphertext_c2_base64: charlieCiphertext.c2_base64,
+      buyer_pubkey_base64: charlieKeys.publicKey,
+      proof_commit_r_old: charlieProof.commit_r_old_base64,
+      proof_commit_s_old: charlieProof.commit_s_old_base64,
+      proof_commit_r_new: charlieProof.commit_r_new_base64,
+      proof_commit_s_new: charlieProof.commit_s_new_base64,
+      proof_response_s: charlieProof.response_s_base64,
+      proof_response_r_old: charlieProof.response_r_old_base64,
+      proof_response_r_new: charlieProof.response_r_new_base64,
+    },
+  );
+  console.log("  ✅ Sale completed with proof - ownership transferred to Charlie");
+
+  await new Promise((resolve) => setTimeout(resolve, 3000));
+
+  console.log("\n🔍 Step 13: Verify Ownership Transfer to Charlie");
+  const charlieFinalToken = await viewFunction("nft.test.near", "nft_token", {
+    token_id: "test-nft-1",
+  });
+
+  if (charlieFinalToken.owner_id === "charlie.test.near") {
+    console.log("  ✅ Ownership successfully transferred to Charlie!");
+  } else {
+    throw new Error(`Expected owner charlie.test.near, got ${charlieFinalToken.owner_id}`);
+  }
+
+  console.log("\n🔓 Step 14: Charlie Retrieves and Decrypts NFT Content (Node.js)");
+
+  // Get updated encrypted content data (with Charlie's ciphertext)
+  const contentDataForCharlie = await viewFunction("nft.test.near", "call_js_func", {
+    function_name: "get_encrypted_content_data",
+    token_id: "test-nft-1",
+  });
+
+  console.log("  ✅ Charlie retrieved encrypted content data");
+
+  // Charlie decrypts using his private key
+  const charlieSecretPoint = elgamalDecrypt(
+    contentDataForCharlie.elgamal_ciphertext.c1_base64,
+    contentDataForCharlie.elgamal_ciphertext.c2_base64,
+    charlieKeys.privateKey
+  );
+
+  const charlieAesKey = crypto.createHash("sha256").update(charlieSecretPoint).digest();
+  const charlieDecryptedContent = aesDecrypt(charlieAesKey, contentDataForCharlie.encrypted_content_base64);
+
+  console.log("  ✅ Charlie successfully decrypted NFT content!");
+  console.log("    - Decrypted text:", charlieDecryptedContent.toString("utf8"));
+
+  if (charlieDecryptedContent.toString("utf8") === contentPlaintext) {
+    console.log("  ✅ Charlie's decrypted content matches original!");
+  } else {
+    throw new Error("Charlie's decrypted content does not match!");
+  }
+
   console.log("\n✅ =================================================");
   console.log("✅ ALL CONTRACT TESTS PASSED!");
   console.log("✅ =================================================");
@@ -751,10 +900,15 @@ try {
   console.log("  ✅ Sale completion with ZK proof: SUCCESS");
   console.log("  ✅ Ownership transfer verification: SUCCESS");
   console.log("  ✅ Bob content decryption (Node.js): SUCCESS");
+  console.log("  ✅ Bob lists and sells to Charlie: SUCCESS");
+  console.log("  ✅ Second re-encryption with ZK proof: SUCCESS");
+  console.log("  ✅ Charlie ownership transfer: SUCCESS");
+  console.log("  ✅ Charlie content decryption (Node.js): SUCCESS");
   console.log("\n🎉 Full encrypted NFT marketplace validated!");
   console.log("🔐 Content encryption/decryption works correctly!");
   console.log("🛒 Marketplace cycle: List → Buy → Escrow → Re-encrypt → Transfer!");
-  console.log("💰 Alice sold, Bob owns and can decrypt the NFT!");
+  console.log("💰 Alice sold to Bob, Bob sold to Charlie!");
+  console.log("🔄 Two successful re-encryptions with proof verification!");
 } catch (error) {
   console.error("\n❌ Test failed:", error);
   if (error.data) {
