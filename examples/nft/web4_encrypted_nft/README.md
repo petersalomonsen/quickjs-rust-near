@@ -117,23 +117,27 @@ This is a **Sigma protocol** - a standard zero-knowledge proof technique.
 ```bash
 # Build the NFT contract
 cd examples/nft
-cargo near build
+./build.sh
 
 # Deploy contract
-near deploy <your-account.testnet> out/nft.wasm
+near contract deploy <your-account.testnet> use-file out/nft.wasm without-init-call network-config testnet sign-with-keychain send
 
 # Initialize NFT contract
-near call <your-account.testnet> new '{}' --accountId <your-account.testnet>
+near contract call-function as-transaction <your-account.testnet> new json-args '{}' prepaid-gas '30.0 Tgas' attached-deposit '0 NEAR' sign-as <your-account.testnet> network-config testnet sign-with-keychain send
 
 # Build marketplace bundle (includes HTML viewer)
 cd web4_encrypted_nft
 node build.js
 
 # Upload JavaScript with embedded marketplace
-near call <your-account.testnet> post_javascript \
-  "$(cat contract-bundle.js | jq -Rs '{javascript: .}')" \
-  --accountId <your-account.testnet> \
-  --gas 300000000000000
+cat > /tmp/upload_web4_js.json <<'EOF'
+{
+  "javascript":
+EOF
+cat contract-bundle.js | jq -Rs . >> /tmp/upload_web4_js.json
+echo '}' >> /tmp/upload_web4_js.json
+
+near contract call-function as-transaction <your-account.testnet> post_javascript file-args /tmp/upload_web4_js.json prepaid-gas '300.0 Tgas' attached-deposit '0 NEAR' sign-as <your-account.testnet> network-config testnet sign-with-keychain send
 ```
 
 ### Access via Web4

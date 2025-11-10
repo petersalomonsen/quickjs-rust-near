@@ -575,9 +575,6 @@
             if (window.testRpcUrl) {
                 return window.testRpcUrl;
             }
-            if (window.getRpcUrl) {
-                return window.getRpcUrl();
-            }
             return network === 'mainnet'
                 ? 'https://rpc.mainnet.fastnear.com'
                 : 'https://rpc.testnet.fastnear.com';
