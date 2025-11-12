@@ -1057,6 +1057,176 @@ try {
     throw new Error("Charlie's decrypted content does not match!");
   }
 
+  console.log("\n🔄 Step 9: Test cancel_purchase and cancel_listing");
+  console.log("  📝 Charlie lists NFT for sale at 4 NEAR");
+
+  const charlieSalePrice = "4000000000000000000000000"; // 4 NEAR
+  await functionCall("charlie.test.near", "nft.test.near", "call_js_func_mut", {
+    function_name: "list_for_sale",
+    token_id: "test-nft-1",
+    price: charlieSalePrice,
+  });
+  console.log("  ✅ Charlie listed NFT for 4 NEAR");
+
+  await new Promise((resolve) => setTimeout(resolve, 2000));
+
+  const charlieListing = await viewFunction("nft.test.near", "call_js_func", {
+    function_name: "get_listing",
+    token_id: "test-nft-1",
+  });
+  console.log("  ✅ Listing confirmed - Price:", charlieListing.price);
+
+  // Get balances before purchase
+  const bobBalanceBefore = await viewAccount(sandboxRpcClient, {
+    accountId: "bob.test.near",
+    finality: "final",
+  });
+  const charlieBalanceBefore = await viewAccount(sandboxRpcClient, {
+    accountId: "charlie.test.near",
+    finality: "final",
+  });
+  console.log(
+    "  💰 Bob balance before:",
+    BigInt(bobBalanceBefore.amount) / 1000000000000000000000000n,
+    "NEAR",
+  );
+  console.log(
+    "  💰 Charlie balance before:",
+    BigInt(charlieBalanceBefore.amount) / 1000000000000000000000000n,
+    "NEAR",
+  );
+
+  console.log("\n  📝 Bob buys NFT (creating escrow)");
+  await functionCall(
+    "bob.test.near",
+    "nft.test.near",
+    "call_js_func_mut",
+    {
+      function_name: "buy",
+      token_id: "test-nft-1",
+      buyer_pubkey_base64: bobKeys.publicKey,
+    },
+    "300000000000000",
+    charlieSalePrice,
+  );
+  console.log("  ✅ Bob purchased - funds in escrow");
+
+  await new Promise((resolve) => setTimeout(resolve, 2000));
+
+  const escrowAfterPurchase = await viewFunction(
+    "nft.test.near",
+    "call_js_func",
+    {
+      function_name: "get_escrow",
+      token_id: "test-nft-1",
+    },
+  );
+  console.log("  ✅ Escrow created:", JSON.stringify(escrowAfterPurchase));
+
+  console.log("\n  📝 Bob cancels purchase");
+  await functionCall("bob.test.near", "nft.test.near", "call_js_func_mut", {
+    function_name: "cancel_purchase",
+    token_id: "test-nft-1",
+  });
+  console.log("  ✅ Bob cancelled purchase - funds refunded");
+
+  await new Promise((resolve) => setTimeout(resolve, 2000));
+
+  // Verify escrow is removed
+  const escrowAfterCancel = await viewFunction(
+    "nft.test.near",
+    "call_js_func",
+    {
+      function_name: "get_escrow",
+      token_id: "test-nft-1",
+    },
+  );
+  if (escrowAfterCancel === null) {
+    console.log("  ✅ Escrow removed successfully");
+  } else {
+    throw new Error("Escrow should be null after cancellation");
+  }
+
+  // Get balances after cancellation
+  const bobBalanceAfter = await viewAccount(sandboxRpcClient, {
+    accountId: "bob.test.near",
+    finality: "final",
+  });
+  const charlieBalanceAfter = await viewAccount(sandboxRpcClient, {
+    accountId: "charlie.test.near",
+    finality: "final",
+  });
+  console.log(
+    "  💰 Bob balance after:",
+    BigInt(bobBalanceAfter.amount) / 1000000000000000000000000n,
+    "NEAR",
+  );
+  console.log(
+    "  💰 Charlie balance after:",
+    BigInt(charlieBalanceAfter.amount) / 1000000000000000000000000n,
+    "NEAR",
+  );
+
+  // Verify balances are approximately the same (accounting for gas)
+  const bobBalanceDiff =
+    BigInt(bobBalanceBefore.amount) - BigInt(bobBalanceAfter.amount);
+  const charlieBalanceDiff =
+    BigInt(charlieBalanceBefore.amount) - BigInt(charlieBalanceAfter.amount);
+  const maxGasCost = BigInt("100000000000000000000000"); // 0.1 NEAR max gas
+
+  if (bobBalanceDiff < maxGasCost && bobBalanceDiff > 0n) {
+    console.log("  ✅ Bob's balance unchanged (only gas spent)");
+  } else {
+    throw new Error(
+      `Bob's balance changed too much: ${bobBalanceDiff} yoctoNEAR`,
+    );
+  }
+
+  if (charlieBalanceDiff < maxGasCost && charlieBalanceDiff >= 0n) {
+    console.log("  ✅ Charlie's balance unchanged (only gas spent)");
+  } else {
+    throw new Error(
+      `Charlie's balance changed too much: ${charlieBalanceDiff} yoctoNEAR`,
+    );
+  }
+
+  console.log(
+    "\n  📝 Note: Listing was automatically removed when Bob purchased",
+  );
+  console.log("  📝 Charlie re-lists NFT to test cancel_listing");
+  await functionCall("charlie.test.near", "nft.test.near", "call_js_func_mut", {
+    function_name: "list_for_sale",
+    token_id: "test-nft-1",
+    price: charlieSalePrice,
+  });
+  console.log("  ✅ Charlie re-listed NFT for 4 NEAR");
+
+  await new Promise((resolve) => setTimeout(resolve, 2000));
+
+  console.log("\n  📝 Charlie cancels listing (unlists NFT)");
+  await functionCall("charlie.test.near", "nft.test.near", "call_js_func_mut", {
+    function_name: "cancel_listing",
+    token_id: "test-nft-1",
+  });
+  console.log("  ✅ Charlie cancelled listing");
+
+  await new Promise((resolve) => setTimeout(resolve, 2000));
+
+  // Verify listing is removed
+  const listingAfterCancel = await viewFunction(
+    "nft.test.near",
+    "call_js_func",
+    {
+      function_name: "get_listing",
+      token_id: "test-nft-1",
+    },
+  );
+  if (listingAfterCancel === null) {
+    console.log("  ✅ Listing removed successfully");
+  } else {
+    throw new Error("Listing should be null after cancellation");
+  }
+
   console.log("\n✅ =================================================");
   console.log("✅ ALL CONTRACT TESTS PASSED!");
   console.log("✅ =================================================");
@@ -1075,6 +1245,9 @@ try {
   console.log("  ✅ Second re-encryption with ZK proof: SUCCESS");
   console.log("  ✅ Charlie ownership transfer: SUCCESS");
   console.log("  ✅ Charlie content decryption (Node.js): SUCCESS");
+  console.log("  ✅ Cancel purchase and refund: SUCCESS");
+  console.log("  ✅ Cancel listing: SUCCESS");
+  console.log("  ✅ Balance verification (gas only): SUCCESS");
   console.log("\n🎉 Full encrypted NFT marketplace validated!");
   console.log("🔐 Content encryption/decryption works correctly!");
   console.log(
@@ -1082,6 +1255,7 @@ try {
   );
   console.log("💰 Alice sold to Bob, Bob sold to Charlie!");
   console.log("🔄 Two successful re-encryptions with proof verification!");
+  console.log("🔙 Cancel purchase and cancel listing validated!");
 } catch (error) {
   console.error("\n❌ Test failed:", error);
   if (error.data) {
