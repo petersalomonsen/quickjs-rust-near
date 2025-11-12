@@ -228,7 +228,7 @@ async function functionCall(
       methodName,
       Buffer.from(JSON.stringify(args)),
       BigInt(gas),
-      BigInt(deposit)
+      BigInt(deposit),
     ),
   ];
 
@@ -291,7 +291,9 @@ async function viewFunction(contractId, methodName, args) {
   });
 
   const resultStr = JSON.stringify(result);
-  console.log(`  📊 View function result (first 200 chars): ${resultStr.substring(0, 200)}`);
+  console.log(
+    `  📊 View function result (first 200 chars): ${resultStr.substring(0, 200)}`,
+  );
 
   // Note: result can legitimately be null (e.g., listing not found)
   // so we only check for undefined
@@ -389,10 +391,7 @@ function aesDecrypt(key, encryptedContentBase64) {
   const decipher = crypto.createDecipheriv("aes-256-gcm", key, iv);
   decipher.setAuthTag(tag);
 
-  return Buffer.concat([
-    decipher.update(ciphertext),
-    decipher.final(),
-  ]);
+  return Buffer.concat([decipher.update(ciphertext), decipher.final()]);
 }
 
 /**
@@ -462,13 +461,27 @@ function generateReencryptionProof(
   const response_s = (t_s + challenge * m) % CURVE_ORDER;
 
   return {
-    commit_r_old_base64: Buffer.from(commit_r_old.toRawBytes()).toString("base64"),
-    commit_s_old_base64: Buffer.from(commit_s_old.toRawBytes()).toString("base64"),
-    commit_r_new_base64: Buffer.from(commit_r_new.toRawBytes()).toString("base64"),
-    commit_s_new_base64: Buffer.from(commit_s_new.toRawBytes()).toString("base64"),
-    response_s_base64: Buffer.from(scalarToBuffer(response_s)).toString("base64"),
-    response_r_old_base64: Buffer.from(scalarToBuffer(response_r_old)).toString("base64"),
-    response_r_new_base64: Buffer.from(scalarToBuffer(response_r_new)).toString("base64"),
+    commit_r_old_base64: Buffer.from(commit_r_old.toRawBytes()).toString(
+      "base64",
+    ),
+    commit_s_old_base64: Buffer.from(commit_s_old.toRawBytes()).toString(
+      "base64",
+    ),
+    commit_r_new_base64: Buffer.from(commit_r_new.toRawBytes()).toString(
+      "base64",
+    ),
+    commit_s_new_base64: Buffer.from(commit_s_new.toRawBytes()).toString(
+      "base64",
+    ),
+    response_s_base64: Buffer.from(scalarToBuffer(response_s)).toString(
+      "base64",
+    ),
+    response_r_old_base64: Buffer.from(scalarToBuffer(response_r_old)).toString(
+      "base64",
+    ),
+    response_r_new_base64: Buffer.from(scalarToBuffer(response_r_new)).toString(
+      "base64",
+    ),
   };
 }
 
@@ -487,7 +500,7 @@ try {
 
   const nftJavascript = await readFile(
     new URL("../web4_encrypted_nft/contract-bundle.js", import.meta.url),
-    "utf-8"
+    "utf-8",
   );
 
   console.log(`  📄 Bundled contract size: ${nftJavascript.length} bytes`);
@@ -519,7 +532,9 @@ try {
     cipher.final(),
   ]);
   const tag = cipher.getAuthTag();
-  const encryptedContent = Buffer.concat([iv, encrypted, tag]).toString("base64");
+  const encryptedContent = Buffer.concat([iv, encrypted, tag]).toString(
+    "base64",
+  );
 
   // Encrypt secret_scalar and randomness together (64 bytes total)
   const randomness = crypto.randomBytes(32);
@@ -537,8 +552,11 @@ try {
   // ElGamal encrypt
   const aliceCiphertext = elgamalEncrypt(secretScalar, aliceKeys.publicKey);
 
-  const totalStorageBytes = encryptedContent.length + encryptedScalarData.length + 500;
-  const totalStorageCost = BigInt(totalStorageBytes) * BigInt("10000000000000000000") + BigInt("20000000000000000000000");
+  const totalStorageBytes =
+    encryptedContent.length + encryptedScalarData.length + 500;
+  const totalStorageCost =
+    BigInt(totalStorageBytes) * BigInt("10000000000000000000") +
+    BigInt("20000000000000000000000");
 
   // Mint NFT
   await functionCall(
@@ -559,7 +577,9 @@ try {
   );
   console.log("  ✅ Alice minted encrypted NFT: test-nft-1");
 
-  console.log("\n🔍 Step 4: Alice Retrieves and Decrypts NFT Content (Node.js)");
+  console.log(
+    "\n🔍 Step 4: Alice Retrieves and Decrypts NFT Content (Node.js)",
+  );
   await new Promise((resolve) => setTimeout(resolve, 2000));
 
   // Get encrypted content data
@@ -574,11 +594,17 @@ try {
   const secretPointBytes_recovered = elgamalDecrypt(
     contentData.elgamal_ciphertext.c1_base64,
     contentData.elgamal_ciphertext.c2_base64,
-    aliceKeys.privateKey
+    aliceKeys.privateKey,
   );
 
-  const aesKey_recovered = crypto.createHash("sha256").update(secretPointBytes_recovered).digest();
-  const decryptedContent = aesDecrypt(aesKey_recovered, contentData.encrypted_content_base64);
+  const aesKey_recovered = crypto
+    .createHash("sha256")
+    .update(secretPointBytes_recovered)
+    .digest();
+  const decryptedContent = aesDecrypt(
+    aesKey_recovered,
+    contentData.encrypted_content_base64,
+  );
 
   console.log("  ✅ Alice successfully decrypted NFT content!");
   console.log("    - Decrypted text:", decryptedContent.toString("utf8"));
@@ -642,7 +668,11 @@ try {
   const scalarTag = encryptedScalarBuffer.subarray(-16);
   const scalarCiphertext = encryptedScalarBuffer.subarray(12, -16);
 
-  const scalarDecipher = crypto.createDecipheriv("aes-256-gcm", aesKey_recovered, scalarIv);
+  const scalarDecipher = crypto.createDecipheriv(
+    "aes-256-gcm",
+    aesKey_recovered,
+    scalarIv,
+  );
   scalarDecipher.setAuthTag(scalarTag);
   const recoveredScalarAndRandomness = Buffer.concat([
     scalarDecipher.update(scalarCiphertext),
@@ -655,7 +685,10 @@ try {
   console.log("  ✅ Alice recovered secret scalar and randomness");
 
   // Re-encrypt for Bob
-  const bobCiphertext = elgamalEncrypt(recoveredSecretScalar, bobKeys.publicKey);
+  const bobCiphertext = elgamalEncrypt(
+    recoveredSecretScalar,
+    bobKeys.publicKey,
+  );
   console.log("  ✅ Re-encrypted secret scalar for Bob");
 
   // Generate zero-knowledge proof
@@ -677,9 +710,12 @@ try {
   const bobSecretPoint_forScalar = elgamalDecrypt(
     bobCiphertext.c1_base64,
     bobCiphertext.c2_base64,
-    bobKeys.privateKey
+    bobKeys.privateKey,
   );
-  const bobAesKey_forScalar = crypto.createHash("sha256").update(bobSecretPoint_forScalar).digest();
+  const bobAesKey_forScalar = crypto
+    .createHash("sha256")
+    .update(bobSecretPoint_forScalar)
+    .digest();
 
   // Combine secret scalar with Bob's new randomness
   const bobScalarAndRandomness = Buffer.concat([
@@ -689,7 +725,11 @@ try {
 
   // Encrypt with Bob's AES key
   const bobScalarIv_new = crypto.randomBytes(12);
-  const bobScalarCipher = crypto.createCipheriv("aes-256-gcm", bobAesKey_forScalar, bobScalarIv_new);
+  const bobScalarCipher = crypto.createCipheriv(
+    "aes-256-gcm",
+    bobAesKey_forScalar,
+    bobScalarIv_new,
+  );
   const bobScalarEncrypted = Buffer.concat([
     bobScalarCipher.update(bobScalarAndRandomness),
     bobScalarCipher.final(),
@@ -704,26 +744,21 @@ try {
   console.log("  ✅ Encrypted secret scalar + new randomness for Bob");
 
   // Complete sale
-  await functionCall(
-    "alice.test.near",
-    "nft.test.near",
-    "call_js_func_mut",
-    {
-      function_name: "complete_sale",
-      token_id: "test-nft-1",
-      elgamal_ciphertext_c1_base64: bobCiphertext.c1_base64,
-      elgamal_ciphertext_c2_base64: bobCiphertext.c2_base64,
-      buyer_pubkey_base64: bobKeys.publicKey,
-      encrypted_scalar_base64: bobEncryptedScalarBase64,
-      proof_commit_r_old: proof.commit_r_old_base64,
-      proof_commit_s_old: proof.commit_s_old_base64,
-      proof_commit_r_new: proof.commit_r_new_base64,
-      proof_commit_s_new: proof.commit_s_new_base64,
-      proof_response_s: proof.response_s_base64,
-      proof_response_r_old: proof.response_r_old_base64,
-      proof_response_r_new: proof.response_r_new_base64,
-    },
-  );
+  await functionCall("alice.test.near", "nft.test.near", "call_js_func_mut", {
+    function_name: "complete_sale",
+    token_id: "test-nft-1",
+    elgamal_ciphertext_c1_base64: bobCiphertext.c1_base64,
+    elgamal_ciphertext_c2_base64: bobCiphertext.c2_base64,
+    buyer_pubkey_base64: bobKeys.publicKey,
+    encrypted_scalar_base64: bobEncryptedScalarBase64,
+    proof_commit_r_old: proof.commit_r_old_base64,
+    proof_commit_s_old: proof.commit_s_old_base64,
+    proof_commit_r_new: proof.commit_r_new_base64,
+    proof_commit_s_new: proof.commit_s_new_base64,
+    proof_response_s: proof.response_s_base64,
+    proof_response_r_old: proof.response_r_old_base64,
+    proof_response_r_new: proof.response_r_new_base64,
+  });
   console.log("  ✅ Sale completed with proof - ownership transferred");
 
   await new Promise((resolve) => setTimeout(resolve, 3000));
@@ -742,10 +777,14 @@ try {
   console.log("\n🔓 Step 9: Bob Retrieves and Decrypts NFT Content (Node.js)");
 
   // Get updated encrypted content data (with Bob's ciphertext)
-  const contentDataForBob = await viewFunction("nft.test.near", "call_js_func", {
-    function_name: "get_encrypted_content_data",
-    token_id: "test-nft-1",
-  });
+  const contentDataForBob = await viewFunction(
+    "nft.test.near",
+    "call_js_func",
+    {
+      function_name: "get_encrypted_content_data",
+      token_id: "test-nft-1",
+    },
+  );
 
   console.log("  ✅ Bob retrieved encrypted content data");
 
@@ -753,11 +792,14 @@ try {
   const bobSecretPoint = elgamalDecrypt(
     contentDataForBob.elgamal_ciphertext.c1_base64,
     contentDataForBob.elgamal_ciphertext.c2_base64,
-    bobKeys.privateKey
+    bobKeys.privateKey,
   );
 
   const bobAesKey = crypto.createHash("sha256").update(bobSecretPoint).digest();
-  const bobDecryptedContent = aesDecrypt(bobAesKey, contentDataForBob.encrypted_content_base64);
+  const bobDecryptedContent = aesDecrypt(
+    bobAesKey,
+    contentDataForBob.encrypted_content_base64,
+  );
 
   console.log("  ✅ Bob successfully decrypted NFT content!");
   console.log("    - Decrypted text:", bobDecryptedContent.toString("utf8"));
@@ -813,14 +855,20 @@ try {
   });
   console.log("  ✅ Escrow created - Buyer:", charlieEscrow.buyer);
 
-  console.log("\n🔄 Step 12: Bob Completes Sale with Re-encryption for Charlie");
+  console.log(
+    "\n🔄 Step 12: Bob Completes Sale with Re-encryption for Charlie",
+  );
 
   // Bob must retrieve current ciphertext from contract (stateless - no memory of previous sale)
   await new Promise((resolve) => setTimeout(resolve, 2000));
-  const bobCurrentContentData = await viewFunction("nft.test.near", "call_js_func", {
-    function_name: "get_encrypted_content_data",
-    token_id: "test-nft-1",
-  });
+  const bobCurrentContentData = await viewFunction(
+    "nft.test.near",
+    "call_js_func",
+    {
+      function_name: "get_encrypted_content_data",
+      token_id: "test-nft-1",
+    },
+  );
 
   console.log("  ✅ Bob retrieved current NFT data from contract");
 
@@ -828,32 +876,53 @@ try {
   const bobCurrentSecretPoint = elgamalDecrypt(
     bobCurrentContentData.elgamal_ciphertext.c1_base64,
     bobCurrentContentData.elgamal_ciphertext.c2_base64,
-    bobKeys.privateKey
+    bobKeys.privateKey,
   );
 
-  const bobCurrentAesKey = crypto.createHash("sha256").update(bobCurrentSecretPoint).digest();
+  const bobCurrentAesKey = crypto
+    .createHash("sha256")
+    .update(bobCurrentSecretPoint)
+    .digest();
 
   // Bob decrypts encrypted_scalar to get the secret scalar and randomness
   const bobEncryptedScalarData = bobCurrentContentData.encrypted_scalar_base64;
-  const bobEncryptedScalarBuffer = Buffer.from(bobEncryptedScalarData, "base64");
+  const bobEncryptedScalarBuffer = Buffer.from(
+    bobEncryptedScalarData,
+    "base64",
+  );
   const bobScalarIv = bobEncryptedScalarBuffer.subarray(0, 12);
   const bobScalarTag = bobEncryptedScalarBuffer.subarray(-16);
   const bobScalarCiphertext = bobEncryptedScalarBuffer.subarray(12, -16);
 
-  const bobScalarDecipher = crypto.createDecipheriv("aes-256-gcm", bobCurrentAesKey, bobScalarIv);
+  const bobScalarDecipher = crypto.createDecipheriv(
+    "aes-256-gcm",
+    bobCurrentAesKey,
+    bobScalarIv,
+  );
   bobScalarDecipher.setAuthTag(bobScalarTag);
   const bobRecoveredScalarAndRandomness = Buffer.concat([
     bobScalarDecipher.update(bobScalarCiphertext),
     bobScalarDecipher.final(),
   ]);
 
-  const bobRecoveredSecretScalar = bobRecoveredScalarAndRandomness.subarray(0, 32);
-  const bobRecoveredRandomness = bobRecoveredScalarAndRandomness.subarray(32, 64);
+  const bobRecoveredSecretScalar = bobRecoveredScalarAndRandomness.subarray(
+    0,
+    32,
+  );
+  const bobRecoveredRandomness = bobRecoveredScalarAndRandomness.subarray(
+    32,
+    64,
+  );
 
-  console.log("  ✅ Bob recovered secret scalar and randomness from encrypted_scalar");
+  console.log(
+    "  ✅ Bob recovered secret scalar and randomness from encrypted_scalar",
+  );
 
   // Re-encrypt for Charlie
-  const charlieCiphertext = elgamalEncrypt(bobRecoveredSecretScalar, charlieKeys.publicKey);
+  const charlieCiphertext = elgamalEncrypt(
+    bobRecoveredSecretScalar,
+    charlieKeys.publicKey,
+  );
   console.log("  ✅ Re-encrypted secret scalar for Charlie");
 
   // Generate zero-knowledge proof (Bob to Charlie)
@@ -876,9 +945,12 @@ try {
   const charlieSecretPoint_forScalar = elgamalDecrypt(
     charlieCiphertext.c1_base64,
     charlieCiphertext.c2_base64,
-    charlieKeys.privateKey
+    charlieKeys.privateKey,
   );
-  const charlieAesKey_forScalar = crypto.createHash("sha256").update(charlieSecretPoint_forScalar).digest();
+  const charlieAesKey_forScalar = crypto
+    .createHash("sha256")
+    .update(charlieSecretPoint_forScalar)
+    .digest();
 
   // Combine secret scalar with Charlie's new randomness
   const charlieScalarAndRandomness = Buffer.concat([
@@ -888,7 +960,11 @@ try {
 
   // Encrypt with Charlie's AES key
   const charlieScalarIv_new = crypto.randomBytes(12);
-  const charlieScalarCipher = crypto.createCipheriv("aes-256-gcm", charlieAesKey_forScalar, charlieScalarIv_new);
+  const charlieScalarCipher = crypto.createCipheriv(
+    "aes-256-gcm",
+    charlieAesKey_forScalar,
+    charlieScalarIv_new,
+  );
   const charlieScalarEncrypted = Buffer.concat([
     charlieScalarCipher.update(charlieScalarAndRandomness),
     charlieScalarCipher.final(),
@@ -903,27 +979,24 @@ try {
   console.log("  ✅ Encrypted secret scalar + new randomness for Charlie");
 
   // Bob completes sale to Charlie
-  await functionCall(
-    "bob.test.near",
-    "nft.test.near",
-    "call_js_func_mut",
-    {
-      function_name: "complete_sale",
-      token_id: "test-nft-1",
-      elgamal_ciphertext_c1_base64: charlieCiphertext.c1_base64,
-      elgamal_ciphertext_c2_base64: charlieCiphertext.c2_base64,
-      buyer_pubkey_base64: charlieKeys.publicKey,
-      encrypted_scalar_base64: charlieEncryptedScalarBase64,
-      proof_commit_r_old: charlieProof.commit_r_old_base64,
-      proof_commit_s_old: charlieProof.commit_s_old_base64,
-      proof_commit_r_new: charlieProof.commit_r_new_base64,
-      proof_commit_s_new: charlieProof.commit_s_new_base64,
-      proof_response_s: charlieProof.response_s_base64,
-      proof_response_r_old: charlieProof.response_r_old_base64,
-      proof_response_r_new: charlieProof.response_r_new_base64,
-    },
+  await functionCall("bob.test.near", "nft.test.near", "call_js_func_mut", {
+    function_name: "complete_sale",
+    token_id: "test-nft-1",
+    elgamal_ciphertext_c1_base64: charlieCiphertext.c1_base64,
+    elgamal_ciphertext_c2_base64: charlieCiphertext.c2_base64,
+    buyer_pubkey_base64: charlieKeys.publicKey,
+    encrypted_scalar_base64: charlieEncryptedScalarBase64,
+    proof_commit_r_old: charlieProof.commit_r_old_base64,
+    proof_commit_s_old: charlieProof.commit_s_old_base64,
+    proof_commit_r_new: charlieProof.commit_r_new_base64,
+    proof_commit_s_new: charlieProof.commit_s_new_base64,
+    proof_response_s: charlieProof.response_s_base64,
+    proof_response_r_old: charlieProof.response_r_old_base64,
+    proof_response_r_new: charlieProof.response_r_new_base64,
+  });
+  console.log(
+    "  ✅ Sale completed with proof - ownership transferred to Charlie",
   );
-  console.log("  ✅ Sale completed with proof - ownership transferred to Charlie");
 
   await new Promise((resolve) => setTimeout(resolve, 3000));
 
@@ -935,16 +1008,24 @@ try {
   if (charlieFinalToken.owner_id === "charlie.test.near") {
     console.log("  ✅ Ownership successfully transferred to Charlie!");
   } else {
-    throw new Error(`Expected owner charlie.test.near, got ${charlieFinalToken.owner_id}`);
+    throw new Error(
+      `Expected owner charlie.test.near, got ${charlieFinalToken.owner_id}`,
+    );
   }
 
-  console.log("\n🔓 Step 14: Charlie Retrieves and Decrypts NFT Content (Node.js)");
+  console.log(
+    "\n🔓 Step 14: Charlie Retrieves and Decrypts NFT Content (Node.js)",
+  );
 
   // Get updated encrypted content data (with Charlie's ciphertext)
-  const contentDataForCharlie = await viewFunction("nft.test.near", "call_js_func", {
-    function_name: "get_encrypted_content_data",
-    token_id: "test-nft-1",
-  });
+  const contentDataForCharlie = await viewFunction(
+    "nft.test.near",
+    "call_js_func",
+    {
+      function_name: "get_encrypted_content_data",
+      token_id: "test-nft-1",
+    },
+  );
 
   console.log("  ✅ Charlie retrieved encrypted content data");
 
@@ -952,14 +1033,23 @@ try {
   const charlieSecretPoint = elgamalDecrypt(
     contentDataForCharlie.elgamal_ciphertext.c1_base64,
     contentDataForCharlie.elgamal_ciphertext.c2_base64,
-    charlieKeys.privateKey
+    charlieKeys.privateKey,
   );
 
-  const charlieAesKey = crypto.createHash("sha256").update(charlieSecretPoint).digest();
-  const charlieDecryptedContent = aesDecrypt(charlieAesKey, contentDataForCharlie.encrypted_content_base64);
+  const charlieAesKey = crypto
+    .createHash("sha256")
+    .update(charlieSecretPoint)
+    .digest();
+  const charlieDecryptedContent = aesDecrypt(
+    charlieAesKey,
+    contentDataForCharlie.encrypted_content_base64,
+  );
 
   console.log("  ✅ Charlie successfully decrypted NFT content!");
-  console.log("    - Decrypted text:", charlieDecryptedContent.toString("utf8"));
+  console.log(
+    "    - Decrypted text:",
+    charlieDecryptedContent.toString("utf8"),
+  );
 
   if (charlieDecryptedContent.toString("utf8") === contentPlaintext) {
     console.log("  ✅ Charlie's decrypted content matches original!");
@@ -987,7 +1077,9 @@ try {
   console.log("  ✅ Charlie content decryption (Node.js): SUCCESS");
   console.log("\n🎉 Full encrypted NFT marketplace validated!");
   console.log("🔐 Content encryption/decryption works correctly!");
-  console.log("🛒 Marketplace cycle: List → Buy → Escrow → Re-encrypt → Transfer!");
+  console.log(
+    "🛒 Marketplace cycle: List → Buy → Escrow → Re-encrypt → Transfer!",
+  );
   console.log("💰 Alice sold to Bob, Bob sold to Charlie!");
   console.log("🔄 Two successful re-encryptions with proof verification!");
 } catch (error) {

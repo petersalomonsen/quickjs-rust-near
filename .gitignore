@@ -20,3 +20,4 @@ freeze_frames
 example-contracts.car
 yarn-error.log
 *keypair.json
+package-lock.json

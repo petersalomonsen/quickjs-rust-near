@@ -17,7 +17,7 @@ export function web4_get() {
       JSON.stringify({
         contentType: "text/html; charset=UTF-8",
         body: VIEWER_HTML_BASE64,
-      })
+      }),
     );
   } else {
     // 404 for other paths
@@ -26,7 +26,7 @@ export function web4_get() {
         status: 404,
         contentType: "text/plain",
         body: "Not Found",
-      })
+      }),
     );
   }
 }
@@ -81,24 +81,37 @@ export function nft_mint() {
     const c2Size = elgamal_ciphertext_c2_base64.length;
     const pubkeySize = owner_pubkey_base64.length;
     const keyOverhead = 100 * 5; // Approximate key overhead for 5 storage entries
-    const totalStorageBytes = lockedContentSize + encryptedScalarSize + c1Size + c2Size + pubkeySize + keyOverhead;
+    const totalStorageBytes =
+      lockedContentSize +
+      encryptedScalarSize +
+      c1Size +
+      c2Size +
+      pubkeySize +
+      keyOverhead;
 
     // NEAR storage cost: 1 byte = 10^19 yoctoNEAR (0.00001 NEAR per byte)
-    const storageCost = BigInt(totalStorageBytes) * BigInt("10000000000000000000");
+    const storageCost =
+      BigInt(totalStorageBytes) * BigInt("10000000000000000000");
     const attached = env.attached_deposit();
 
     if (BigInt(attached) < storageCost) {
       env.panic(
         `Insufficient storage deposit. Required: ${storageCost} yoctoNEAR (${totalStorageBytes} bytes), ` +
-        `Attached: ${attached} yoctoNEAR`
+          `Attached: ${attached} yoctoNEAR`,
       );
     }
 
     // Store encrypted content data
     env.storage_write(`locked-content:${token_id}`, encrypted_content_base64);
     env.storage_write(`encrypted-scalar:${token_id}`, encrypted_scalar_base64);
-    env.storage_write(`elgamal-ciphertext-c1:${token_id}`, elgamal_ciphertext_c1_base64);
-    env.storage_write(`elgamal-ciphertext-c2:${token_id}`, elgamal_ciphertext_c2_base64);
+    env.storage_write(
+      `elgamal-ciphertext-c1:${token_id}`,
+      elgamal_ciphertext_c1_base64,
+    );
+    env.storage_write(
+      `elgamal-ciphertext-c2:${token_id}`,
+      elgamal_ciphertext_c2_base64,
+    );
     env.storage_write(`owner-pubkey:${token_id}`, owner_pubkey_base64);
     env.storage_write(`encryption_key:${token_id}`, owner_pubkey_base64);
   }
@@ -162,7 +175,6 @@ export function get_encryption_pubkey() {
   env.value_return(JSON.stringify({ pubkey_base64: pubkey }));
 }
 
-
 /**
  * Get encrypted content data for an NFT
  * Anyone can call this (data is encrypted, so it's safe)
@@ -220,7 +232,10 @@ export function list_for_sale() {
   }
 
   // Store listing
-  env.storage_write(`listing:${token_id}`, JSON.stringify({ price, seller: caller }));
+  env.storage_write(
+    `listing:${token_id}`,
+    JSON.stringify({ price, seller: caller }),
+  );
 
   env.value_return(JSON.stringify({ success: true }));
 }
@@ -305,7 +320,12 @@ export function cancel_purchase() {
   // Remove escrow
   env.storage_remove(`escrow:${token_id}`);
 
-  env.value_return(JSON.stringify({ success: true, message: "Purchase cancelled, funds returned" }));
+  env.value_return(
+    JSON.stringify({
+      success: true,
+      message: "Purchase cancelled, funds returned",
+    }),
+  );
 }
 
 /**
@@ -348,7 +368,12 @@ export function buy() {
   // Remove listing
   env.storage_remove(`listing:${token_id}`);
 
-  env.value_return(JSON.stringify({ success: true, message: "Funds in escrow. Seller must complete re-encryption." }));
+  env.value_return(
+    JSON.stringify({
+      success: true,
+      message: "Funds in escrow. Seller must complete re-encryption.",
+    }),
+  );
 }
 
 /**
@@ -363,7 +388,7 @@ export function complete_sale() {
     elgamal_ciphertext_c1_base64,
     elgamal_ciphertext_c2_base64,
     buyer_pubkey_base64,
-    encrypted_scalar_base64,  // NEW: encrypted (secret_scalar + new_randomness) for buyer
+    encrypted_scalar_base64, // NEW: encrypted (secret_scalar + new_randomness) for buyer
     // Zero-knowledge proof parameters
     proof_commit_r_old,
     proof_commit_s_old,
@@ -417,7 +442,7 @@ export function complete_sale() {
     proof_commit_s_new,
     proof_response_s,
     proof_response_r_old,
-    proof_response_r_new
+    proof_response_r_new,
   );
 
   if (!proof_valid) {
@@ -426,8 +451,14 @@ export function complete_sale() {
 
   // Update ElGamal ciphertext, encrypted_scalar (with new randomness), and owner pubkey
   // The encrypted_content stays the same (still encrypted with same secret)
-  env.storage_write(`elgamal-ciphertext-c1:${token_id}`, elgamal_ciphertext_c1_base64);
-  env.storage_write(`elgamal-ciphertext-c2:${token_id}`, elgamal_ciphertext_c2_base64);
+  env.storage_write(
+    `elgamal-ciphertext-c1:${token_id}`,
+    elgamal_ciphertext_c1_base64,
+  );
+  env.storage_write(
+    `elgamal-ciphertext-c2:${token_id}`,
+    elgamal_ciphertext_c2_base64,
+  );
   env.storage_write(`encrypted-scalar:${token_id}`, encrypted_scalar_base64);
   env.storage_write(`owner-pubkey:${token_id}`, buyer_pubkey_base64);
   env.storage_write(`encryption_key:${token_id}`, buyer_pubkey_base64);
