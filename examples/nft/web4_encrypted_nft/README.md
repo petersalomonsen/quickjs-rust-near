@@ -241,6 +241,37 @@ Per escrow:
 - `buyer_pubkey` - Buyer's encryption public key
 - `price` - Escrowed amount
 
+## 💡 Use Cases
+
+### Digital Car Access Keys
+
+The NFT could represent an encrypted car access key. When ownership transfers:
+
+1. **New owner approaches car** with their decrypted access key and the zero-knowledge proof
+2. **Car verifies proof offline** - no internet required:
+   - Validates the proof mathematically using stored public keys
+   - Confirms transfer from previous owner → new owner
+   - Updates locally stored owner public key
+3. **Previous owner's access is revoked** - their key still works cryptographically, but the car rejects it because a valid proof of transfer exists
+
+The proof contains all public information needed for verification (old/new ciphertexts, public keys, commitments, responses). The car simply checks that the proof shows a legitimate transfer FROM the currently stored owner TO the new owner. No blockchain query needed at access time.
+
+### Concert Ticket Authenticity
+
+A buyer of a second-hand concert ticket can prove they legitimately acquired it:
+
+1. **Ticket venue mints encrypted ticket** as NFT (contains seat number, QR code, etc.)
+2. **Original buyer sells to second-hand buyer** via marketplace
+3. **Seller provides zero-knowledge proof** during `complete_sale()`:
+   - Proves they re-encrypted the SAME ticket content for the new buyer
+   - Proof is verified on-chain and stored in transaction history
+4. **Buyer presents ticket at venue** with the cryptographic proof showing:
+   - Chain of custody from original minter → current holder
+   - No counterfeiting (proof demonstrates same encrypted content)
+   - Legitimate transfer (not stolen credentials)
+
+The venue can verify the proof trail on-chain to confirm the ticket wasn't duplicated or fraudulently transferred. Each transfer creates an immutable cryptographic record proving the new holder obtained the same encrypted ticket content through legitimate re-encryption.
+
 ## 📚 Further Reading
 
 - [NEP-171: NFT Standard](https://nomicon.io/Standards/Tokens/NonFungibleToken/Core)
