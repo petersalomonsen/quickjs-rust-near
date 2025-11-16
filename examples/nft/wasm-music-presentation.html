@@ -1,0 +1,593 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WebAssembly Music NFTs - Presentation</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: monospace;
+        background: #000;
+        color: #0f0;
+        min-height: 100vh;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .slide-container {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 40px;
+        position: relative;
+      }
+
+      .slide {
+        display: none;
+        max-width: 1000px;
+        width: 100%;
+        background: #030;
+        border: 3px solid #4a4;
+        border-radius: 12px;
+        padding: 40px;
+        animation: fadeIn 0.5s ease-out;
+      }
+
+      .slide.active {
+        display: block;
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      h1 {
+        color: #0f0;
+        text-align: center;
+        margin-bottom: 40px;
+        font-size: clamp(24px, 5vw, 48px);
+        text-shadow: 0 0 15px #0f0;
+      }
+
+      h2 {
+        color: #0f0;
+        margin-bottom: 30px;
+        font-size: clamp(20px, 4vw, 36px);
+        text-shadow: 0 0 10px #0f0;
+      }
+
+      ul {
+        list-style: none;
+        margin-left: 20px;
+      }
+
+      li {
+        margin-bottom: 20px;
+        font-size: clamp(14px, 2.5vw, 20px);
+        line-height: 1.6;
+        position: relative;
+        padding-left: 30px;
+      }
+
+      li::before {
+        content: "▸";
+        position: absolute;
+        left: 0;
+        color: #0f0;
+        font-weight: bold;
+      }
+
+      pre {
+        background: #001;
+        border: 2px solid #4a4;
+        border-radius: 8px;
+        padding: 20px;
+        overflow-x: auto;
+        color: #0f0;
+        font-size: clamp(10px, 1.8vw, 16px);
+        line-height: 1.4;
+        margin: 20px 0;
+        text-shadow: 0 0 5px #0f0;
+      }
+
+      .controls {
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 10px;
+        z-index: 100;
+      }
+
+      .nav-btn {
+        background: #cfc;
+        color: #050;
+        border: 3px solid #4a4;
+        border-radius: 8px;
+        padding: 10px 20px;
+        font-family: monospace;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.2s;
+        font-size: 16px;
+      }
+
+      .nav-btn:hover {
+        background: #9f9;
+      }
+
+      .nav-btn:active {
+        background: #0f0;
+        color: #000;
+        box-shadow: 0 0 15px #0f0;
+      }
+
+      .slide-counter {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        color: #0f0;
+        font-size: 16px;
+        text-shadow: 0 0 5px #0f0;
+      }
+
+      .title-slide h1 {
+        font-size: clamp(32px, 7vw, 64px);
+        margin-bottom: 20px;
+      }
+
+      .title-slide p {
+        text-align: center;
+        font-size: clamp(16px, 3vw, 24px);
+        color: #0f0;
+        margin-top: 20px;
+      }
+
+      @media (max-width: 768px) {
+        .slide-container {
+          padding: 20px;
+        }
+
+        .slide {
+          padding: 25px;
+        }
+
+        li {
+          padding-left: 20px;
+        }
+
+        .controls {
+          bottom: 10px;
+        }
+
+        .nav-btn {
+          padding: 8px 15px;
+          font-size: 14px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="slide-container">
+      <!-- Slide 1: Title -->
+      <div class="slide active title-slide">
+        <h1>WebAssembly Music<br />Instrument Plugin NFTs</h1>
+        <p>Encrypted On-Chain Distribution with Zero-Knowledge Proofs</p>
+      </div>
+
+      <!-- Slide 2: Digital Instruments Today -->
+      <div class="slide">
+        <h2>Digital Instruments Today</h2>
+        <ul>
+          <li>
+            Most musical instruments sold today are digital software plugins
+          </li>
+          <li>
+            Before: Dedicated hardware synthesizers connected to MIDI keyboards
+          </li>
+          <li>
+            Now: Software plugins that load into your computer (DAW - Digital
+            Audio Workstation)
+          </li>
+          <li>Real-time sound generation when you play your MIDI keyboard</li>
+          <li>WebAssembly Music turns web browsers into plugin hosts</li>
+        </ul>
+      </div>
+
+      <!-- Slide 3: WebAssembly Music Synths -->
+      <div class="slide">
+        <h2>WebAssembly Music Synths</h2>
+        <ul>
+          <li>
+            Digital instruments created from <strong>mathematical formulas</strong>
+          </li>
+          <li>
+            Complex, natural-sounding instruments through code algorithms
+          </li>
+          <li>
+            <strong>No recorded samples</strong> - all audio rendered in
+            real-time
+          </li>
+          <li>
+            Results in <strong>tiny file sizes</strong>: less than 50 KB per
+            instrument
+          </li>
+          <li>Opens new possibilities for distribution and sharing</li>
+        </ul>
+      </div>
+
+      <!-- Slide 4: DAW Integration -->
+      <div class="slide">
+        <h2>Using in Professional DAWs</h2>
+        <ul>
+          <li>
+            DAWs (Logic, Cubase, Reaper) use VSTi or Audio Unit formats
+          </li>
+          <li>
+            WebAssembly Music provides a
+            <strong>DAW plugin bridge</strong>
+          </li>
+          <li>
+            Bridge plugin contains WebAssembly Runtime to execute Wasm files
+          </li>
+          <li>Allows loading .wasm instruments into professional music software</li>
+          <li>Full integration with existing music production workflows</li>
+        </ul>
+      </div>
+
+      <!-- Slide 5: Distribution Challenges -->
+      <div class="slide">
+        <h2>Distribution Challenges</h2>
+        <ul>
+          <li>50 KB files are easy to send via messaging/email/web storage</li>
+          <li>
+            Creators need to <strong>monetize</strong> their work
+          </li>
+          <li>Traditional approach: web shop with payment gate</li>
+          <li>
+            <strong>Problems:</strong>
+            <ul style="margin-top: 10px; margin-left: 20px">
+              <li>Need user registration and authentication</li>
+              <li>No tracking of re-distributions or re-sales</li>
+              <li>Centralized infrastructure required</li>
+              <li>No proof of authenticity or ownership</li>
+            </ul>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Slide 6: On-Chain Storage -->
+      <div class="slide">
+        <h2>Blockchain Storage Solution</h2>
+        <ul>
+          <li>
+            Tiny Wasm files = <strong>affordable on-chain storage</strong>
+          </li>
+          <li>Blockchain excels at tracking ownership and re-sales</li>
+          <li>
+            <strong>Challenge:</strong> Everything on-chain is public
+          </li>
+          <li>
+            <strong>Solution:</strong> Encrypt the Wasm file
+            <ul style="margin-top: 10px; margin-left: 20px">
+              <li>Only owner has decryption key</li>
+              <li>Content available 24/7 via blockchain</li>
+              <li>Re-encryption needed for sales</li>
+            </ul>
+          </li>
+          <li>
+            <strong>Problem:</strong> How to verify seller re-encrypted
+            correctly?
+          </li>
+        </ul>
+      </div>
+
+      <!-- Slide 7: Re-encryption Flow -->
+      <div class="slide">
+        <h2>The Re-encryption Flow</h2>
+        <pre>
+┌─────────────────────────────────────────────────────────┐
+│ 1. MINT NFT                                             │
+│                                                         │
+│   [Wasm File]                                           │
+│        │                                                │
+│        ▼ Encrypt with AES                              │
+│   [Encrypted Wasm] ◄─────── stored on-chain            │
+│        +                                                │
+│   [Secret Key encrypted for Seller]                    │
+└─────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────┐
+│ 2. LIST FOR SALE                                        │
+│                                                         │
+│   [NFT Listed at Price]                                 │
+│        │                                                │
+│        ▼ Buyer purchases                               │
+│   [Funds in Escrow] ◄───────── locked until delivery   │
+└─────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────┐
+│ 3. SELLER RE-ENCRYPTS                                   │
+│                                                         │
+│   [Secret Key]                                          │
+│        │                                                │
+│        ├──► Re-encrypt for Buyer ──► [New Encrypted]   │
+│        │                                                │
+│        └──► Generate Proof ──► [Zero-Knowledge Proof]  │
+└─────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────┐
+│ 4. CONTRACT VERIFIES                                    │
+│                                                         │
+│   [Proof] ──► Verify (4 equations) ──► ✅ Same secret  │
+│        │                                                │
+│        ├──► Release funds to Seller                     │
+│        │                                                │
+│        └──► Buyer can now decrypt Wasm                  │
+└─────────────────────────────────────────────────────────┘</pre>
+      </div>
+
+      <!-- Slide 8: Zero-Knowledge Proof -->
+      <div class="slide">
+        <h2>Zero-Knowledge Proof</h2>
+        <ul>
+          <li>
+            <strong>What needs to be proven:</strong> Seller re-encrypted the
+            SAME secret
+          </li>
+          <li>
+            <strong>What must stay hidden:</strong> The actual secret content
+          </li>
+          <li>
+            <strong>How it works:</strong>
+            <ul style="margin-top: 10px; margin-left: 20px">
+              <li>Hash public info + random numbers = Challenge</li>
+              <li>Response = Masked values (secrets mixed with randoms)</li>
+              <li>
+                Contract verifies using public equations
+              </li>
+              <li>SAME response appears in old and new equations</li>
+              <li>Proves both contain identical secret without revealing it</li>
+            </ul>
+          </li>
+          <li>
+            Contract releases funds <strong>automatically</strong> - no buyer
+            confirmation needed
+          </li>
+        </ul>
+      </div>
+
+      <!-- Slide 9: Proof Verification -->
+      <div class="slide">
+        <h2>Verification Process</h2>
+        <pre>
+┌────────────────────────────────────────────────┐
+│  SELLER'S SIDE (Private)                       │
+├────────────────────────────────────────────────┤
+│                                                │
+│  Secret S (hidden)                             │
+│  Random blinding factors (hidden)              │
+│                                                │
+│  ▼                                             │
+│                                                │
+│  Commitments (public)                          │
+│  Challenge = Hash(all public data)             │
+│  Responses = S + random (masked)               │
+│                                                │
+└────────────────────────────────────────────────┘
+                    │
+                    ▼  Send proof to contract
+┌────────────────────────────────────────────────┐
+│  SMART CONTRACT (Public Verification)          │
+├────────────────────────────────────────────────┤
+│                                                │
+│  ✓ Check equation 1: Old encryption           │
+│  ✓ Check equation 2: New encryption           │
+│  ✓ Check equation 3: Public keys              │
+│  ✓ Check equation 4: Consistency               │
+│                                                │
+│  SAME masked value in equations 1 & 2          │
+│  ──► Proves identical secret!                  │
+│                                                │
+│  Result: ✅ Release funds to seller            │
+└────────────────────────────────────────────────┘</pre>
+      </div>
+
+      <!-- Slide 10: Benefits -->
+      <div class="slide">
+        <h2>Benefits of This Approach</h2>
+        <ul>
+          <li>
+            <strong>Decentralized ownership:</strong> Blockchain tracks all
+            sales
+          </li>
+          <li>
+            <strong>Privacy:</strong> Content encrypted, only owner can access
+          </li>
+          <li>
+            <strong>Trustless sales:</strong> Math verifies delivery, not
+            humans
+          </li>
+          <li>
+            <strong>Always available:</strong> On-chain storage = no downtime
+          </li>
+          <li>
+            <strong>Secondary market:</strong> Re-encryption enables resales
+          </li>
+          <li>
+            <strong>Creator royalties:</strong> Smart contract can enforce
+            percentage
+          </li>
+          <li>
+            <strong>Tiny files:</strong> Affordable storage, easy distribution
+          </li>
+          <li>
+            <strong>No central authority:</strong> Peer-to-peer marketplace
+          </li>
+        </ul>
+      </div>
+
+      <!-- Slide 11: Use Cases -->
+      <div class="slide">
+        <h2>Real-World Use Cases</h2>
+        <ul>
+          <li>
+            <strong>Digital Car Access Keys</strong>
+            <ul style="margin-top: 10px; margin-left: 20px">
+              <li>Car stores proof of latest transfer</li>
+              <li>New owner presents proof + decrypted key</li>
+              <li>Car verifies offline, no internet needed</li>
+              <li>Previous owner's access automatically revoked</li>
+            </ul>
+          </li>
+          <li style="margin-top: 20px">
+            <strong>Concert Ticket Authentication</strong>
+            <ul style="margin-top: 10px; margin-left: 20px">
+              <li>Venue verifies chain of custody on-chain</li>
+              <li>Proof shows legitimate transfer from minter</li>
+              <li>Prevents counterfeiting and fraud</li>
+              <li>Enables secure secondary market</li>
+            </ul>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Slide 12: Summary -->
+      <div class="slide">
+        <h2>Summary</h2>
+        <ul>
+          <li>
+            <strong>WebAssembly Music</strong> creates tiny (50KB), powerful
+            synth files
+          </li>
+          <li>
+            <strong>Blockchain storage</strong> ensures availability and tracks
+            ownership
+          </li>
+          <li>
+            <strong>Encryption</strong> protects content while staying on-chain
+          </li>
+          <li>
+            <strong>Zero-Knowledge Proofs</strong> enable trustless re-encryption
+          </li>
+          <li>
+            <strong>Smart contracts</strong> automate escrow and verification
+          </li>
+          <li>
+            <strong>Result:</strong> Decentralized, trustless marketplace for
+            digital assets
+          </li>
+          <li style="margin-top: 30px; color: #0f0; font-weight: bold">
+            Questions?
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="controls">
+      <button class="nav-btn" onclick="previousSlide()">◄ Previous</button>
+      <button class="nav-btn" onclick="nextSlide()">Next ►</button>
+    </div>
+
+    <div class="slide-counter">
+      <span id="current-slide">1</span> / <span id="total-slides">12</span>
+    </div>
+
+    <script>
+      let currentSlide = 0;
+      const slides = document.querySelectorAll(".slide");
+      const totalSlides = slides.length;
+      let touchStartX = 0;
+      let touchEndX = 0;
+
+      document.getElementById("total-slides").textContent = totalSlides;
+
+      function showSlide(n) {
+        slides[currentSlide].classList.remove("active");
+        currentSlide = (n + totalSlides) % totalSlides;
+        slides[currentSlide].classList.add("active");
+        document.getElementById("current-slide").textContent =
+          currentSlide + 1;
+      }
+
+      function nextSlide() {
+        showSlide(currentSlide + 1);
+      }
+
+      function previousSlide() {
+        showSlide(currentSlide - 1);
+      }
+
+      // Keyboard navigation
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "ArrowRight" || e.key === " ") {
+          e.preventDefault();
+          nextSlide();
+        } else if (e.key === "ArrowLeft") {
+          e.preventDefault();
+          previousSlide();
+        } else if (e.key === "Home") {
+          e.preventDefault();
+          showSlide(0);
+        } else if (e.key === "End") {
+          e.preventDefault();
+          showSlide(totalSlides - 1);
+        }
+      });
+
+      // Touch/swipe navigation
+      document.addEventListener("touchstart", (e) => {
+        touchStartX = e.changedTouches[0].screenX;
+      });
+
+      document.addEventListener("touchend", (e) => {
+        touchEndX = e.changedTouches[0].screenX;
+        handleSwipe();
+      });
+
+      function handleSwipe() {
+        const swipeThreshold = 50;
+        const diff = touchStartX - touchEndX;
+
+        if (Math.abs(diff) > swipeThreshold) {
+          if (diff > 0) {
+            // Swipe left - next slide
+            nextSlide();
+          } else {
+            // Swipe right - previous slide
+            previousSlide();
+          }
+        }
+      }
+
+      // Mouse wheel navigation (optional)
+      let wheelTimeout;
+      document.addEventListener("wheel", (e) => {
+        clearTimeout(wheelTimeout);
+        wheelTimeout = setTimeout(() => {
+          if (e.deltaY > 0) {
+            nextSlide();
+          } else if (e.deltaY < 0) {
+            previousSlide();
+          }
+        }, 50);
+      });
+    </script>
+  </body>
+</html>
