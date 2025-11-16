@@ -215,11 +215,10 @@
         <h2>WebAssembly Music Synths</h2>
         <ul>
           <li>
-            Digital instruments created from <strong>mathematical formulas</strong>
+            Digital instruments created from
+            <strong>mathematical formulas</strong>
           </li>
-          <li>
-            Complex, natural-sounding instruments through code algorithms
-          </li>
+          <li>Complex, natural-sounding instruments through code algorithms</li>
           <li>
             <strong>No recorded samples</strong> - all audio rendered in
             real-time
@@ -236,9 +235,7 @@
       <div class="slide">
         <h2>Using in Professional DAWs</h2>
         <ul>
-          <li>
-            DAWs (Logic, Cubase, Reaper) use VSTi or Audio Unit formats
-          </li>
+          <li>DAWs (Logic, Cubase, Reaper) use VSTi or Audio Unit formats</li>
           <li>
             WebAssembly Music provides a
             <strong>DAW plugin bridge</strong>
@@ -246,7 +243,9 @@
           <li>
             Bridge plugin contains WebAssembly Runtime to execute Wasm files
           </li>
-          <li>Allows loading .wasm instruments into professional music software</li>
+          <li>
+            Allows loading .wasm instruments into professional music software
+          </li>
           <li>Full integration with existing music production workflows</li>
         </ul>
       </div>
@@ -256,9 +255,7 @@
         <h2>Distribution Challenges</h2>
         <ul>
           <li>50 KB files are easy to send via messaging/email/web storage</li>
-          <li>
-            Creators need to <strong>monetize</strong> their work
-          </li>
+          <li>Creators need to <strong>monetize</strong> their work</li>
           <li>Traditional approach: web shop with payment gate</li>
           <li>
             <strong>Problems:</strong>
@@ -280,9 +277,7 @@
             Tiny Wasm files = <strong>affordable on-chain storage</strong>
           </li>
           <li>Blockchain excels at tracking ownership and re-sales</li>
-          <li>
-            <strong>Challenge:</strong> Everything on-chain is public
-          </li>
+          <li><strong>Challenge:</strong> Everything on-chain is public</li>
           <li>
             <strong>Solution:</strong> Encrypt the Wasm file
             <ul style="margin-top: 10px; margin-left: 20px">
@@ -340,7 +335,8 @@
 │        ├──► Release funds to Seller                     │
 │        │                                                │
 │        └──► Buyer can now decrypt Wasm                  │
-└─────────────────────────────────────────────────────────┘</pre>
+└─────────────────────────────────────────────────────────┘</pre
+        >
       </div>
 
       <!-- Slide 8: Zero-Knowledge Proof -->
@@ -359,9 +355,7 @@
             <ul style="margin-top: 10px; margin-left: 20px">
               <li>Hash public info + random numbers = Challenge</li>
               <li>Response = Masked values (secrets mixed with randoms)</li>
-              <li>
-                Contract verifies using public equations
-              </li>
+              <li>Contract verifies using public equations</li>
               <li>SAME response appears in old and new equations</li>
               <li>Proves both contain identical secret without revealing it</li>
             </ul>
@@ -406,7 +400,8 @@
 │  ──► Proves identical secret!                  │
 │                                                │
 │  Result: ✅ Release funds to seller            │
-└────────────────────────────────────────────────┘</pre>
+└────────────────────────────────────────────────┘</pre
+        >
       </div>
 
       <!-- Slide 10: Benefits -->
@@ -421,8 +416,7 @@
             <strong>Privacy:</strong> Content encrypted, only owner can access
           </li>
           <li>
-            <strong>Trustless sales:</strong> Math verifies delivery, not
-            humans
+            <strong>Trustless sales:</strong> Math verifies delivery, not humans
           </li>
           <li>
             <strong>Always available:</strong> On-chain storage = no downtime
@@ -484,7 +478,8 @@
             <strong>Encryption</strong> protects content while staying on-chain
           </li>
           <li>
-            <strong>Zero-Knowledge Proofs</strong> enable trustless re-encryption
+            <strong>Zero-Knowledge Proofs</strong> enable trustless
+            re-encryption
           </li>
           <li>
             <strong>Smart contracts</strong> automate escrow and verification
@@ -522,8 +517,7 @@
         slides[currentSlide].classList.remove("active");
         currentSlide = (n + totalSlides) % totalSlides;
         slides[currentSlide].classList.add("active");
-        document.getElementById("current-slide").textContent =
-          currentSlide + 1;
+        document.getElementById("current-slide").textContent = currentSlide + 1;
       }
 
       function nextSlide() {
