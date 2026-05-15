@@ -164,9 +164,7 @@ describe("Operator deduction", { only: true }, () => {
 
     // First deduct succeeded; second was reverted.
     expect(await balanceOf(operator)).to.equal("600");
-    expect(await viewSpent(user.accountId, operator.accountId)).to.equal(
-      "600",
-    );
+    expect(await viewSpent(user.accountId, operator.accountId)).to.equal("600");
   });
 
   test("deduct from unauthorised operator reverts", async () => {
@@ -252,7 +250,10 @@ describe("Operator deduction", { only: true }, () => {
     await user.call(
       contract.accountId,
       "ft_transfer",
-      { receiver_id: sink.accountId, amount: (INITIAL_USER_BALANCE - 100n).toString() },
+      {
+        receiver_id: sink.accountId,
+        amount: (INITIAL_USER_BALANCE - 100n).toString(),
+      },
       { attachedDeposit: 1n.toString() },
     );
 
