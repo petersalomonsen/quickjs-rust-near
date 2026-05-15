@@ -1,4 +1,4 @@
-const ONE_DAY_MS = 86_400_000;
+const ONE_DAY_MS = 86_400_000n;
 
 function auth_key(user, operator) {
   return `auth::${user}::${operator}`;
@@ -14,19 +14,28 @@ function store_auth(user, operator, entry) {
   env.set_data(auth_key(user, operator), JSON.stringify(entry));
 }
 
+// Coerce the JS-side timestamp returned by the env binding into a BigInt
+// regardless of whether the binding hands us a Number, BigInt, or string.
+// Plain `BigInt(value)` throws RangeError on a fractional Number, which we've
+// seen happen on certain sandbox builds — going via string avoids that.
+function timestamp_ms_as_bigint() {
+  return BigInt(String(env.block_timestamp_ms()));
+}
+
 export function authorize_deduction() {
   const { operator_account, max_amount_per_day } = JSON.parse(env.input());
   if (!operator_account || !max_amount_per_day) {
     env.panic("must provide operator_account and max_amount_per_day");
     return;
   }
+  // Validate that max_amount_per_day is a parseable u128 string.
   BigInt(max_amount_per_day);
 
   const user = env.predecessor_account_id();
-  const now_ms = env.block_timestamp_ms().toString();
+  const now_ms = timestamp_ms_as_bigint().toString();
 
   store_auth(user, operator_account, {
-    max_per_day: max_amount_per_day,
+    max_per_day: String(max_amount_per_day),
     last_reset_ms: now_ms,
     spent_since_reset: "0",
   });
@@ -60,13 +69,13 @@ export function deduct() {
     return;
   }
 
-  const now_ms = BigInt(env.block_timestamp_ms());
+  const now_ms = timestamp_ms_as_bigint();
   let last_reset_ms = BigInt(entry.last_reset_ms);
   let spent = BigInt(entry.spent_since_reset);
   const max_per_day = BigInt(entry.max_per_day);
   const requested = BigInt(amount);
 
-  if (now_ms - last_reset_ms > BigInt(ONE_DAY_MS)) {
+  if (now_ms - last_reset_ms > ONE_DAY_MS) {
     last_reset_ms = now_ms;
     spent = 0n;
   }
@@ -101,5 +110,7 @@ export function view_spent_since_reset() {
   const { user, operator_account } = JSON.parse(env.input());
   const raw = env.get_data(auth_key(user, operator_account));
   const spent = raw ? JSON.parse(raw).spent_since_reset : "0";
-  env.value_return(JSON.stringify(spent));
+  // Return the raw numeric string so callers can use JSON.parse and get a
+  // string they can pass to BigInt directly.
+  env.value_return(`"${spent}"`);
 }
