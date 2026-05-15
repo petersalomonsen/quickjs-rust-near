@@ -1,0 +1,19 @@
+diff --git a/node_modules/near-sandbox/dist/binary/binaryUtils.js b/node_modules/near-sandbox/dist/binary/binaryUtils.js
+index 9db801f..7cc7836 100644
+--- a/node_modules/near-sandbox/dist/binary/binaryUtils.js
++++ b/node_modules/near-sandbox/dist/binary/binaryUtils.js
+@@ -11,10 +11,13 @@ function getPlatform() {
+     if (type === "Linux" && arch === "x64") {
+         return [type, "x86_64"];
+     }
++    else if (type === "Linux" && arch === "arm64") {
++        return [type, "aarch64"];
++    }
+     else if (type === "Darwin" && arch === "arm64") {
+         return [type, "arm64"];
+     }
+-    throw new Error("Only linux-x86 and darwin-arm are supported");
++    throw new Error("Only linux-x86, linux-arm64 and darwin-arm are supported");
+ }
+ function AWSUrl(version = DEFAULT_NEAR_SANDBOX_VERSION) {
+     const [platform, arch] = getPlatform();

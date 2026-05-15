@@ -1,0 +1,25 @@
+diff --git a/node_modules/near-workspaces/node_modules/near-sandbox/dist/getBinary.js b/node_modules/near-workspaces/node_modules/near-sandbox/dist/getBinary.js
+index 960aafb..00ad9d6 100644
+--- a/node_modules/near-workspaces/node_modules/near-sandbox/dist/getBinary.js
++++ b/node_modules/near-workspaces/node_modules/near-sandbox/dist/getBinary.js
+@@ -11,6 +11,9 @@ function getPlatform() {
+     if (type === "Linux" && arch === "x64") {
+         return [type, "x86_64"];
+     }
++    else if (type === "Linux" && arch === "arm64") {
++        return [type, "aarch64"];
++    }
+     else if (type === "Darwin" && arch === "arm64") {
+         return [type, "arm64"];
+     }
+@@ -18,7 +21,9 @@ function getPlatform() {
+ }
+ function AWSUrl() {
+     const [platform, arch] = getPlatform();
+-    return `https://s3-us-west-1.amazonaws.com/build.nearprotocol.com/nearcore/${platform}-${arch}/2.6.2/near-sandbox.tar.gz`;
++    // 2.6.2 isn't published for Linux-aarch64; the earliest aarch64 build is 2.6.5.
++    const version = (platform === "Linux" && arch === "aarch64") ? "2.6.5" : "2.6.2";
++    return `https://s3-us-west-1.amazonaws.com/build.nearprotocol.com/nearcore/${platform}-${arch}/${version}/near-sandbox.tar.gz`;
+ }
+ exports.AWSUrl = AWSUrl;
+ function getBinary(name = "near-sandbox") {

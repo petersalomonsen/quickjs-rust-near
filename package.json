@@ -3,6 +3,7 @@
   "type": "module",
   "license": "MIT",
   "scripts": {
+    "postinstall": "patch-package",
     "fmt:check": "prettier --check examples/aiproxy examples/fungibletoken examples/nft",
     "fmt": "prettier --write examples/aiproxy examples/fungibletoken examples/nft quickjslib",
     "serve": "http-server -p 8085 web4",
@@ -41,8 +42,11 @@
     "jspm": "^3.3.4",
     "near-sandbox": "^0.2.0",
     "near-workspaces": "5.0.0",
+    "patch-package": "^8.0.1",
+    "postinstall-postinstall": "^2.1.0",
     "prettier": "^3.5.1",
     "rollup": "^4.31.0",
     "rollup-plugin-terser": "^7.0.2"
-  }
+  },
+  "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
 }
