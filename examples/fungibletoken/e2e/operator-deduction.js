@@ -1,4 +1,7 @@
-const ONE_DAY_MS = 86_400_000n;
+// Avoid the `123n` BigInt literal form: the QuickJS build embedded in the
+// contract rejects numeric-separator BigInt literals (`86_400_000n` parses
+// as `SyntaxError: invalid bigint literal`).
+const ONE_DAY_MS = BigInt("86400000");
 
 function auth_key(user, operator) {
   return `auth::${user}::${operator}`;
