@@ -1,6 +1,5 @@
-// Avoid the `123n` BigInt literal form: the QuickJS build embedded in the
-// contract rejects numeric-separator BigInt literals (`86_400_000n` parses
-// as `SyntaxError: invalid bigint literal`).
+// The contract's QuickJS rejects numeric-separator BigInt literals
+// (`86_400_000n` => SyntaxError). Use the constructor form.
 const ONE_DAY_MS = BigInt("86400000");
 
 function auth_key(user, operator) {
@@ -17,14 +16,8 @@ function store_auth(user, operator, entry) {
   env.set_data(auth_key(user, operator), JSON.stringify(entry));
 }
 
-// Diagnostic: log the raw timestamp value before any BigInt coercion so we
-// can see what the env binding hands us in CI.
 function timestamp_ms_as_bigint() {
-  const raw = env.block_timestamp_ms();
-  print(
-    `block_timestamp_ms raw=${raw} type=${typeof raw} isFinite=${Number.isFinite(raw)} isInt=${Number.isInteger(raw)} String=${String(raw)}`,
-  );
-  return BigInt(String(raw));
+  return BigInt(env.block_timestamp_ms());
 }
 
 export function authorize_deduction() {
