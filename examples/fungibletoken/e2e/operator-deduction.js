@@ -17,12 +17,14 @@ function store_auth(user, operator, entry) {
   env.set_data(auth_key(user, operator), JSON.stringify(entry));
 }
 
-// Coerce the JS-side timestamp returned by the env binding into a BigInt
-// regardless of whether the binding hands us a Number, BigInt, or string.
-// Plain `BigInt(value)` throws RangeError on a fractional Number, which we've
-// seen happen on certain sandbox builds — going via string avoids that.
+// Diagnostic: log the raw timestamp value before any BigInt coercion so we
+// can see what the env binding hands us in CI.
 function timestamp_ms_as_bigint() {
-  return BigInt(String(env.block_timestamp_ms()));
+  const raw = env.block_timestamp_ms();
+  print(
+    `block_timestamp_ms raw=${raw} type=${typeof raw} isFinite=${Number.isFinite(raw)} isInt=${Number.isInteger(raw)} String=${String(raw)}`,
+  );
+  return BigInt(String(raw));
 }
 
 export function authorize_deduction() {
