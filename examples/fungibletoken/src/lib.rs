@@ -470,11 +470,6 @@ mod tests {
         assert_eq!(contract.ft_balance_of(alice()).0, 2_000);
     }
 
-    // Operator-deduction JS logic lives in e2e/operator-deduction.js and is
-    // exercised end-to-end via e2e/operator-deduction.test.js. We intentionally
-    // do NOT cover it with Rust unit tests — the contract logic is JS, so
-    // testing it through the sandbox + real JS engine is the source of truth.
-
     #[test]
     fn test_web4_get() {
         setup_test_env();
