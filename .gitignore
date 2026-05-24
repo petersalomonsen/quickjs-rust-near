@@ -21,3 +21,9 @@ example-contracts.car
 yarn-error.log
 *keypair.json
 package-lock.json
+
+# Artifacts dropped by the Spin install script when run from this directory
+/spin
+/LICENSE
+crt.pem
+spin.sig
