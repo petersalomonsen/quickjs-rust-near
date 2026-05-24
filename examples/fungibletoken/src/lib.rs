@@ -104,11 +104,10 @@ impl Contract {
             "clear_data",
             |ctx: i32, _this_val: i64, _argc: i32, argv: i32| -> i64 {
                 let key = arg_to_str(ctx, 0, argv);
-                let value = arg_to_str(ctx, 1, argv);
-                (*CONTRACT_REF_MUT).data_map.insert(&key, &value);
+                (*CONTRACT_REF_MUT).data_map.remove(&key);
                 0
             },
-            2,
+            1,
         );
 
         add_function_to_js(
