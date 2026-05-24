@@ -233,9 +233,18 @@ unsafe fn setup_quickjs() {
     add_function_to_js(
         "block_timestamp_ms",
         |_ctx: i32, _this_val: i64, _argc: i32, _argv: i32| -> i64 {
-            env::block_timestamp_ms() as i64
+            // QuickJS in WASM uses NaN-boxed JSValues (uint64 with tag in the
+            // upper 32 bits). A raw i64 returned here would be interpreted as
+            // a malformed float64 (NaN-ish), so we must encode the timestamp
+            // as a properly tagged float64 per quickjs.h __JS_NewFloat64:
+            //   JSValue = double_bits - (JS_FLOAT64_TAG_ADDEND << 32)
+            //   JS_FLOAT64_TAG_ADDEND = 0x7ff80000 - JS_TAG_FIRST + 1
+            //                         = 0x7ff80000 - (-11) + 1 = 0x7ff8000c
+            const FLOAT64_TAG_ADDEND_SHIFTED: u64 = 0x7ff8000c_00000000;
+            let bits = (env::block_timestamp_ms() as f64).to_bits();
+            bits.wrapping_sub(FLOAT64_TAG_ADDEND_SHIFTED) as i64
         },
-        1,
+        0,
     );
     add_function_to_js(
         "current_account_id",
