@@ -30,7 +30,7 @@ fn main() {
     );
     println!(
         "cargo:rustc-link-search=native={}",
-        Path::new(&dir).join("quickjs-2024-01-13").display()
+        Path::new(&dir).join("quickjs-2026-06-04").display()
     );
     println!("cargo:rustc-link-lib=static=quickjs");
     println!("cargo:rustc-link-lib=static=jseval");

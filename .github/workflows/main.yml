@@ -30,8 +30,8 @@ jobs:
             node_modules
             emsdk
             wabt-1.0.35
-            binaryen-version_116
-            quickjs-2024-01-13
+            binaryen-version_131
+            quickjs-2026-06-04
           key: ${{ runner.os }}-dependencies-${{ hashFiles('**/yarn.lock', '.devcontainer/install-dependencies.sh') }}
 
       - name: Install dependencies
@@ -57,14 +57,14 @@ jobs:
             node_modules
             emsdk
             wabt-1.0.35
-            binaryen-version_116
-            quickjs-2024-01-13
+            binaryen-version_131
+            quickjs-2026-06-04
           key: ${{ runner.os }}-dependencies-${{ hashFiles('**/yarn.lock', '.devcontainer/install-dependencies.sh') }}
 
       - name: Set up paths and Rust
         run: |
           echo "$HOME/.wasmtime/bin" >> $GITHUB_PATH
-          echo "$(pwd)/binaryen-version_116/bin" >> $GITHUB_PATH
+          echo "$(pwd)/binaryen-version_131/bin" >> $GITHUB_PATH
           echo "$(pwd)/wabt-1.0.35/bin" >> $GITHUB_PATH
           rustup target add wasm32-wasip1 
           rustup target add wasm32-unknown-unknown
@@ -100,14 +100,14 @@ jobs:
             node_modules
             emsdk
             wabt-1.0.35
-            binaryen-version_116
-            quickjs-2024-01-13
+            binaryen-version_131
+            quickjs-2026-06-04
           key: ${{ runner.os }}-dependencies-${{ hashFiles('**/yarn.lock', '.devcontainer/install-dependencies.sh') }}
 
       - name: Set up paths and Rust
         run: |
           echo "$HOME/.wasmtime/bin" >> $GITHUB_PATH
-          echo "$(pwd)/binaryen-version_116/bin" >> $GITHUB_PATH
+          echo "$(pwd)/binaryen-version_131/bin" >> $GITHUB_PATH
           echo "$(pwd)/wabt-1.0.35/bin" >> $GITHUB_PATH
           rustup target add wasm32-wasip1 
           rustup target add wasm32-unknown-unknown
@@ -143,14 +143,14 @@ jobs:
             node_modules
             emsdk
             wabt-1.0.35
-            binaryen-version_116
-            quickjs-2024-01-13
+            binaryen-version_131
+            quickjs-2026-06-04
           key: ${{ runner.os }}-dependencies-${{ hashFiles('**/yarn.lock', '.devcontainer/install-dependencies.sh') }}
 
       - name: Set up paths and Rust
         run: |
           echo "$HOME/.wasmtime/bin" >> $GITHUB_PATH
-          echo "$(pwd)/binaryen-version_116/bin" >> $GITHUB_PATH
+          echo "$(pwd)/binaryen-version_131/bin" >> $GITHUB_PATH
           echo "$(pwd)/wabt-1.0.35/bin" >> $GITHUB_PATH
           rustup target add wasm32-wasip1 
           rustup target add wasm32-unknown-unknown
@@ -186,14 +186,14 @@ jobs:
             node_modules
             emsdk
             wabt-1.0.35
-            binaryen-version_116
-            quickjs-2024-01-13
+            binaryen-version_131
+            quickjs-2026-06-04
           key: ${{ runner.os }}-dependencies-${{ hashFiles('**/yarn.lock', '.devcontainer/install-dependencies.sh') }}
 
       - name: Set up paths and Rust
         run: |
           echo "$HOME/.wasmtime/bin" >> $GITHUB_PATH
-          echo "$(pwd)/binaryen-version_116/bin" >> $GITHUB_PATH
+          echo "$(pwd)/binaryen-version_131/bin" >> $GITHUB_PATH
           echo "$(pwd)/wabt-1.0.35/bin" >> $GITHUB_PATH
           rustup target add wasm32-wasip1 
           rustup target add wasm32-unknown-unknown
@@ -226,14 +226,14 @@ jobs:
             node_modules
             emsdk
             wabt-1.0.35
-            binaryen-version_116
-            quickjs-2024-01-13
+            binaryen-version_131
+            quickjs-2026-06-04
           key: ${{ runner.os }}-dependencies-${{ hashFiles('**/yarn.lock', '.devcontainer/install-dependencies.sh') }}
 
       - name: Set up paths and Rust
         run: |
           echo "$HOME/.wasmtime/bin" >> $GITHUB_PATH
-          echo "$(pwd)/binaryen-version_116/bin" >> $GITHUB_PATH
+          echo "$(pwd)/binaryen-version_131/bin" >> $GITHUB_PATH
           echo "$(pwd)/wabt-1.0.35/bin" >> $GITHUB_PATH
           echo "$(pwd)/bin" >> $GITHUB_PATH
           rustup target add wasm32-wasip1
@@ -282,14 +282,14 @@ jobs:
             node_modules
             emsdk
             wabt-1.0.35
-            binaryen-version_116
-            quickjs-2024-01-13
+            binaryen-version_131
+            quickjs-2026-06-04
           key: ${{ runner.os }}-dependencies-${{ hashFiles('**/yarn.lock', '.devcontainer/install-dependencies.sh') }}
 
       - name: Set up paths and Rust
         run: |
           echo "$HOME/.wasmtime/bin" >> $GITHUB_PATH
-          echo "$(pwd)/binaryen-version_116/bin" >> $GITHUB_PATH
+          echo "$(pwd)/binaryen-version_131/bin" >> $GITHUB_PATH
           echo "$(pwd)/wabt-1.0.35/bin" >> $GITHUB_PATH
           rustup target add wasm32-wasip1 
           rustup target add wasm32-unknown-unknown
@@ -323,14 +323,14 @@ jobs:
             node_modules
             emsdk
             wabt-1.0.35
-            binaryen-version_116
-            quickjs-2024-01-13
+            binaryen-version_131
+            quickjs-2026-06-04
           key: ${{ runner.os }}-dependencies-${{ hashFiles('**/yarn.lock', '.devcontainer/install-dependencies.sh') }}
 
       - name: Set up paths and Rust
         run: |
           echo "$HOME/.wasmtime/bin" >> $GITHUB_PATH
-          echo "$(pwd)/binaryen-version_116/bin" >> $GITHUB_PATH
+          echo "$(pwd)/binaryen-version_131/bin" >> $GITHUB_PATH
           echo "$(pwd)/wabt-1.0.35/bin" >> $GITHUB_PATH
           rustup target add wasm32-wasip1 
           rustup target add wasm32-unknown-unknown
@@ -362,14 +362,14 @@ jobs:
             node_modules
             emsdk
             wabt-1.0.35
-            binaryen-version_116
-            quickjs-2024-01-13
+            binaryen-version_131
+            quickjs-2026-06-04
           key: ${{ runner.os }}-dependencies-${{ hashFiles('**/yarn.lock', '.devcontainer/install-dependencies.sh') }}
 
       - name: Set up paths
         run: |
           echo "$HOME/.wasmtime/bin" >> $GITHUB_PATH
-          echo "$(pwd)/binaryen-version_116/bin" >> $GITHUB_PATH
+          echo "$(pwd)/binaryen-version_131/bin" >> $GITHUB_PATH
           echo "$(pwd)/wabt-1.0.35/bin" >> $GITHUB_PATH
 
       - name: Run QuickJSLib Tests
@@ -400,14 +400,14 @@ jobs:
             node_modules
             emsdk
             wabt-1.0.35
-            binaryen-version_116
-            quickjs-2024-01-13
+            binaryen-version_131
+            quickjs-2026-06-04
           key: ${{ runner.os }}-dependencies-${{ hashFiles('**/yarn.lock', '.devcontainer/install-dependencies.sh') }}
 
       - name: Set up paths and Rust
         run: |
           echo "$HOME/.wasmtime/bin" >> $GITHUB_PATH
-          echo "$(pwd)/binaryen-version_116/bin" >> $GITHUB_PATH
+          echo "$(pwd)/binaryen-version_131/bin" >> $GITHUB_PATH
           echo "$(pwd)/wabt-1.0.35/bin" >> $GITHUB_PATH
           rustup target add wasm32-wasip1 
           rustup target add wasm32-unknown-unknown

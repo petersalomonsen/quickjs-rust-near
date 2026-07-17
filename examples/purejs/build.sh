@@ -8,6 +8,6 @@ wasm2wat $WASM_FILENAME > purejs.wat
 OBJDUMP_DATA_SECTION=`wasm-objdump -h $WASM_FILENAME | grep "Data start"`
 node ./manipulatepurejswat.js "$OBJDUMP_DATA_SECTION"
 wat2wasm purejs.wat
-wasm-metadce -f meta-dce.json purejs.wasm -o purejs.wasm
+wasm-metadce --enable-sign-ext --enable-bulk-memory --enable-nontrapping-float-to-int --enable-mutable-globals -f meta-dce.json purejs.wasm -o purejs.wasm
 # Optimize the Wasm binary
-wasm-opt -Oz --signext-lowering purejs.wasm -o purejs.wasm
+wasm-opt --enable-sign-ext --enable-bulk-memory --enable-nontrapping-float-to-int --enable-mutable-globals --signext-lowering --llvm-nontrapping-fptoint-lowering --llvm-memory-copy-fill-lowering -Oz purejs.wasm -o purejs.wasm

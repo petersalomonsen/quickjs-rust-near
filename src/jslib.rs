@@ -239,8 +239,8 @@ unsafe fn setup_quickjs() {
             // as a properly tagged float64 per quickjs.h __JS_NewFloat64:
             //   JSValue = double_bits - (JS_FLOAT64_TAG_ADDEND << 32)
             //   JS_FLOAT64_TAG_ADDEND = 0x7ff80000 - JS_TAG_FIRST + 1
-            //                         = 0x7ff80000 - (-11) + 1 = 0x7ff8000c
-            const FLOAT64_TAG_ADDEND_SHIFTED: u64 = 0x7ff8000c_00000000;
+            //                         = 0x7ff80000 - (-9) + 1 = 0x7ff8000a
+            const FLOAT64_TAG_ADDEND_SHIFTED: u64 = 0x7ff8000a_00000000;
             let bits = (env::block_timestamp_ms() as f64).to_bits();
             bits.wrapping_sub(FLOAT64_TAG_ADDEND_SHIFTED) as i64
         },
