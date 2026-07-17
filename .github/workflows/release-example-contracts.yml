@@ -16,6 +16,7 @@ jobs:
 
       - name: Restore Cache
         uses: actions/cache@v4
+        id: cache-dependencies
         with:
           path: |
             ~/.wasmtime
@@ -27,6 +28,11 @@ jobs:
             binaryen-version_131
             quickjs-2026-06-04
           key: ${{ runner.os }}-dependencies-${{ hashFiles('**/yarn.lock', '.devcontainer/install-dependencies.sh') }}
+
+      - name: Install dependencies
+        if: steps.cache-dependencies.outputs.cache-hit != 'true'
+        run: |
+          ./.devcontainer/install-dependencies.sh
 
       - name: Set up paths and Rust
         run: |
