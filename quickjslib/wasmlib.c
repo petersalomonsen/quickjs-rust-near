@@ -8,7 +8,11 @@ extern void create_env();
 extern JSContext * get_js_context();
 extern uint64_t js_get_property(uint64_t obj, const char *name);
 extern const char *js_get_string(uint64_t val);
-extern int js_eval(char *filename, char *source, int module);
+extern uint64_t js_eval(char *filename, char *source, int module);
+extern void js_set_eval_deadline(double deadline_ms);
+extern void js_request_interrupt();
+extern void js_clear_interrupt();
+extern void js_set_memory_limit(unsigned long limit);
 extern uint64_t js_eval_bytecode(const char *buf, unsigned long buf_len);
 extern uint64_t js_load_bytecode(const char *buf, unsigned long buf_len);
 extern uint64_t js_call_function(uint64_t mod_obj, const char * function_name);
@@ -26,9 +30,29 @@ void __secs_to_zone(long long secs, int *p_offset, int *p_dst, long *p_time, lon
     *p_time_dst = secs;
 }
 
-int EMSCRIPTEN_KEEPALIVE eval_js_source(char *filename, char *source, int module)
+uint64_t EMSCRIPTEN_KEEPALIVE eval_js_source(char *filename, char *source, int module)
 {
     return js_eval(filename, source, module);
+}
+
+void EMSCRIPTEN_KEEPALIVE set_eval_deadline(double deadline_ms)
+{
+    js_set_eval_deadline(deadline_ms);
+}
+
+void EMSCRIPTEN_KEEPALIVE request_interrupt()
+{
+    js_request_interrupt();
+}
+
+void EMSCRIPTEN_KEEPALIVE clear_interrupt()
+{
+    js_clear_interrupt();
+}
+
+void EMSCRIPTEN_KEEPALIVE set_memory_limit(unsigned long limit)
+{
+    js_set_memory_limit(limit);
 }
 
 unsigned long EMSCRIPTEN_KEEPALIVE compile_to_bytecode(char *filename, char *source, unsigned long *buf_len, int module)

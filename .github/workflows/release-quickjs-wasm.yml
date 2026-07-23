@@ -1,0 +1,53 @@
+name: quickjs-wasm (quickjslib)
+
+on:
+  push:
+    tags:
+      - 'quickjs-wasm-v*'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'quickjslib/**'
+      - '.github/workflows/release-quickjs-wasm.yml'
+
+jobs:
+  build-test-publish:
+    name: Build, test and publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js 22.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install emsdk
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: 3.1.74
+
+      - name: Build jseval.wasm
+        run: ./quickjslib/build.sh
+
+      - name: Run tests
+        run: cd quickjslib && node --test 'js/*.test.js'
+
+      - name: Verify reproducible build
+        run: |
+          cd quickjslib
+          sha256sum jseval.wasm > first-build.sha256
+          rm -rf quickjs-2026-06-04 jseval.wasm libjseval.a libjseval.o
+          ./build.sh
+          sha256sum jseval.wasm
+          sha256sum --check first-build.sha256
+          rm first-build.sha256
+
+      - name: Publish to npm
+        if: startsWith(github.ref, 'refs/tags/quickjs-wasm-v')
+        run: cd quickjslib && npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
