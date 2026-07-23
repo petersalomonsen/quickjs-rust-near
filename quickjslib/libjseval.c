@@ -6,45 +6,6 @@ JSValue env;
 JSRuntime *rt = NULL;
 JSContext *ctx;
 
-/* Host-provided wall clock in milliseconds (imported from the wasm host).
-   The host JS thread is blocked while wasm runs, so a wall-clock deadline
-   checked from the interrupt handler is the way to bound runaway guest code
-   in single-threaded use. */
-extern double js_host_time_ms();
-
-static int interrupt_requested = 0;
-static double eval_deadline_ms = 0; /* 0 = no deadline */
-
-static int interrupt_handler(JSRuntime *rt, void *opaque)
-{
-    if (interrupt_requested)
-        return 1;
-    if (eval_deadline_ms > 0 && js_host_time_ms() >= eval_deadline_ms)
-        return 1;
-    return 0;
-}
-
-void js_set_eval_deadline(double deadline_ms)
-{
-    eval_deadline_ms = deadline_ms;
-}
-
-void js_request_interrupt()
-{
-    interrupt_requested = 1;
-}
-
-void js_clear_interrupt()
-{
-    interrupt_requested = 0;
-    eval_deadline_ms = 0;
-}
-
-void js_set_memory_limit(size_t limit)
-{
-    JS_SetMemoryLimit(rt, limit);
-}
-
 static JSValue js_print(JSContext *ctx, JSValueConst this_val,
                         int argc, JSValueConst *argv)
 {
@@ -70,7 +31,6 @@ void create_runtime()
 {
     rt = JS_NewRuntime();
     ctx = JS_NewContext(rt);
-    JS_SetInterruptHandler(rt, interrupt_handler, NULL);
 
     global_obj = JS_GetGlobalObject(ctx);
     JS_SetPropertyStr(ctx, global_obj, "print",
@@ -97,7 +57,7 @@ void js_std_loop_no_os(JSContext *ctx)
     }
 }
 
-JSValue js_eval(const char *filename, const char *source, int module)
+int js_eval(const char *filename, const char *source, int module)
 {
     int len = strlen(source);
 
@@ -112,7 +72,7 @@ JSValue js_eval(const char *filename, const char *source, int module)
         printf("%s\n", JS_ToCString(ctx, JS_GetException(ctx)));
     }
     js_std_loop_no_os(ctx);
-    return val;
+    return JS_VALUE_GET_INT(val);
 }
 
 uint8_t *js_compile_to_bytecode(const char *filename, const char *source, size_t *out_buf_len, int module)
