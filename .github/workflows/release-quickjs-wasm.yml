@@ -55,4 +55,6 @@ jobs:
         # (node 22 ships npm 10.x). Provenance is attested automatically.
         run: |
           npm install -g npm@latest
-          cd quickjslib && npm publish
+          npm --version
+          echo "OIDC token request URL available: ${ACTIONS_ID_TOKEN_REQUEST_URL:+yes}"
+          cd quickjslib && npm publish --loglevel http
