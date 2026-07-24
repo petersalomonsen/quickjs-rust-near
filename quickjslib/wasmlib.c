@@ -1,14 +1,16 @@
 #include <emscripten.h>
 #include <stdint.h>
+#include <stdio.h>
+#include <string.h>
 #include <time.h>
 #include "./quickjs.h"
 
 extern void create_runtime();
 extern void create_env();
+extern JSRuntime *rt;
 extern JSContext * get_js_context();
 extern uint64_t js_get_property(uint64_t obj, const char *name);
 extern const char *js_get_string(uint64_t val);
-extern int js_eval(char *filename, char *source, int module);
 extern uint64_t js_eval_bytecode(const char *buf, unsigned long buf_len);
 extern uint64_t js_load_bytecode(const char *buf, unsigned long buf_len);
 extern uint64_t js_call_function(uint64_t mod_obj, const char * function_name);
@@ -18,6 +20,45 @@ extern void js_std_loop_no_os(JSContext *ctx);
 extern void js_add_host_function(const char *name, JSCFunction *func, int length);
 extern void js_call_host_async(JSValue params, JSValue *resolving_functions);
 
+/* Host-provided wall clock in milliseconds (imported from the wasm host).
+   The host JS thread is blocked while wasm runs, so a wall-clock deadline
+   checked from the interrupt handler is the way to bound runaway guest code
+   in single-threaded use. */
+extern double js_host_time_ms();
+
+static int interrupt_requested = 0;
+static double eval_deadline_ms = 0; /* 0 = no deadline */
+
+static int interrupt_handler(JSRuntime *rt, void *opaque)
+{
+    if (interrupt_requested)
+        return 1;
+    if (eval_deadline_ms > 0 && js_host_time_ms() >= eval_deadline_ms)
+        return 1;
+    return 0;
+}
+
+void EMSCRIPTEN_KEEPALIVE set_eval_deadline(double deadline_ms)
+{
+    eval_deadline_ms = deadline_ms;
+}
+
+void EMSCRIPTEN_KEEPALIVE request_interrupt()
+{
+    interrupt_requested = 1;
+}
+
+void EMSCRIPTEN_KEEPALIVE clear_interrupt()
+{
+    interrupt_requested = 0;
+    eval_deadline_ms = 0;
+}
+
+void EMSCRIPTEN_KEEPALIVE set_memory_limit(unsigned long limit)
+{
+    JS_SetMemoryLimit(rt, limit);
+}
+
 void __secs_to_zone(long long secs, int *p_offset, int *p_dst, long *p_time, long *p_time_dst, long *t) {
     // Minimal implementation
     *p_offset = 0;
@@ -26,9 +67,24 @@ void __secs_to_zone(long long secs, int *p_offset, int *p_dst, long *p_time, lon
     *p_time_dst = secs;
 }
 
-int EMSCRIPTEN_KEEPALIVE eval_js_source(char *filename, char *source, int module)
+/* Unlike js_eval in libjseval.c (which returns the int-truncated value for
+   the NEAR contract ABI), this returns the full JSValue so floats, strings
+   and exceptions reach the host bindings. */
+uint64_t EMSCRIPTEN_KEEPALIVE eval_js_source(char *filename, char *source, int module)
 {
-    return js_eval(filename, source, module);
+    JSContext *ctx = get_js_context();
+    JSValue val = JS_Eval(ctx,
+                          source,
+                          strlen(source),
+                          filename,
+                          (module == 1 ? JS_EVAL_TYPE_MODULE : JS_EVAL_TYPE_GLOBAL));
+
+    if (JS_IsException(val) || JS_IsError(ctx, val))
+    {
+        printf("%s\n", JS_ToCString(ctx, JS_GetException(ctx)));
+    }
+    js_std_loop_no_os(ctx);
+    return val;
 }
 
 unsigned long EMSCRIPTEN_KEEPALIVE compile_to_bytecode(char *filename, char *source, unsigned long *buf_len, int module)
@@ -92,6 +148,7 @@ void EMSCRIPTEN_KEEPALIVE promise_callback(JSValue *resolving_functions, JSValue
 
 void EMSCRIPTEN_KEEPALIVE init() {
     create_runtime();
+    JS_SetInterruptHandler(rt, interrupt_handler, NULL);
     create_env();
     js_add_host_function("callHostAsync", call_host_async, 1);
 }

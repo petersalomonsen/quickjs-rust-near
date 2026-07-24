@@ -2,3 +2,6 @@
 *.a
 *.o
 *.o*
+quickjs-*/
+quickjs-*.tar.xz
+emsdk/

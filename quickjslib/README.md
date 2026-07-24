@@ -2,6 +2,12 @@
 
 This library provides a WebAssembly wrapper around the QuickJS JavaScript engine, allowing you to run JavaScript code in an isolated environment with bidirectional communication between the host and the sandboxed JavaScript.
 
+Published on npm as [`quickjs-wasm`](https://www.npmjs.com/package/quickjs-wasm):
+
+```bash
+npm install quickjs-wasm
+```
+
 ## Features
 
 - Run JavaScript code in a sandboxed environment
@@ -11,6 +17,13 @@ This library provides a WebAssembly wrapper around the QuickJS JavaScript engine
 - Call host functions from JavaScript
 - Support for asynchronous JavaScript code and Promises
 - Access JavaScript objects and properties
+- Protect the host against runaway guest code with memory limits and eval timeouts
+
+## The async model
+
+Guest `await` suspends at the JavaScript level *inside* QuickJS: when guest code calls an async host function, QuickJS parks the guest execution as a pending promise and the wasm call returns to the host. There is no Emscripten asyncify (or any stack switching) anywhere — the wasm stack fully unwinds on every host call. The host later resumes the guest by resolving the promise via `promise_callback`, which also runs QuickJS's pending-job loop. This is why `waitForPendingAsyncInvocations()` must be awaited before reading a promise result: it drains the host-side async invocations that resume the guest.
+
+Note that the host JS thread is blocked while wasm executes synchronous guest code — eval timeouts (see [Sandboxing untrusted code](#sandboxing-untrusted-code)) are enforced by a wall-clock check inside QuickJS's interrupt handler, not by preemption. If you need the host to stay responsive regardless of what the guest does, run the sandbox in a Worker.
 
 ## Basic Usage
 
@@ -135,16 +148,66 @@ if (result !== "Slept for 500 ms")
   throw new Error("Expected 'Slept for 500 ms', got " + result);
 ```
 
+### The host-function contract
+
+The pieces above fit together like this:
+
+1. The host registers functions in the `hostFunctions` registry: `quickjs.hostFunctions["name"] = async (params) => { ... }`.
+2. Guest code calls `env.callHostAsync({ function_name: "name", ...params })` and awaits the result. `function_name` selects the entry in `hostFunctions`; the whole argument object is passed to the host function as an object handle — read values from it with `getObjectPropertyValue(params, "propertyName")`.
+3. The host function returns a QuickJS value handle (e.g. from `allocateJSstring`), or `null`/`undefined`. Internally the wrapper resolves the guest's promise via the wasm export `promise_callback(resolvingFunctions, result)`, which also runs QuickJS's pending-job loop so the guest continues past its `await`.
+4. Because host functions are async, the host must `await quickjs.waitForPendingAsyncInvocations()` before reading results with `getPromiseResult(promise)` — this drains all in-flight host invocations (including ones scheduled while draining).
+
+## Sandboxing untrusted code
+
+Untrusted guest code can attempt to hang the host (`while(true){}`) or exhaust memory. Both can be bounded:
+
+```javascript
+const quickjs = await createQuickJS();
+
+// Cap how much memory the QuickJS runtime may allocate (bytes)
+quickjs.setMemoryLimit(16 * 1024 * 1024);
+
+// An allocation bomb now fails inside the sandbox instead of killing the host
+try {
+  quickjs.evalSource("new Array(1e9).fill(0);");
+  throw new Error("expected the allocation to fail");
+} catch (e) {
+  if (!e.message.includes("out of memory")) throw e;
+}
+
+// The third parameter of evalSource is a timeout in milliseconds
+try {
+  quickjs.evalSource("while(true){}", "<evalsource>", 100);
+  throw new Error("expected the eval to be interrupted");
+} catch (e) {
+  if (!e.message.includes("interrupted")) throw e;
+}
+
+// The sandbox is still fully usable afterwards
+const result = quickjs.evalSource("42;");
+if (result !== 42) throw new Error("Expected 42, got " + result);
+```
+
+`callModFunction(mod, functionName, timeoutMs)` and `evalByteCode(bytecode, timeoutMs)` accept the same timeout parameter. The timeout is enforced by a wall-clock check in QuickJS's interrupt handler, so it also covers pending jobs executed at the end of the call. It does *not* cover guest code resumed later by an async host-function response; `requestInterrupt()` can be called from a host function to terminate the guest when it next resumes.
+
+When an eval fails — an exception thrown by guest code, an interrupted eval, or an exceeded memory limit — the wrapper throws an `Error` whose message is the QuickJS exception message.
+
 ## API Reference
 
 ### Core Functions
 
 - `createQuickJS()`: Creates a new QuickJS instance
-- `evalSource(code, filename?)`: Evaluates JavaScript code
+- `evalSource(code, filename?, timeoutMs?)`: Evaluates JavaScript code
 - `compileToByteCode(code, filename?)`: Compiles JavaScript code to bytecode
-- `evalByteCode(bytecode)`: Executes bytecode
+- `evalByteCode(bytecode, timeoutMs?)`: Executes bytecode
 - `loadByteCode(bytecode)`: Loads a module from bytecode
-- `callModFunction(module, functionName)`: Calls a function in a module (note: arguments are not currently supported)
+- `callModFunction(module, functionName, timeoutMs?)`: Calls a function in a module (note: arguments are not currently supported)
+
+### Limits and interruption
+
+- `setMemoryLimit(bytes)`: Caps QuickJS runtime allocations; exceeding the cap throws an "out of memory" exception inside the sandbox
+- `timeoutMs` parameters: interrupt the guest with an "interrupted" exception once the wall-clock deadline passes
+- `requestInterrupt()`: Requests that the guest is interrupted at its next resumption (useful from async host functions); cleared when the next timeout-guarded call completes
 
 ### Promise Handling
 
@@ -158,7 +221,15 @@ if (result !== "Slept for 500 ms")
 
 ### Host Function Integration
 
-- `hostFunctions`: Object to register functions that can be called from JavaScript via `env.callHostAsync()`
+- `hostFunctions`: Object to register functions that can be called from JavaScript via `env.callHostAsync()` (see [The host-function contract](#the-host-function-contract))
+
+### Value conversion
+
+Return values from the sandbox are converted to host values: integers, floats, booleans, strings (UTF-8 safe), `null` and `undefined` map to their host equivalents; objects (including promises and module handles) are returned as opaque `bigint` handles for use with `getObjectPropertyValue`/`getPromiseResult`/`callModFunction`.
+
+## Building from source
+
+`./build.sh` produces `jseval.wasm`. It downloads a pinned QuickJS release (2026-06-04) and uses `emcc` from the PATH, bootstrapping a pinned emsdk if none is installed. The build is reproducible: two clean builds with the same toolchain produce byte-identical wasm.
 
 ## Examples
 
