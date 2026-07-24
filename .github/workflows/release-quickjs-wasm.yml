@@ -24,7 +24,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-          registry-url: 'https://registry.npmjs.org'
+          # No registry-url here: it would write an .npmrc with an
+          # _authToken placeholder, which makes npm use (broken) token auth
+          # instead of the OIDC exchange for trusted publishing.
 
       - name: Install emsdk
         uses: mymindstorm/setup-emsdk@v14
