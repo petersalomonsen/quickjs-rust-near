@@ -16,6 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      id-token: write # for npm trusted publishing (OIDC)
     steps:
       - uses: actions/checkout@v4
 
@@ -48,6 +49,8 @@ jobs:
 
       - name: Publish to npm
         if: startsWith(github.ref, 'refs/tags/quickjs-wasm-v')
-        run: cd quickjslib && npm publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        # Trusted publishing (OIDC): no token needed, but requires npm >= 11.5.1
+        # (node 22 ships npm 10.x). Provenance is attested automatically.
+        run: |
+          npm install -g npm@latest
+          cd quickjslib && npm publish
