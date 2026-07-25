@@ -29,6 +29,28 @@ See the entire build process in [build.rs](./build.rs).
 
 In the Rust part, there are contract implementations exposing functions for submitting JavaScript code. Both in the internal bytecode format of QuickJS, and pure JS source code.
 
+# quickjs-wasm: standalone JavaScript sandbox on npm
+
+The QuickJS WebAssembly wrapper in [quickjslib](./quickjslib/) is also published on its own as [`quickjs-wasm`](https://www.npmjs.com/package/quickjs-wasm), for running untrusted JavaScript in an isolated sandbox in the browser or in Node - without any NEAR smart contract involved. The guest has no access to the host page or process: no `fetch`, no DOM, no filesystem, only the host functions you explicitly expose.
+
+```bash
+npm install quickjs-wasm
+```
+
+```javascript
+import { createQuickJS } from "quickjs-wasm";
+
+const quickjs = await createQuickJS();
+quickjs.setMemoryLimit(16 * 1024 * 1024);
+
+// third parameter is a timeout in milliseconds, so runaway code cannot hang the host
+const result = quickjs.evalSource("40 + 2;", "<evalsource>", 1000);
+```
+
+See the [package README](./quickjslib/README.md) for the full API: compiling to bytecode, calling into modules, the async host function contract (`env.callHostAsync`), and the limits API. The [WebAssembly Music](https://github.com/petersalomonsen/javascriptmusic) project uses it to sandbox user submitted song scripts.
+
+Releases are built and published from [this workflow](./.github/workflows/release-quickjs-wasm.yml) by pushing a `quickjs-wasm-v*` tag. The wasm build is reproducible ( pinned QuickJS and emsdk versions, verified byte-identical in CI ), and packages are published with [npm provenance](https://docs.npmjs.com/generating-provenance-statements) through trusted publishing.
+
 # Unit tests running in WebAssembly
 
 While it's common and more straightforward for NEAR smart contracts and many other Rust WebAssembly projects, to have their unit tests compiled to the native platform, this project runs the unit test in a WebAssembly runtime. The reason for this is because of the static libraries compiled from C, which are already targeting Wasm. One limitation when running tests inside the Wasm runtime is that you cannot catch panics, and so testing the error messages has to be done in the end-2-end tests
