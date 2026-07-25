@@ -67,6 +67,40 @@ void __secs_to_zone(long long secs, int *p_offset, int *p_dst, long *p_time, lon
     *p_time_dst = secs;
 }
 
+/* Prints the pending exception for the host to pick up from stdout. The
+   message has to be formatted with an allocation, which is exactly what
+   fails when the runtime is out of memory, so fall back to a fixed string
+   rather than printing "(null)". */
+static void print_exception(JSContext *ctx)
+{
+    JSValue exception = JS_GetException(ctx);
+    const char *str;
+
+    /* QuickJS throws JS_NULL when it cannot even allocate the error object
+       ("out of memory: throw JS_NULL to avoid recursing" in quickjs.c), and
+       formatting a message needs an allocation too - so under memory
+       exhaustion both degrade to a message the host cannot use. Report the
+       same text QuickJS uses when it does manage to build the error. */
+    if (JS_IsNull(exception))
+    {
+        printf("InternalError: out of memory\n");
+        JS_FreeValue(ctx, exception);
+        return;
+    }
+
+    str = JS_ToCString(ctx, exception);
+    if (str)
+    {
+        printf("%s\n", str);
+        JS_FreeCString(ctx, str);
+    }
+    else
+    {
+        printf("InternalError: out of memory\n");
+    }
+    JS_FreeValue(ctx, exception);
+}
+
 /* Unlike js_eval in libjseval.c (which returns the int-truncated value for
    the NEAR contract ABI), this returns the full JSValue so floats, strings
    and exceptions reach the host bindings. */
@@ -81,7 +115,7 @@ uint64_t EMSCRIPTEN_KEEPALIVE eval_js_source(char *filename, char *source, int m
 
     if (JS_IsException(val) || JS_IsError(ctx, val))
     {
-        printf("%s\n", JS_ToCString(ctx, JS_GetException(ctx)));
+        print_exception(ctx);
     }
     js_std_loop_no_os(ctx);
     return val;
@@ -115,6 +149,22 @@ uint64_t EMSCRIPTEN_KEEPALIVE get_js_obj_property(uint64_t obj, const char *name
 const char* EMSCRIPTEN_KEEPALIVE get_js_string(uint64_t val)
 {
     return js_get_string(val);
+}
+
+/* Releases a string obtained from get_js_string. JS_ToCString allocates a
+   copy that the caller owns, so without this every string returned to the
+   host grows the QuickJS heap for the lifetime of the instance. */
+void EMSCRIPTEN_KEEPALIVE free_js_string(const char *str)
+{
+    JS_FreeCString(get_js_context(), str);
+}
+
+/* Releases a buffer obtained from compile_to_bytecode. JS_WriteObject
+   allocates it with the QuickJS allocator, so it needs js_free rather than
+   the libc free exported for host allocations. */
+void EMSCRIPTEN_KEEPALIVE free_js_bytecode(uint8_t *buf)
+{
+    js_free(get_js_context(), buf);
 }
 
 const JSValue EMSCRIPTEN_KEEPALIVE new_js_string(const char *str)

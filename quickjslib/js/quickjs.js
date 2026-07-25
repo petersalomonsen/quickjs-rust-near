@@ -112,7 +112,10 @@ class QuickJS {
   allocateString(str) {
     const instance = this.wasmInstance;
     const encoded = textEncoder.encode(str);
-    const straddr = instance.malloc(encoded.length + 1);
+    const straddr = this.checkAllocation(
+      instance.malloc(encoded.length + 1),
+      encoded.length + 1,
+    );
     const buf = new Uint8Array(
       instance.memory.buffer,
       straddr,
@@ -134,6 +137,37 @@ class QuickJS {
     const memorybuf = new Uint8Array(this.wasmInstance.memory.buffer);
     const end = memorybuf.indexOf(0, ptr);
     return textDecoder.decode(memorybuf.subarray(ptr, end));
+  }
+
+  /**
+   * Allocates C strings for the duration of `fn` and frees them afterwards.
+   * QuickJS copies what it is handed here - sources are consumed during
+   * compilation, filenames and property names become interned atoms - so
+   * nothing needs to outlive the call.
+   */
+  withStrings(strings, fn) {
+    const ptrs = strings.map((str) => this.allocateString(str));
+    try {
+      return fn(...ptrs);
+    } finally {
+      for (const ptr of ptrs) {
+        this.wasmInstance.free(ptr);
+      }
+    }
+  }
+
+  /**
+   * Allocates a buffer for the duration of `fn` and frees it afterwards.
+   * Safe for bytecode: JS_ReadObject duplicates the buffer unless it is
+   * given JS_READ_OBJ_ROM_DATA, which this library never does.
+   */
+  withBuf(binarydata, fn) {
+    const { addr, len } = this.allocateBuf(binarydata);
+    try {
+      return fn(addr, len);
+    } finally {
+      this.wasmInstance.free(addr);
+    }
   }
 
   /**
@@ -170,21 +204,22 @@ class QuickJS {
   evalSource(src, modulefilename = "<evalsource>", timeoutMs = 0) {
     const instance = this.wasmInstance;
     return this.withEvalDeadline(timeoutMs, () =>
-      this.convertReturnValue(
-        instance.eval_js_source(
-          this.allocateString(modulefilename),
-          this.allocateString(src),
-          modulefilename != "<evalsource>",
+      this.withStrings([modulefilename, src], (filenameptr, srcptr) =>
+        this.convertReturnValue(
+          instance.eval_js_source(
+            filenameptr,
+            srcptr,
+            modulefilename != "<evalsource>",
+          ),
         ),
       ),
     );
   }
 
   getObjectPropertyValue(jsval, propertyname) {
-    return this.convertReturnValue(
-      this.wasmInstance.get_js_obj_property(
-        jsval,
-        this.allocateString(propertyname),
+    return this.withStrings([propertyname], (nameptr) =>
+      this.convertReturnValue(
+        this.wasmInstance.get_js_obj_property(jsval, nameptr),
       ),
     );
   }
@@ -216,8 +251,14 @@ class QuickJS {
       case JS_TAG_BOOL:
         return BigInt.asIntN(32, jsval) !== 0n;
       case JS_TAG_STRING:
-      case JS_TAG_STRING_ROPE:
-        return this.ptrToString(this.wasmInstance.get_js_string(jsval));
+      case JS_TAG_STRING_ROPE: {
+        const strptr = this.wasmInstance.get_js_string(jsval);
+        try {
+          return this.ptrToString(strptr);
+        } finally {
+          this.wasmInstance.free_js_string(strptr);
+        }
+      }
       case JS_TAG_OBJECT:
         return jsval;
       case JS_TAG_NULL:
@@ -232,9 +273,26 @@ class QuickJS {
     }
   }
 
+  /**
+   * The wasm linear memory is a fixed size and cannot grow, so malloc
+   * returns 0 once it is exhausted. Writing at that address would silently
+   * corrupt the low end of the heap, so fail loudly instead.
+   */
+  checkAllocation(addr, size) {
+    if (addr === 0) {
+      throw new Error(
+        `QuickJS sandbox out of memory: could not allocate ${size} bytes`,
+      );
+    }
+    return addr;
+  }
+
   allocateBuf(binarydata) {
     const instance = this.wasmInstance;
-    const bufaddr = instance.malloc(binarydata.length);
+    const bufaddr = this.checkAllocation(
+      instance.malloc(binarydata.length),
+      binarydata.length,
+    );
     const buf = new Uint8Array(
       instance.memory.buffer,
       bufaddr,
@@ -247,50 +305,56 @@ class QuickJS {
   }
 
   loadByteCode(bytecode) {
-    const { addr, len } = this.allocateBuf(bytecode);
-    return this.wasmInstance.load_js_bytecode(addr, len);
+    return this.withBuf(bytecode, (addr, len) =>
+      this.wasmInstance.load_js_bytecode(addr, len),
+    );
   }
 
   callModFunction(mod, functionname, timeoutMs = 0) {
     return this.withEvalDeadline(timeoutMs, () =>
-      this.convertReturnValue(
-        this.wasmInstance.call_js_function(
-          mod,
-          this.allocateString(functionname),
+      this.withStrings([functionname], (nameptr) =>
+        this.convertReturnValue(
+          this.wasmInstance.call_js_function(mod, nameptr),
         ),
       ),
     );
   }
 
   evalByteCode(bytecode, timeoutMs = 0) {
-    const { addr, len } = this.allocateBuf(bytecode);
     return this.withEvalDeadline(timeoutMs, () =>
-      this.convertReturnValue(this.wasmInstance.eval_js_bytecode(addr, len)),
+      this.withBuf(bytecode, (addr, len) =>
+        this.convertReturnValue(this.wasmInstance.eval_js_bytecode(addr, len)),
+      ),
     );
   }
 
   compileToByteCode(src, modulefilename = "<evalsource>") {
     const instance = this.wasmInstance;
-    const compiledbytecodebuflenptr = instance.malloc(4);
-    const compiledbytecodeaddr = instance.compile_to_bytecode(
-      this.allocateString(modulefilename),
-      this.allocateString(src),
-      compiledbytecodebuflenptr,
-      modulefilename != "<evalsource>",
-    );
-
-    const compiledbytecodebuflen = new Uint32Array(
-      instance.memory.buffer,
-      compiledbytecodebuflenptr,
-      4,
-    )[0];
-    console.log("len", compiledbytecodebuflen);
-
-    return new Uint8Array(
-      instance.memory.buffer,
-      compiledbytecodeaddr,
-      compiledbytecodebuflen,
-    );
+    const buflenptr = instance.malloc(4);
+    try {
+      return this.withStrings([modulefilename, src], (filenameptr, srcptr) => {
+        const bytecodeaddr = instance.compile_to_bytecode(
+          filenameptr,
+          srcptr,
+          buflenptr,
+          modulefilename != "<evalsource>",
+        );
+        const buflen = new Uint32Array(instance.memory.buffer, buflenptr, 1)[0];
+        try {
+          /* Copy out rather than returning a view: any later allocation that
+             grows the wasm memory detaches views into it. */
+          return new Uint8Array(
+            instance.memory.buffer,
+            bytecodeaddr,
+            buflen,
+          ).slice();
+        } finally {
+          instance.free_js_bytecode(bytecodeaddr);
+        }
+      });
+    } finally {
+      instance.free(buflenptr);
+    }
   }
 }
 

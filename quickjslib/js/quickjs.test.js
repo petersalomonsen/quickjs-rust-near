@@ -63,6 +63,28 @@ test("memory limit stops allocation bomb without killing the host", async () => 
   equal(quickjs.evalSource("1 + 1;"), 2);
 });
 
+test("gradual allocation hits the limit as a catchable exception", async () => {
+  const quickjs = await createQuickJS();
+  quickjs.setMemoryLimit(12 * 1024 * 1024);
+  throws(
+    () => quickjs.evalSource("const a = []; for (;;) a.push(new Array(1000));"),
+    /out of memory/,
+  );
+  equal(quickjs.evalSource("1 + 1;"), 2);
+});
+
+// Every crossing of the host boundary allocates inside the wasm heap, which
+// is a fixed 16.5MB and cannot grow. Without freeing those allocations this
+// exhausts the heap and traps partway through.
+test("repeated large evaluations do not exhaust the heap", async () => {
+  const quickjs = await createQuickJS();
+  const source = `/*${"x".repeat(100 * 1024)}*/ 42;`;
+  for (let n = 0; n < 150; n++) {
+    equal(quickjs.evalSource(source), 42);
+    equal(quickjs.evalByteCode(quickjs.compileToByteCode(source)), 42);
+  }
+});
+
 test("compile and run bytecode", async () => {
   const quickjs = await createQuickJS();
   const bytecode = await quickjs.compileToByteCode("42;");
