@@ -27,6 +27,8 @@ There is deliberately no disposal API. QuickJS's own garbage collector still run
 
 Creating a fresh instance per execution is also the stronger isolation property: no state carries over between untrusted scripts — no polluted prototypes, no globals stashed by a previous run, nothing observable from one script to the next.
 
+Instances are cheap. The wasm module is fetched and compiled once per page or process and then shared, so every `createQuickJS()` after the first only allocates a fresh linear memory — sharing a compiled `WebAssembly.Module` shares no state.
+
 Both users of this library work that way. In a NEAR smart contract the protocol instantiates the contract wasm per call and discards it afterwards. In [WebAssembly Music](https://github.com/petersalomonsen/javascriptmusic) `createQuickJS()` is called once per song compilation.
 
 If you need a long-lived JS environment shared by many scripts over time, use [quickjs-emscripten](https://github.com/justjake/quickjs-emscripten) instead — it manages value lifetimes explicitly.
