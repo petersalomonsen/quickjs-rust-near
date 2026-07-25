@@ -20,6 +20,7 @@
   "files": [
     "js/quickjs.js",
     "js/wasi.js",
-    "jseval.wasm"
+    "jseval.wasm",
+    "CHANGELOG.md"
   ]
 }
