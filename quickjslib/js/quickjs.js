@@ -30,6 +30,31 @@ const float64scratch = new DataView(new ArrayBuffer(8));
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();
 
+/* The compiled module is fetched and compiled once and then shared by every
+   instance. Each instance still gets its own fresh linear memory - sharing a
+   WebAssembly.Module shares no state whatsoever - so the one-sandbox-per-
+   execution model keeps its isolation while paying the ~900KB compile only
+   on the first createQuickJS() call. */
+let compiledModulePromise = null;
+
+function getCompiledModule() {
+  if (!compiledModulePromise) {
+    compiledModulePromise = (async () => {
+      const url = new URL("../jseval.wasm", import.meta.url);
+      const wasm =
+        url.protocol === "file:"
+          ? await (await import("fs/promises")).readFile(url)
+          : await fetch(url).then((r) => r.arrayBuffer());
+      return await WebAssembly.compile(wasm);
+    })().catch((e) => {
+      /* Do not cache a failed load, so a later call can retry. */
+      compiledModulePromise = null;
+      throw e;
+    });
+  }
+  return compiledModulePromise;
+}
+
 class QuickJS {
   constructor() {
     this.hostFunctions = {};
@@ -50,44 +75,33 @@ class QuickJS {
         this.stderrlines.push(data.join(" "));
         console.error(...data);
       };
-      const url = new URL("../jseval.wasm", import.meta.url);
-      const wasm =
-        url.protocol === "file:"
-          ? await (await import("fs/promises")).readFile(url)
-          : await fetch(url).then((r) => r.arrayBuffer());
-
-      const mod = (
-        await WebAssembly.instantiate(wasm, {
-          wasi_snapshot_preview1: this.wasi,
-          env: {
-            js_host_time_ms: () => Date.now(),
-            js_call_host_async: async (params, resolving_func) => {
-              this.pendingAsyncInvocations.push(
-                new Promise(async (resolvePendingInvocation) => {
-                  try {
-                    const hostFunctionName = this.getObjectPropertyValue(
-                      params,
-                      "function_name",
-                    );
-                    if (this.hostFunctions[hostFunctionName]) {
-                      const result =
-                        await this.hostFunctions[hostFunctionName](params);
-                      this.wasmInstance.promise_callback(
-                        resolving_func,
-                        result,
-                      );
-                    } else {
-                      this.wasmInstance.promise_callback(resolving_func, null);
-                    }
-                  } finally {
-                    resolvePendingInvocation();
+      const mod = await WebAssembly.instantiate(await getCompiledModule(), {
+        wasi_snapshot_preview1: this.wasi,
+        env: {
+          js_host_time_ms: () => Date.now(),
+          js_call_host_async: async (params, resolving_func) => {
+            this.pendingAsyncInvocations.push(
+              new Promise(async (resolvePendingInvocation) => {
+                try {
+                  const hostFunctionName = this.getObjectPropertyValue(
+                    params,
+                    "function_name",
+                  );
+                  if (this.hostFunctions[hostFunctionName]) {
+                    const result =
+                      await this.hostFunctions[hostFunctionName](params);
+                    this.wasmInstance.promise_callback(resolving_func, result);
+                  } else {
+                    this.wasmInstance.promise_callback(resolving_func, null);
                   }
-                }),
-              );
-            },
+                } finally {
+                  resolvePendingInvocation();
+                }
+              }),
+            );
           },
-        })
-      ).instance;
+        },
+      });
       this.wasi.init(mod);
       this.wasmInstance = mod.exports;
       this.wasmInstance.init();

@@ -7,6 +7,16 @@ test("evaluate js", async () => {
   equal(quickjs.evalSource("42;"), 42);
 });
 
+test("instances share no state", async () => {
+  const first = await createQuickJS();
+  const second = await createQuickJS();
+
+  first.evalSource("globalThis.secret = 42; Object.prototype.polluted = 1;");
+  equal(first.evalSource("globalThis.secret;"), 42);
+  equal(second.evalSource("typeof globalThis.secret;"), "undefined");
+  equal(second.evalSource("typeof ({}).polluted;"), "undefined");
+});
+
 test("evaluate js returning a float", async () => {
   const quickjs = await createQuickJS();
   equal(quickjs.evalSource("0.5;"), 0.5);
@@ -49,10 +59,7 @@ test("terminate an infinite loop via eval timeout", async () => {
 test("memory limit stops allocation bomb without killing the host", async () => {
   const quickjs = await createQuickJS();
   quickjs.setMemoryLimit(16 * 1024 * 1024);
-  throws(
-    () => quickjs.evalSource("new Array(1e9).fill(0);"),
-    /out of memory/,
-  );
+  throws(() => quickjs.evalSource("new Array(1e9).fill(0);"), /out of memory/);
   equal(quickjs.evalSource("1 + 1;"), 2);
 });
 
