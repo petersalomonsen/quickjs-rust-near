@@ -23,7 +23,7 @@ npm install quickjs-wasm
 
 This library is built for **short-lived, single-use JavaScript environments**: create an instance, run one untrusted script, throw the instance away.
 
-Values that are converted to host values — numbers, booleans, strings, `null` — are released as soon as they cross the boundary, as are the buffers and C strings each call allocates, so an instance can serve many evaluations without growing. What an instance does not reclaim on its own is object handles: they are returned to you as opaque `bigint`s and stay alive until you call `freeValue(handle)` or the instance is dropped. Whatever you do not release is reclaimed when the whole wasm instance is dropped and garbage collected by the host.
+**You are never required to release anything.** Dropping the instance reclaims all of it, and there is no disposal API you have to remember. Values converted to host values — numbers, booleans, strings, `null` — are released as they cross the boundary, along with the buffers and C strings each call allocates, so an instance can serve many evaluations without growing. Object handles are the one thing the library cannot release for you, because only you know when you have finished reading from one; they stay alive until the instance is dropped. `freeValue(handle)` exists for the rare run that produces handles in the hundreds of thousands, which would otherwise exhaust the instance's own heap before it finishes — it is an escape hatch, not an obligation.
 
 Creating a fresh instance per execution is also the stronger isolation property: no state carries over between untrusted scripts — no polluted prototypes, no globals stashed by a previous run, nothing observable from one script to the next.
 
@@ -234,7 +234,7 @@ The wasm linear memory is a fixed ~16.5MB and cannot grow, so that is the hard c
 
 - `getObjectPropertyValue(object, propertyName)`: Gets a property value from a JavaScript object
 - `allocateJSstring(string)`: Creates a JavaScript string in the QuickJS environment
-- `freeValue(handle)`: Releases an object handle returned by the sandbox (converted values are released automatically)
+- `freeValue(handle)`: Optionally releases an object handle early. Converted values are released automatically and handles are reclaimed when the instance is dropped, so this is only for runs that produce very many handles
 
 ### Host Function Integration
 
@@ -244,14 +244,18 @@ The wasm linear memory is a fixed ~16.5MB and cannot grow, so that is the hard c
 
 Return values from the sandbox are converted to host values: integers, floats, booleans, strings (UTF-8 safe), `null` and `undefined` map to their host equivalents; objects (including promises and module handles) are returned as opaque `bigint` handles for use with `getObjectPropertyValue`/`getPromiseResult`/`callModFunction`.
 
-Converted values are released automatically. Handles are not — they are yours until you call `freeValue(handle)`, since only you know when you have finished reading from one. For the one-script-per-instance model you can ignore this entirely; it matters when a single run produces many handles:
+Converted values are released automatically. Object handles are not, since only you know when you have finished reading from one — but releasing them is **optional**, and for the one-script-per-instance model you can ignore `freeValue` entirely. It earns its keep only when a single run produces very many handles, which would otherwise fill the instance's heap before the run is done:
 
 ```javascript
 const quickjs = await createQuickJS();
-const handle = quickjs.evalSource("({ answer: 42 });");
-const answer = quickjs.getObjectPropertyValue(handle, "answer");
-if (answer !== 42) throw new Error("Expected 42, got " + answer);
-quickjs.freeValue(handle);
+
+// freeValue is only worth calling when one run produces handles in bulk
+for (let n = 0; n < 1000; n++) {
+  const handle = quickjs.evalSource(`({ value: ${n} });`);
+  const value = quickjs.getObjectPropertyValue(handle, "value");
+  if (value !== n) throw new Error("Expected " + n + ", got " + value);
+  quickjs.freeValue(handle);
+}
 ```
 
 A failed compile throws rather than returning empty bytecode, so a source too large to compile is reported at `compileToByteCode` instead of surfacing later as a call on a broken module.
