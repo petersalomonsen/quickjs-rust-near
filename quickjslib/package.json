@@ -1,6 +1,6 @@
 {
   "name": "quickjs-wasm",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Execute javascript in a secure WebAssembly sandbox",
   "main": "js/quickjs.js",
   "type": "module",
