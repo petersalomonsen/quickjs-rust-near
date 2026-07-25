@@ -23,7 +23,13 @@ npm install quickjs-wasm
 
 This library is built for **short-lived, single-use JavaScript environments**: create an instance, run one untrusted script, throw the instance away.
 
-Values that are converted to host values — numbers, booleans, strings, `null` — are released as soon as they cross the boundary, as are the buffers and C strings each call allocates, so an instance can serve many evaluations without growing. What an instance does not reclaim on its own is object handles: they are returned to you as opaque `bigint`s and stay alive until you call `freeValue(handle)` or the instance is dropped. Whatever you do not release is reclaimed when the whole wasm instance is dropped and garbage collected by the host.
+There is deliberately no disposal API. Nothing has to be released and nothing has to be tracked: create an instance, run a script, drop it. The bindings free what they allocate as each call returns — sources, bytecode buffers, and the strings copied out to the host — so a single run can evaluate and compile as much as it likes without growing. Whatever is still held when you drop the instance goes with it.
+
+### What counts as a leak
+
+Some values are retained for the life of an instance: an object handle you were given, the function object behind a module call, the exception path in the pending-job loop. All of them are bounded per instance and reclaimed when it is dropped. **This library does not treat those as bugs.** A retention that can only be observed by keeping one instance alive across many scripts is out of scope, because that is precisely the mode this library tells you not to use it in.
+
+What *is* in scope is anything that scales with the work a single script does — sources, bytecode, strings crossing the boundary. Those are freed at the call boundary, because the wasm heap is a fixed ~16.5MB and is only reclaimed after the run finishes, so a run that leaks competes with itself.
 
 Creating a fresh instance per execution is also the stronger isolation property: no state carries over between untrusted scripts — no polluted prototypes, no globals stashed by a previous run, nothing observable from one script to the next.
 
@@ -210,6 +216,9 @@ The wasm linear memory is a fixed ~16.5MB and cannot grow, so that is the hard c
 
 ## API Reference
 
+TypeScript declarations ship with the package, so the distinction that matters most is visible at the call site: converted values (`number | string | boolean | null | undefined`) versus `JSHandle`, the opaque `bigint` reference to something still living inside the sandbox.
+
+
 ### Core Functions
 
 - `createQuickJS()`: Creates a new QuickJS instance
@@ -234,7 +243,8 @@ The wasm linear memory is a fixed ~16.5MB and cannot grow, so that is the hard c
 
 - `getObjectPropertyValue(object, propertyName)`: Gets a property value from a JavaScript object
 - `allocateJSstring(string)`: Creates a JavaScript string in the QuickJS environment
-- `freeValue(handle)`: Releases an object handle returned by the sandbox (converted values are released automatically)
+
+<sup>There is one escape hatch, which one-shot users never need: `freeValue(handle)` releases an object handle early. It exists only for a single run that produces handles in the hundreds of thousands, where they would otherwise fill the instance's heap before the run finishes. If you are wondering whether you should be calling it, you should not.</sup>
 
 ### Host Function Integration
 
@@ -244,17 +254,9 @@ The wasm linear memory is a fixed ~16.5MB and cannot grow, so that is the hard c
 
 Return values from the sandbox are converted to host values: integers, floats, booleans, strings (UTF-8 safe), `null` and `undefined` map to their host equivalents; objects (including promises and module handles) are returned as opaque `bigint` handles for use with `getObjectPropertyValue`/`getPromiseResult`/`callModFunction`.
 
-Converted values are released automatically. Handles are not — they are yours until you call `freeValue(handle)`, since only you know when you have finished reading from one. For the one-script-per-instance model you can ignore this entirely; it matters when a single run produces many handles:
+Converted values are released as they cross the boundary; handles are reclaimed when the instance is dropped. Neither requires anything from you.
 
-```javascript
-const quickjs = await createQuickJS();
-const handle = quickjs.evalSource("({ answer: 42 });");
-const answer = quickjs.getObjectPropertyValue(handle, "answer");
-if (answer !== 42) throw new Error("Expected 42, got " + answer);
-quickjs.freeValue(handle);
-```
-
-A failed compile throws rather than returning empty bytecode, so a source too large to compile is reported at `compileToByteCode` instead of surfacing later as a call on a broken module.
+A failed compile throws rather than returning empty bytecode, so a source too large or too broken to compile is reported at `compileToByteCode` instead of surfacing later as a call on a broken module.
 
 ## Building from source
 
