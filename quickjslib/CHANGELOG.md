@@ -5,6 +5,26 @@ called out explicitly here. A change to the return contract of a public
 function warrants a minor bump rather than a patch, so consumers pinning exact
 versions can tell an upgrade apart from a fix.
 
+## 0.0.5
+
+No behaviour changes — types and documentation only.
+
+- Ships TypeScript declarations (`js/quickjs.d.ts`). The distinction that
+  matters most in this API is now visible at the call site: converted values
+  (`number | string | boolean | null | undefined`) versus `JSHandle`, an opaque
+  reference to something still living inside the sandbox.
+- Ships this changelog.
+- The README states an explicit retention policy: a retention only observable
+  by keeping one instance alive across many scripts is not a bug, while
+  anything scaling with a single run's work is. Without a rule like that,
+  leak reports have no stopping point — an audit of the C entry points finds
+  bounded per-instance references in `js_call_function`, `js_load_bytecode`,
+  `js_std_loop_no_os` and `promise_callback`, none of which one-shot use can
+  observe.
+- `freeValue` is documented as an escape hatch rather than part of the model.
+  It was introduced in 0.0.4 with wording that read as a caller obligation,
+  which contradicts the one-sandbox-per-execution design.
+
 ## 0.0.4
 
 **Behaviour change — two functions now throw where they previously returned:**
