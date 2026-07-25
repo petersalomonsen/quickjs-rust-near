@@ -179,7 +179,7 @@ Untrusted guest code can attempt to hang the host (`while(true){}`) or exhaust m
 const quickjs = await createQuickJS();
 
 // Cap how much memory the QuickJS runtime may allocate (bytes)
-quickjs.setMemoryLimit(16 * 1024 * 1024);
+quickjs.setMemoryLimit(12 * 1024 * 1024);
 
 // An allocation bomb now fails inside the sandbox instead of killing the host
 try {
@@ -205,6 +205,8 @@ if (result !== 42) throw new Error("Expected 42, got " + result);
 `callModFunction(mod, functionName, timeoutMs)` and `evalByteCode(bytecode, timeoutMs)` accept the same timeout parameter. The timeout is enforced by a wall-clock check in QuickJS's interrupt handler, so it also covers pending jobs executed at the end of the call. It does *not* cover guest code resumed later by an async host-function response; `requestInterrupt()` can be called from a host function to terminate the guest when it next resumes.
 
 When an eval fails — an exception thrown by guest code, an interrupted eval, or an exceeded memory limit — the wrapper throws an `Error` whose message is the QuickJS exception message.
+
+The wasm linear memory is a fixed ~16.5MB and cannot grow, so that is the hard ceiling whatever limit you set. Running into it is still reported as a catchable `out of memory` exception and the instance stays usable, but keeping the limit below the ceiling makes the bound explicit and leaves room for the strings and buffers the host bindings allocate on the guest's behalf.
 
 ## API Reference
 
