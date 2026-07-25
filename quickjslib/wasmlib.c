@@ -159,6 +159,15 @@ void EMSCRIPTEN_KEEPALIVE free_js_string(const char *str)
     JS_FreeCString(get_js_context(), str);
 }
 
+/* Releases a JSValue the host received from one of the calls above. Those
+   all return a new reference, so a value the host has finished with - a
+   string it has already copied out, or an object handle it is done with -
+   has to be released or it stays alive for the lifetime of the instance. */
+void EMSCRIPTEN_KEEPALIVE free_js_value(uint64_t val)
+{
+    JS_FreeValue(get_js_context(), (JSValue)val);
+}
+
 /* Releases a buffer obtained from compile_to_bytecode. JS_WriteObject
    allocates it with the QuickJS allocator, so it needs js_free rather than
    the libc free exported for host allocations. */

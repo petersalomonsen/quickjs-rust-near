@@ -23,7 +23,7 @@ npm install quickjs-wasm
 
 This library is built for **short-lived, single-use JavaScript environments**: create an instance, run one untrusted script, throw the instance away.
 
-There is deliberately no disposal API. QuickJS's own garbage collector still runs inside the guest, but the host bindings do not clean up: the C strings allocated for every `evalSource`/`getObjectPropertyValue` call are never freed, and QuickJS values handed back to the host keep their references for the lifetime of the instance. Memory is reclaimed when the whole wasm instance is dropped and garbage collected by the host — not before. Keeping one instance alive across many evaluations in a long-running process will grow memory.
+Values that are converted to host values — numbers, booleans, strings, `null` — are released as soon as they cross the boundary, as are the buffers and C strings each call allocates, so an instance can serve many evaluations without growing. What an instance does not reclaim on its own is object handles: they are returned to you as opaque `bigint`s and stay alive until you call `freeValue(handle)` or the instance is dropped. Whatever you do not release is reclaimed when the whole wasm instance is dropped and garbage collected by the host.
 
 Creating a fresh instance per execution is also the stronger isolation property: no state carries over between untrusted scripts — no polluted prototypes, no globals stashed by a previous run, nothing observable from one script to the next.
 
@@ -234,6 +234,7 @@ The wasm linear memory is a fixed ~16.5MB and cannot grow, so that is the hard c
 
 - `getObjectPropertyValue(object, propertyName)`: Gets a property value from a JavaScript object
 - `allocateJSstring(string)`: Creates a JavaScript string in the QuickJS environment
+- `freeValue(handle)`: Releases an object handle returned by the sandbox (converted values are released automatically)
 
 ### Host Function Integration
 
@@ -242,6 +243,18 @@ The wasm linear memory is a fixed ~16.5MB and cannot grow, so that is the hard c
 ### Value conversion
 
 Return values from the sandbox are converted to host values: integers, floats, booleans, strings (UTF-8 safe), `null` and `undefined` map to their host equivalents; objects (including promises and module handles) are returned as opaque `bigint` handles for use with `getObjectPropertyValue`/`getPromiseResult`/`callModFunction`.
+
+Converted values are released automatically. Handles are not — they are yours until you call `freeValue(handle)`, since only you know when you have finished reading from one. For the one-script-per-instance model you can ignore this entirely; it matters when a single run produces many handles:
+
+```javascript
+const quickjs = await createQuickJS();
+const handle = quickjs.evalSource("({ answer: 42 });");
+const answer = quickjs.getObjectPropertyValue(handle, "answer");
+if (answer !== 42) throw new Error("Expected 42, got " + answer);
+quickjs.freeValue(handle);
+```
+
+A failed compile throws rather than returning empty bytecode, so a source too large to compile is reported at `compileToByteCode` instead of surfacing later as a call on a broken module.
 
 ## Building from source
 

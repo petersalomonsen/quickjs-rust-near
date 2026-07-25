@@ -257,6 +257,11 @@ class QuickJS {
           return this.ptrToString(strptr);
         } finally {
           this.wasmInstance.free_js_string(strptr);
+          /* The host owns this reference and has just copied the whole
+             string out, so nothing needs it any more. Object handles below
+             are different: they are handed to the caller, who releases them
+             with freeValue(). */
+          this.wasmInstance.free_js_value(jsval);
         }
       }
       case JS_TAG_OBJECT:
@@ -270,6 +275,19 @@ class QuickJS {
           this.stdoutlines[this.stdoutlines.length - 1] ??
             "Exception in QuickJS",
         );
+    }
+  }
+
+  /**
+   * Releases an object handle returned by evalSource/callModFunction/
+   * getPromiseResult/getObjectPropertyValue. Values converted to host
+   * values (numbers, strings, booleans, null) are released automatically;
+   * object handles are owned by the caller, because the caller is the only
+   * one who knows when it has finished reading from them.
+   */
+  freeValue(handle) {
+    if (typeof handle === "bigint") {
+      this.wasmInstance.free_js_value(handle);
     }
   }
 
@@ -305,6 +323,9 @@ class QuickJS {
   }
 
   loadByteCode(bytecode) {
+    if (!bytecode || bytecode.length === 0) {
+      throw new Error("Cannot load empty bytecode");
+    }
     return this.withBuf(bytecode, (addr, len) =>
       this.wasmInstance.load_js_bytecode(addr, len),
     );
@@ -340,6 +361,18 @@ class QuickJS {
           modulefilename != "<evalsource>",
         );
         const buflen = new Uint32Array(instance.memory.buffer, buflenptr, 1)[0];
+        /* A compile that fails - a syntax error, or a source large enough
+           that compiling it exhausts the heap - returns an empty buffer.
+           Without this the caller gets a zero-length "bytecode" that fails
+           much later, naming a guest function instead of the compile. */
+        if (bytecodeaddr === 0 || buflen === 0) {
+          throw new Error(
+            `Failed to compile ${modulefilename}: ${
+              this.stdoutlines[this.stdoutlines.length - 1] ??
+              "no bytecode produced"
+            }`,
+          );
+        }
         try {
           /* Copy out rather than returning a view: any later allocation that
              grows the wasm memory detaches views into it. */

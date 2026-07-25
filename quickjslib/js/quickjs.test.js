@@ -85,6 +85,42 @@ test("repeated large evaluations do not exhaust the heap", async () => {
   }
 });
 
+// Strings are fully copied out to the host, so the underlying JSValue has no
+// remaining reader. Retaining them meant a few tens of thousands of string
+// returns exhausted the heap.
+test("returned strings do not accumulate in the guest heap", async () => {
+  const quickjs = await createQuickJS();
+  for (let n = 0; n < 60000; n++) {
+    equal(
+      quickjs.evalSource(`"${"x".repeat(500)}${n}";`).length,
+      500 + `${n}`.length,
+    );
+  }
+});
+
+test("object handles can be released with freeValue", async () => {
+  const quickjs = await createQuickJS();
+  for (let n = 0; n < 300000; n++) {
+    const handle = quickjs.evalSource(`({a:${n}});`);
+    equal(quickjs.getObjectPropertyValue(handle, "a"), n);
+    quickjs.freeValue(handle);
+  }
+});
+
+// A compile that runs out of heap returns an empty buffer rather than
+// raising, which used to surface two calls later as "not a function".
+test("a compile that produces no bytecode throws", async () => {
+  const quickjs = await createQuickJS();
+  let src = "";
+  for (let i = 0; i < 20000; i++)
+    src += `export function f${i}() { return ${i}; }\n`;
+  throws(
+    () => quickjs.compileToByteCode(src, "generated.js"),
+    /Failed to compile generated.js/,
+  );
+  throws(() => quickjs.loadByteCode(new Uint8Array(0)), /empty bytecode/);
+});
+
 test("compile and run bytecode", async () => {
   const quickjs = await createQuickJS();
   const bytecode = await quickjs.compileToByteCode("42;");
