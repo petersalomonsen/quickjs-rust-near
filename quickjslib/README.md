@@ -19,6 +19,18 @@ npm install quickjs-wasm
 - Access JavaScript objects and properties
 - Protect the host against runaway guest code with memory limits and eval timeouts
 
+## Intended use: one sandbox per execution
+
+This library is built for **short-lived, single-use JavaScript environments**: create an instance, run one untrusted script, throw the instance away.
+
+There is deliberately no disposal API. QuickJS's own garbage collector still runs inside the guest, but the host bindings do not clean up: the C strings allocated for every `evalSource`/`getObjectPropertyValue` call are never freed, and QuickJS values handed back to the host keep their references for the lifetime of the instance. Memory is reclaimed when the whole wasm instance is dropped and garbage collected by the host — not before. Keeping one instance alive across many evaluations in a long-running process will grow memory.
+
+Creating a fresh instance per execution is also the stronger isolation property: no state carries over between untrusted scripts — no polluted prototypes, no globals stashed by a previous run, nothing observable from one script to the next.
+
+Both users of this library work that way. In a NEAR smart contract the protocol instantiates the contract wasm per call and discards it afterwards. In [WebAssembly Music](https://github.com/petersalomonsen/javascriptmusic) `createQuickJS()` is called once per song compilation.
+
+If you need a long-lived JS environment shared by many scripts over time, use [quickjs-emscripten](https://github.com/justjake/quickjs-emscripten) instead — it manages value lifetimes explicitly.
+
 ## The async model
 
 Guest `await` suspends at the JavaScript level *inside* QuickJS: when guest code calls an async host function, QuickJS parks the guest execution as a pending promise and the wasm call returns to the host. There is no Emscripten asyncify (or any stack switching) anywhere — the wasm stack fully unwinds on every host call. The host later resumes the guest by resolving the promise via `promise_callback`, which also runs QuickJS's pending-job loop. This is why `waitForPendingAsyncInvocations()` must be awaited before reading a promise result: it drains the host-side async invocations that resume the guest.
