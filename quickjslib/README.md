@@ -216,6 +216,9 @@ The wasm linear memory is a fixed ~16.5MB and cannot grow, so that is the hard c
 
 ## API Reference
 
+TypeScript declarations ship with the package, so the distinction that matters most is visible at the call site: converted values (`number | string | boolean | null | undefined`) versus `JSHandle`, the opaque `bigint` reference to something still living inside the sandbox.
+
+
 ### Core Functions
 
 - `createQuickJS()`: Creates a new QuickJS instance

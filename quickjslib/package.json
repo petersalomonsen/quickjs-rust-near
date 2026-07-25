@@ -3,6 +3,7 @@
   "version": "0.0.4",
   "description": "Execute javascript in a secure WebAssembly sandbox",
   "main": "js/quickjs.js",
+  "types": "js/quickjs.d.ts",
   "type": "module",
   "scripts": {
     "test": "node --test 'js/*.test.js'"
@@ -19,6 +20,7 @@
   "homepage": "https://github.com/petersalomonsen/quickjs-rust-near#readme",
   "files": [
     "js/quickjs.js",
+    "js/quickjs.d.ts",
     "js/wasi.js",
     "jseval.wasm",
     "CHANGELOG.md"
