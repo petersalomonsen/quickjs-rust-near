@@ -40,12 +40,15 @@ npm install quickjs-wasm
 ```javascript
 import { createQuickJS } from "quickjs-wasm";
 
+// one sandbox per untrusted script - run it, take the result, drop the instance
 const quickjs = await createQuickJS();
-quickjs.setMemoryLimit(16 * 1024 * 1024);
+quickjs.setMemoryLimit(12 * 1024 * 1024);
 
 // third parameter is a timeout in milliseconds, so runaway code cannot hang the host
 const result = quickjs.evalSource("40 + 2;", "<evalsource>", 1000);
 ```
+
+It is built for short-lived, single-use JavaScript environments rather than as a long-lived engine shared by many scripts: there is no disposal API, and memory is reclaimed when the instance is dropped. That is also what gives each untrusted script a guaranteed clean slate, and it is how both users of the library work - NEAR instantiates the contract wasm per call, and WebAssembly Music creates a sandbox per song compilation. See [Intended use: one sandbox per execution](./quickjslib/README.md#intended-use-one-sandbox-per-execution).
 
 See the [package README](./quickjslib/README.md) for the full API: compiling to bytecode, calling into modules, the async host function contract (`env.callHostAsync`), and the limits API. The [WebAssembly Music](https://github.com/petersalomonsen/javascriptmusic) project uses it to sandbox user submitted song scripts.
 
