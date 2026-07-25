@@ -361,6 +361,13 @@ pub fn compile_js(script: String, modulename: Option<String>) -> Vec<u8> {
             out_buf_len_ptr as i32,
             is_module,
         );
+        // JS_WriteObject returns NULL when the source did not compile. Without
+        // this the caller stores empty bytecode on chain and the failure only
+        // surfaces when someone later runs it - and the from_raw_parts below
+        // is undefined behaviour for a null pointer even at length zero.
+        if result_ptr == 0 || out_buf_len == 0 {
+            env::panic_str("Failed to compile JavaScript");
+        }
         result = slice::from_raw_parts(result_ptr as *mut u8, out_buf_len).to_vec();
     }
     return result;
