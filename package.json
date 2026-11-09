@@ -31,7 +31,7 @@
   "devDependencies": {
     "@near-js/jsonrpc-client": "^1.3.4",
     "@noble/curves": "^1.3.0",
-    "@playwright/test": "^1.49.1",
+    "@playwright/test": "~1.64.0",
     "@types/node": "^22.10.2",
     "@web/rollup-plugin-html": "^2.3.0",
     "chai": "^5.1.1",
