@@ -21,6 +21,9 @@ const JS_TAG_EXCEPTION = 6;
 const JS_TAG_SHORT_BIG_INT = 7;
 const JS_TAG_FLOAT64 = 8;
 
+/* JS_UNDEFINED as jseval.wasm's 32-bit build represents it. */
+const JS_UNDEFINED_VALUE = BigInt(JS_TAG_UNDEFINED) << 32n;
+
 /* jseval.wasm is a 32-bit build, so QuickJS NaN-boxes doubles: a float64
    JSValue is the raw double bits minus (addend << 32), which makes its
    "tag" (upper 32 bits) fall outside the enumerated tag range above. */
@@ -87,13 +90,15 @@ class QuickJS {
                     params,
                     "function_name",
                   );
-                  if (this.hostFunctions[hostFunctionName]) {
-                    const result =
-                      await this.hostFunctions[hostFunctionName](params);
-                    this.wasmInstance.promise_callback(resolving_func, result);
-                  } else {
-                    this.wasmInstance.promise_callback(resolving_func, null);
-                  }
+                  const result = this.hostFunctions[hostFunctionName]
+                    ? await this.hostFunctions[hostFunctionName](params)
+                    : null;
+                  /* null and undefined are not handles, and the export takes
+                     a 64-bit value. promise_callback owns what it is given. */
+                  this.wasmInstance.promise_callback(
+                    resolving_func,
+                    result ?? JS_UNDEFINED_VALUE,
+                  );
                 } finally {
                   resolvePendingInvocation();
                 }

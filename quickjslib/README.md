@@ -174,7 +174,7 @@ The pieces above fit together like this:
 
 1. The host registers functions in the `hostFunctions` registry: `quickjs.hostFunctions["name"] = async (params) => { ... }`.
 2. Guest code calls `env.callHostAsync({ function_name: "name", ...params })` and awaits the result. `function_name` selects the entry in `hostFunctions`; the whole argument object is passed to the host function as an object handle — read values from it with `getObjectPropertyValue(params, "propertyName")`.
-3. The host function returns a QuickJS value handle (e.g. from `allocateJSstring`), or `null`/`undefined`. Internally the wrapper resolves the guest's promise via the wasm export `promise_callback(resolvingFunctions, result)`, which also runs QuickJS's pending-job loop so the guest continues past its `await`.
+3. The host function returns a QuickJS value handle (e.g. from `allocateJSstring`), or `null`/`undefined`, which resolves the guest with `undefined`. A handle it returns is consumed, so it must be a new one for each call, never a handle it keeps using or the `params` it was given. Internally the wrapper resolves the guest's promise via the wasm export `promise_callback(resolvingFunctions, result)`, which also runs QuickJS's pending-job loop so the guest continues past its `await`.
 4. Because host functions are async, the host must `await quickjs.waitForPendingAsyncInvocations()` before reading results with `getPromiseResult(promise)` — this drains all in-flight host invocations (including ones scheduled while draining).
 
 ## Sandboxing untrusted code

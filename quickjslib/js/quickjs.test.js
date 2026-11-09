@@ -187,3 +187,80 @@ test("non-ASCII string round-trip through a host function", async () => {
 
   equal(quickjs.getPromiseResult(promise), "æøå 🎵 tilbake");
 });
+
+/* Runs `calls` host calls one after another, each answering with a string of
+   `chars` characters that the guest drops, and returns how many completed. */
+async function hostCallsCompleted(calls, chars) {
+  const quickjs = await createQuickJS();
+  const answer = "x".repeat(chars);
+  quickjs.hostFunctions["answer"] = async () =>
+    quickjs.allocateJSstring(answer);
+  const mod = quickjs.loadByteCode(
+    quickjs.compileToByteCode(
+      `export async function run() {
+        let done = 0;
+        for (let i = 0; i < ${calls}; i++) {
+          await env.callHostAsync({ function_name: "answer" });
+          done++;
+        }
+        return done;
+      }`,
+      "run.js",
+    ),
+  );
+  const promise = quickjs.callModFunction(mod, "run");
+  await quickjs.waitForPendingAsyncInvocations();
+  return quickjs.getPromiseResult(promise);
+}
+
+test("host call results do not accumulate in the guest heap", async () => {
+  // 150 MB in total, several times the wasm memory.
+  equal(await hostCallsCompleted(5000, 30000), 5000);
+});
+
+test("host calls themselves do not accumulate in the guest heap", async () => {
+  // About 340 bytes each used to stay behind, which ran out before this.
+  equal(await hostCallsCompleted(200000, 10), 200000);
+});
+
+test("host calls in flight together each get their own answer", async () => {
+  const quickjs = await createQuickJS();
+  const waiting = [];
+  quickjs.hostFunctions["echo"] = async (params) => {
+    const value = quickjs.getObjectPropertyValue(params, "value");
+    // Answers arrive in the reverse of the order they were asked.
+    await new Promise((resolve) => waiting.push(resolve));
+    return quickjs.allocateJSstring(value);
+  };
+  const mod = quickjs.loadByteCode(
+    quickjs.compileToByteCode(
+      `export async function run() {
+        return JSON.stringify(await Promise.all(["a", "b", "c"].map((value) =>
+          env.callHostAsync({ function_name: "echo", value }))));
+      }`,
+      "run.js",
+    ),
+  );
+  const promise = quickjs.callModFunction(mod, "run");
+  while (waiting.length) waiting.pop()();
+  await quickjs.waitForPendingAsyncInvocations();
+  equal(quickjs.getPromiseResult(promise), '["a","b","c"]');
+});
+
+test("a host function returning nothing resolves the guest with undefined", async () => {
+  const quickjs = await createQuickJS();
+  quickjs.hostFunctions["nothing"] = async () => null;
+  const mod = quickjs.loadByteCode(
+    quickjs.compileToByteCode(
+      `export async function run() {
+        const named = await env.callHostAsync({ function_name: "nothing" });
+        const missing = await env.callHostAsync({ function_name: "no_such_function" });
+        return JSON.stringify([typeof named, typeof missing]);
+      }`,
+      "run.js",
+    ),
+  );
+  const promise = quickjs.callModFunction(mod, "run");
+  await quickjs.waitForPendingAsyncInvocations();
+  equal(quickjs.getPromiseResult(promise), '["undefined","undefined"]');
+});
