@@ -190,18 +190,34 @@ uint64_t EMSCRIPTEN_KEEPALIVE get_promise_result(uint64_t promise)
 JSValue call_host_async(JSContext *ctx, JSValueConst this_val,
               int argc, JSValueConst *argv)
 {
-    JSValue promise, resolving_funcs[2];
+    JSValue promise;
+    /* On the heap, because the host answers after this frame is gone, and other
+       calls may be in flight by then. promise_callback releases it. */
+    JSValue *resolving_funcs = js_malloc(ctx, 2 * sizeof(JSValue));
+    if (!resolving_funcs)
+        return JS_EXCEPTION;
 
     promise = JS_NewPromiseCapability(ctx, resolving_funcs);
+    if (JS_IsException(promise))
+    {
+        js_free(ctx, resolving_funcs);
+        return promise;
+    }
     js_call_host_async(argv[0], resolving_funcs);
     return promise;
 }
 
+/* Answers a host call, which ends it: this owns `result` and the resolving
+   functions from here on. Holding on to either would keep every answer of a
+   run in the heap until the instance is dropped. */
 void EMSCRIPTEN_KEEPALIVE promise_callback(JSValue *resolving_functions, JSValue result)
 {
-    JSValue argv[1] = {result};
     JSContext *ctx = get_js_context();
-    JS_Call(ctx, resolving_functions[0], JS_UNDEFINED, 1, argv);
+    JS_FreeValue(ctx, JS_Call(ctx, resolving_functions[0], JS_UNDEFINED, 1, &result));
+    JS_FreeValue(ctx, result);
+    JS_FreeValue(ctx, resolving_functions[0]);
+    JS_FreeValue(ctx, resolving_functions[1]);
+    js_free(ctx, resolving_functions);
     js_std_loop_no_os(ctx);
 }
 

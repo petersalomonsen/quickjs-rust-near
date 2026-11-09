@@ -5,6 +5,25 @@ called out explicitly here. A change to the return contract of a public
 function warrants a minor bump rather than a patch, so consumers pinning exact
 versions can tell an upgrade apart from a fix.
 
+## 0.0.6
+
+**Behaviour change: a handle returned from a host function is now consumed.** A
+host function must return a new handle for each call (as `allocateJSstring`
+gives), never one it keeps using, or the `params` it was given.
+
+- Host calls no longer accumulate in the guest heap. Each kept its result and
+  resolving functions until the instance was dropped, so a script making many
+  calls, or receiving a lot of data, ran out of the 16 MB wasm memory however
+  small each answer was. This scaled with a single run's work, so it was a leak
+  under the retention policy, and 0.0.5 was wrong to list `promise_callback` as
+  bounded.
+- Host calls in flight together each get their own answer. The resolving
+  functions were read from a stack frame that had already returned, so
+  concurrent calls could overwrite each other's.
+- A host function returning `null` or `undefined`, as documented, and a call
+  naming no registered host function, now resolve the guest with `undefined`.
+  Both threw in the host and left the guest's promise unsettled.
+
 ## 0.0.5
 
 No behaviour changes — types and documentation only.
